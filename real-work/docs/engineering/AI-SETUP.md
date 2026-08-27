@@ -6,9 +6,9 @@ This document covers the repository AI workflow. Keep third-party tooling minima
 - Git
 - your supported coding-agent runtime (for example Claude Code or Codex)
 - Compound Engineering installed in that runtime
+- the `eli5` plugin is optional; `learning-gate` borrows its register but drives `ce-explain`, which ships with Compound Engineering
 
 Superpowers may already be installed globally. **Do not uninstall or modify it.** For this repository it is explicit opt-in only: installation/discovery alone must not trigger its lifecycle skills.
-- the `eli5` plugin is optional; `learning-gate` borrows its register but drives `ce-explain`, which ships with Compound Engineering
 
 ## 2. Compound Engineering — primary lifecycle
 
