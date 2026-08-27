@@ -23,7 +23,14 @@ mkdir -p "$ROOT/.claude"
 [ -f "$SET" ] || printf '{}\n' > "$SET"
 jq -e . "$SET" >/dev/null 2>&1 || { printf 'not valid JSON: %s\n' "$SET" >&2; exit 2; }
 
-CMD="GATE_GUARD_CONTRACT=$CONTRACT bash \"\$CLAUDE_PROJECT_DIR/.claude/skills/learning-gate/scripts/gate-guard.sh\""
+# $CLAUDE_PROJECT_DIR is preferred (Claude Code sets it at hook-fire time) but
+# not load-bearing: if it is ever unset or empty when the hook runs, the path
+# below would resolve to a bare "/.claude/..." and the guard would fail to
+# find itself — silently, since it's Bash's own "no such file" on a hook
+# invocation nothing surfaces. $ROOT, the absolute repo root known right now
+# at install time, is baked in as the fallback so there is no single point of
+# failure on that variable being populated correctly later.
+CMD="GATE_GUARD_CONTRACT=$CONTRACT bash \"\${CLAUDE_PROJECT_DIR:-$ROOT}/.claude/skills/learning-gate/scripts/gate-guard.sh\""
 
 TMPF="$(mktemp)"; trap 'rm -f "$TMPF"' EXIT
 jq --arg cmd "$CMD" '

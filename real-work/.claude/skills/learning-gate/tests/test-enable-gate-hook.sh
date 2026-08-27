@@ -11,7 +11,9 @@
 #   6. Emitted JSON is valid
 #   7. gate-guard.sh warns (exit 0) rather than blocking when the gate is missing
 #   8. gate-guard.sh finds its checker via sibling resolution, not $ROOT — so
-#      it still warns when cwd's repo has no learning-gate skill installed
+#      it still warns when run from a copy that shares no repo with the caller
+#   9. the installed command falls back to the install-time repo root when
+#      $CLAUDE_PROJECT_DIR is unset, instead of silently resolving to nothing
 
 set -uo pipefail
 
@@ -45,6 +47,7 @@ check "installs one entry"        "1"    "$(count "$SET")"
 check "preserves existing key"    "me"   "$(jq -r '.env.KEEP' "$SET" 2>/dev/null)"
 check "carries contract path"     "yes"  "$(cmdof "$SET" | grep -q 'GATE_GUARD_CONTRACT=docs/CONTRACT.md' && printf yes || printf no)"
 check "emits valid json"          "yes"  "$(jq -e . "$SET" >/dev/null 2>&1 && printf yes || printf no)"
+check "falls back to install-time root" "yes" "$(cmdof "$SET" | grep -qF '${CLAUDE_PROJECT_DIR:-'"$REPO"'}' && printf yes || printf no)"
 
 # 3 idempotent
 ( cd "$REPO" && bash "$ENABLE" --contract docs/CONTRACT.md >/dev/null 2>&1 )
@@ -56,17 +59,27 @@ check "still one entry"           "1"    "$(count "$SET")"
 check "updates contract path"     "yes"  "$(cmdof "$SET" | grep -q 'GATE_GUARD_CONTRACT=docs/OTHER.md' && printf yes || printf no)"
 
 # 7 guard warns, never blocks
-# $REPO deliberately has no .claude/skills/learning-gate installed in it — this
-# also exercises case 8 below, since $ROOT-relative CHECKER resolution would
-# never find the checker here.
+# $REPO deliberately has no .claude/skills/learning-gate installed in it.
 printf '# no record line here\n' > "$REPO/docs_contract.md"
 out="$( cd "$REPO" && GATE_GUARD_CONTRACT=docs_contract.md bash "$GUARD" 2>&1 )"; rc=$?
 check "guard exits 0 (warn only)" "0"    "$rc"
 check "guard mentions the gate"   "yes"  "$(printf '%s' "$out" | grep -qi 'understanding gate' && printf yes || printf no)"
 
-# 8 regression pin: sibling resolution, not $ROOT-relative (see gate-guard.sh comment)
-check "guard finds its checker even when cwd repo has no skill installed" \
-                                   "yes"  "$(printf '%s' "$out" | grep -qi 'understanding gate' && printf yes || printf no)"
+# 8 regression pin: sibling resolution, not $ROOT-relative (see gate-guard.sh
+# comment). Independent of case 7's fixture on purpose: copy the guard and
+# checker into a directory that shares no git repo with anything else in this
+# test, then invoke the copy from a third, unrelated cwd. Under the old
+# $ROOT-relative CHECKER lookup this fails to find the checker and prints
+# nothing; under sibling resolution it still finds it and warns.
+ISO="$TMP/iso"; mkdir -p "$ISO"
+cp "$GUARD" "$ISO/gate-guard.sh"
+cp "$TEST_DIR/../scripts/check-understanding.sh" "$ISO/check-understanding.sh"
+CONTRACT_ISO="$TMP/iso-contract.md"; printf '# no record line here\n' > "$CONTRACT_ISO"
+CWD3="$TMP/elsewhere"; mkdir -p "$CWD3"
+out8="$( cd "$CWD3" && GATE_GUARD_CONTRACT="$CONTRACT_ISO" bash "$ISO/gate-guard.sh" 2>&1 )"; rc8=$?
+check "iso guard exits 0 (warn only)" "0"   "$rc8"
+check "guard finds its checker via a copy sharing no repo with the caller" \
+                                   "yes"  "$(printf '%s' "$out8" | grep -qi 'understanding gate' && printf yes || printf no)"
 
 printf '\nPASS %d / FAIL %d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
