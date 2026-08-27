@@ -17,6 +17,11 @@
 #  10. a repo root containing a literal double quote is refused at install
 #      time (exit 2) rather than emitted into an unparsable hook command,
 #      and the settings file is left untouched
+#  11. a dangling `--contract` (no value following it) exits 2 instead of
+#      hanging (bash 3.2's `shift 2` no-ops on 1 arg left)
+#  12. an empty `--contract ""` is refused (exit 2, no settings file
+#      written) rather than installing a hook whose GATE_GUARD_CONTRACT is
+#      empty, which gate-guard.sh would then treat as permanently disabled
 
 set -uo pipefail
 
@@ -34,6 +39,24 @@ check() {
     pass=$((pass+1)); printf '  PASS  %s\n' "$name"
   else
     fail=$((fail+1)); printf '  FAIL  %s\n        expected: %s\n        actual:   %s\n' "$name" "$expected" "$actual"
+  fi
+}
+
+# Guards against a parser hang (dangling --contract spinning bash 3.2's
+# `shift 2` forever) with a wall-clock alarm, same pattern as
+# test-check-understanding.sh's run_guarded. macOS bash 3.2 ships no
+# `timeout` binary, so use perl's alarm to SIGALRM the exec'd process if it
+# runs too long. A process killed by that alarm reports as 124 rather than
+# whatever exit code it would have hit — either way a FAIL against the
+# expected exit-2 below, so a hang cannot block the suite from finishing.
+run_guarded() {
+  local rc
+  perl -e 'alarm 4; exec @ARGV' bash "$ENABLE" "$@" >/dev/null 2>&1
+  rc=$?
+  if [ "$rc" -gt 128 ]; then
+    printf '124'
+  else
+    printf '%s' "$rc"
   fi
 }
 
@@ -90,6 +113,20 @@ SETQ="$REPOQ/.claude/settings.local.json"
 ( cd "$REPOQ" && bash "$ENABLE" --contract docs/CONTRACT.md >/dev/null 2>&1 ); rcq=$?
 check "refuses unsafe repo root"              "2"   "$rcq"
 check "settings file not created for unsafe root" "no" "$( [ -e "$SETQ" ] && printf yes || printf no )"
+
+# 11 dangling --contract (no value) must exit 2, not hang
+REPO11="$TMP/repo11"; mkdir -p "$REPO11"; git -C "$REPO11" init -q
+SET11="$REPO11/.claude/settings.local.json"
+rc11="$( cd "$REPO11" && run_guarded --contract )"
+check "dangling --contract exits 2 without hanging" "2" "$rc11"
+check "dangling --contract writes no settings file" "no" "$( [ -e "$SET11" ] && printf yes || printf no )"
+
+# 12 empty --contract must be refused, not installed as a silent no-op
+REPO12="$TMP/repo12"; mkdir -p "$REPO12"; git -C "$REPO12" init -q
+SET12="$REPO12/.claude/settings.local.json"
+rc12="$( cd "$REPO12" && run_guarded --contract "" )"
+check "empty --contract exits 2" "2" "$rc12"
+check "empty --contract writes no settings file" "no" "$( [ -e "$SET12" ] && printf yes || printf no )"
 
 printf '\nPASS %d / FAIL %d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

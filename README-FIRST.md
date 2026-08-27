@@ -1,6 +1,6 @@
-# AI Workflow Kit v2.4 — Start Here
+# AI Workflow Kit v2.5 — Start Here
 
-Updated: 2026-08-11
+Updated: 2026-08-27
 
 Do **not** copy the whole `ai-workflow-kit/` directory into a project. It is a distribution bundle with separate test and real-work setups.
 
@@ -29,19 +29,26 @@ Absorb the following into the repository instead of nesting `ai-workflow-kit/`:
 │       ├── story-breakdown/      # Claude Code copy
 │       │   ├── SKILL.md
 │       │   └── EVALS.md          # optional validation material
-│       └── learning-gate/        # Claude Code copy; scripts live here for both runtimes
+│       ├── learning-gate/        # Claude Code copy; scripts live here for both runtimes
+│       │   ├── SKILL.md
+│       │   ├── EVALS.md
+│       │   ├── scripts/
+│       │   └── tests/
+│       └── usage-handoff/        # Claude Code copy; scripts live here for both runtimes
 │           ├── SKILL.md
-│           ├── EVALS.md
 │           ├── scripts/
+│           ├── templates/
 │           └── tests/
 ├── .agents/
 │   └── skills/
 │       ├── story-breakdown/      # Codex copy — keep in sync with .claude copy
 │       │   ├── SKILL.md
 │       │   └── EVALS.md
-│       └── learning-gate/        # Codex copy — SKILL.md and EVALS.md mirrored; no scripts
-│           ├── SKILL.md
-│           └── EVALS.md
+│       ├── learning-gate/        # Codex copy — SKILL.md and EVALS.md mirrored; no scripts
+│       │   ├── SKILL.md
+│       │   └── EVALS.md
+│       └── usage-handoff/        # Codex copy — SKILL.md mirrored; no scripts
+│           └── SKILL.md
 ├── docs/
 │   ├── product/
 │   │   └── PRD.md                # project-specific PRD; not supplied by the generic kit

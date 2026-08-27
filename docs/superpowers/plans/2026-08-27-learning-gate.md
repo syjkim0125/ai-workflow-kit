@@ -1,5 +1,7 @@
 # Learning Gate Implementation Plan
 
+> **Historical planning record — superseded during execution.** The shell code shown below (argument parsing, checker resolution, two insertion points) does not match what shipped; see `real-work/.claude/skills/learning-gate/` for the shipped code.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 키트의 인간 게이트 앞에 eli5-우선 3층 학습 아티팩트를 의무화하고, 그 통과 여부를 파일 존재로 검사 가능하게 만든다.

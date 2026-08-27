@@ -80,12 +80,18 @@ else
 fi
 
 SRC="$KIT/docs/engineering/AI-WORKFLOW-SOURCES.md"
-check "sources record ce-explain" "yes" "$(has "$SRC" "ce-explain")"
-check "sources record eli5" "yes" "$(has "$SRC" "eli5")"
-littnext() {
-  awk '/^- Geoffrey Litt/{f=1;next} f{print; exit}' "$1" 2>/dev/null
-}
-check "sources: Litt bullet keeps its own first URL" "  - https://youtu.be/iv60GIHpijE" "$(littnext "$SRC")"
+if [ -f "$SRC" ]; then
+  check "sources record ce-explain" "yes" "$(has "$SRC" "ce-explain")"
+  check "sources record eli5" "yes" "$(has "$SRC" "eli5")"
+  littnext() {
+    awk '/^- Geoffrey Litt/{f=1;next} f{print; exit}' "$1" 2>/dev/null
+  }
+  check "sources: Litt bullet keeps its own first URL" "  - https://youtu.be/iv60GIHpijE" "$(littnext "$SRC")"
+else
+  skipcheck "sources record ce-explain" "kit-only check: no AI-WORKFLOW-SOURCES.md in this absorption"
+  skipcheck "sources record eli5" "kit-only check: no AI-WORKFLOW-SOURCES.md in this absorption"
+  skipcheck "sources: Litt bullet keeps its own first URL" "kit-only check: no AI-WORKFLOW-SOURCES.md in this absorption"
+fi
 
 printf '\nPASS %d / FAIL %d / SKIP %d\n' "$pass" "$fail" "$skip"
 [ "$fail" -eq 0 ]

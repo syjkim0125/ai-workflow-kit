@@ -18,6 +18,8 @@ ends is a failure — it is interpretation, and the reveal is already spoiled.
 When the canonical contract is a Jira Story with no local file, the artifact is
 still written to `docs/understanding/` and the record line goes into the Jira
 issue. The Skill does not create a second local contract to hold the line.
+Verification then checks the artifact path directly (`[ -f docs/understanding/<slug>.html ]`)
+rather than running `check-understanding.sh --contract`, which requires a readable local file.
 
 ## 4. Trivial diff
 A one-line constant change must not trigger a full predict-then-reveal cycle. The
