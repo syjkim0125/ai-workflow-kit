@@ -1,5 +1,28 @@
 # Changelog
 
+## v2.5 — 2026-08-27
+
+### Understanding gates
+- Added `learning-gate` for both runtimes (`.claude/skills/learning-gate/`, `.agents/skills/learning-gate/`). It wraps Compound Engineering's `ce-explain` rather than reimplementing it, and borrows the `eli5` register as the mandatory first layer of every gate artifact.
+- Every gate artifact is three layers with explicit time budgets: ELI5 (one picture, ≤5 jargon-free sentences, 30s), Decision (what the human must decide, 3min), Density (runtime/data-flow, failure paths, what is unproven).
+- Gates placed on the existing risk axis rather than a new one: G1 before Acceptance approval (always), G4 before merge (skippable only as a recorded `N/A`), G3 at high-risk plan checkpoints, G5 at split-Story integration review. G2 and G6 deliberately have no gate.
+- G4 uses `ce-explain`'s predict-then-reveal: the owner predicts what the diff does before any interpretation is shown, and the reveal names the gaps. Layer 1's picture is interpretation, so in diff mode it appears only after the prediction.
+- New `templates/UNDERSTANDING.md` owns the layer contract, the per-gate slots, and the record-line grammar. The two skill mirrors stay thin so the sync burden does not grow.
+- G1 slot 3 — "what I decided because you did not say" — forces the unspecified-policies register into the human's field of view before approval.
+
+### Enforcement
+- Gates are satisfied by evidence, not prose: an artifact under `docs/understanding/` plus one record line in the canonical Acceptance artifact. Missing G1 line blocks `Draft` → `Approved`; missing G4 line blocks merge.
+- Added `check-understanding.sh`, a runtime-neutral checker that validates the record line and confirms the artifact file actually exists. Both runtimes run the single copy under `.claude/skills/learning-gate/scripts/`.
+- Artifacts stay repo-local even when the canonical contract lives in Jira, so verification never depends on an external system.
+- Added an opt-in, Claude-only `gate-guard` PreToolUse hook that wraps the same checker. It warns rather than blocks — a hook that misfires gets switched off, and a switched-off hook enforces nothing.
+- Replaced the unactionable prose in `AGENTS.md` ("quiz yourself against the change") and `AI-WORKFLOW.md` ("have the agent explain the change…") with the command that does it.
+- The structure test ships into consuming repos, where `README-FIRST.md` does not exist. Its two kit-only checks are reported as visible `SKIP` lines rather than failures, so an absorbing repo sees a clean run instead of a permanent red it cannot fix. (Summary line format is now `PASS n / FAIL n / SKIP n`.)
+- `enable-gate-hook.sh` refuses to install when the repo root or contract path contains a character that cannot be safely embedded in the hook command (`"`, `$`, or a backtick), exiting 2 and writing nothing, rather than emitting a command that fails to parse.
+
+### Repository
+- Added `README.md` in the eli5 register as the landing page; `README-FIRST.md` keeps ownership of the full distribution instructions.
+- Added structural consistency tests covering mirror parity and doc wiring — the kit's known failure mode is half-copied, drifted absorption.
+
 ## v2.4 — 2026-08-11
 
 ### Requirement intake and templates
