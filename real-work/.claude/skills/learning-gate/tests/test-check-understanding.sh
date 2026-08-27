@@ -12,6 +12,13 @@
 #   8. Gates are matched independently (G1 present, G4 absent)
 #   9. G2 and G6 are rejected as invalid gate ids
 #  10. Artifact path is resolved against --repo-root, not the cwd
+#  11. A flag with no value following it (e.g. `--gate` as the last arg)
+#      exits 4 instead of hanging (bash 3.2's `shift 2` no-ops on 1 arg left)
+#  12. Same, for a flag missing its value mid-invocation (`--contract` last)
+#  13. An artifact path containing spaces is accepted end-to-end
+#  14. A record-line-shaped substring appearing mid-line (e.g. quoted in
+#      prose) is not mistaken for a real record line
+#  15. Absolute artifact paths are supported
 
 set -uo pipefail
 
@@ -32,6 +39,25 @@ check() {
 }
 
 run() { bash "$SCRIPT" "$@" >/dev/null 2>&1; printf '%s' "$?"; }
+
+# Like run(), but guards against a parser hang (e.g. a regression of finding
+# 1: `shift 2` spinning forever when a flag's value is missing) with a
+# wall-clock alarm. macOS bash 3.2 ships no `timeout` binary, so use perl's
+# alarm to send SIGALRM into the exec'd process if it runs too long. A
+# process killed by that alarm reports as 124 (the conventional timeout
+# sentinel) rather than as whatever exit code it would have hit — either way
+# that is a FAIL against the expected exit-4 codes below, so a hang cannot
+# block the suite from finishing.
+run_guarded() {
+  local rc
+  perl -e 'alarm 5; exec @ARGV' bash "$SCRIPT" "$@" >/dev/null 2>&1
+  rc=$?
+  if [ "$rc" -gt 128 ]; then
+    printf '124'
+  else
+    printf '%s' "$rc"
+  fi
+}
 
 # fixture repo
 mkdir -p "$TMP/repo/docs/understanding"
@@ -89,6 +115,28 @@ check "G5 accepted as valid id" "0" "$(run --gate G5 --contract "$TMP/repo/CONTR
 mkcontract "Understanding gate (G1): $ART · 2026-08-27 · Check-in: accepted"
 cd "$TMP" || exit 1
 check "artifact resolved against --repo-root" "0" "$(run --gate G1 --contract "$TMP/repo/CONTRACT.md" --repo-root "$TMP/repo")"
+
+# 11 missing value for a flag (last argument) must exit 4, not hang
+mkcontract "Understanding gate (G1): $ART · 2026-08-27 · Check-in: accepted"
+check "--gate with no value exits 4 without hanging" "4" "$(run_guarded --gate)"
+
+# 12 missing value for a different flag, also as the last argument
+check "--contract with no value exits 4 without hanging" "4" "$(run_guarded --gate G1 --contract)"
+
+# 13 artifact path containing a space is accepted
+SPACE_ART="docs/understanding/2026-08-27 my thing.html"
+printf '<html></html>\n' > "$TMP/repo/$SPACE_ART"
+mkcontract "Understanding gate (G1): $SPACE_ART · 2026-08-27 · Check-in: accepted"
+check "artifact path with a space is accepted" "0" "$(run --gate G1 --contract "$TMP/repo/CONTRACT.md" --repo-root "$TMP/repo")"
+
+# 14 a record-line-shaped substring appearing mid-line is not a candidate
+mkcontract "For example: Understanding gate (G1): $ART · 2026-01-01 · Check-in: yes"
+check "quoted example mid-line is not treated as a record line" "1" "$(run --gate G1 --contract "$TMP/repo/CONTRACT.md" --repo-root "$TMP/repo")"
+
+# 15 absolute artifact paths are supported
+ABS_ART="$TMP/repo/$ART"
+mkcontract "Understanding gate (G1): $ABS_ART · 2026-08-27 · Check-in: accepted"
+check "absolute artifact path is supported" "0" "$(run --gate G1 --contract "$TMP/repo/CONTRACT.md" --repo-root "$TMP/repo")"
 
 printf '\nPASS %d / FAIL %d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

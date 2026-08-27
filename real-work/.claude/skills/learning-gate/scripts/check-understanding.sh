@@ -20,9 +20,17 @@ GATE=""; CONTRACT=""; REPO_ROOT=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --gate)      GATE="${2-}"; shift 2 ;;
-    --contract)  CONTRACT="${2-}"; shift 2 ;;
-    --repo-root) REPO_ROOT="${2-}"; shift 2 ;;
+    --gate|--contract|--repo-root)
+      # Bash 3.2's `shift 2` silently no-ops (and returns nonzero) when only
+      # one argument remains, which would otherwise leave $1 unchanged and
+      # spin this loop forever. Require a value before consuming one.
+      [ $# -ge 2 ] || { printf 'missing value for %s\n' "$1" >&2; exit 4; }
+      case "$1" in
+        --gate)      GATE="$2" ;;
+        --contract)  CONTRACT="$2" ;;
+        --repo-root) REPO_ROOT="$2" ;;
+      esac
+      shift 2 ;;
     -h|--help)   sed -n '2,20p' "$0"; exit 0 ;;
     *)           printf 'unknown argument: %s\n' "$1" >&2; exit 4 ;;
   esac
@@ -42,12 +50,19 @@ fi
 
 PREFIX="Understanding gate ($GATE):"
 
-# All lines claiming this gate, however malformed.
-LINES="$(grep -F "$PREFIX" "$CONTRACT" 2>/dev/null)"
+# All lines claiming this gate, however malformed. Anchored to the start of
+# the line (leading whitespace only) so a quoted example embedded mid-line
+# (e.g. "For example: Understanding gate (G1): ...", which templates/
+# UNDERSTANDING.md's own prose can legitimately produce inside a real
+# contract) is not mistaken for a candidate record line.
+CANDIDATE_RE="^[[:space:]]*Understanding gate \\($GATE\\):"
+LINES="$(grep -E "$CANDIDATE_RE" "$CONTRACT" 2>/dev/null)"
 [ -n "$LINES" ] || {
   printf 'no record line for %s in %s\n' "$GATE" "$CONTRACT" >&2; exit 1; }
 
-VALID_FULL='^Understanding gate \(G[1345]\): [^ ]+\.html · [0-9]{4}-[0-9]{2}-[0-9]{2} · Check-in: (accepted|declined)$'
+# The path token allows spaces: the line's shape is still unambiguous
+# because it must end in the fixed " · YYYY-MM-DD · Check-in: accepted|declined".
+VALID_FULL='^Understanding gate \(G[1345]\): .+\.html · [0-9]{4}-[0-9]{2}-[0-9]{2} · Check-in: (accepted|declined)$'
 VALID_NA='^Understanding gate \(G[1345]\): N/A — .*[^[:space:]].*$'
 
 matched=""
@@ -73,8 +88,9 @@ EOF
 
 [ "$matched" != "na" ] || { printf '%s recorded as N/A\n' "$GATE"; exit 0; }
 
-# Second field is the artifact path.
-ARTIFACT="$(printf '%s' "$matched" | sed -E 's/^Understanding gate \(G[1345]\): ([^ ]+\.html) · .*$/\1/')"
+# Second field is the artifact path (may contain spaces; the fixed
+# " · YYYY-MM-DD · Check-in: accepted|declined" tail anchors the match).
+ARTIFACT="$(printf '%s' "$matched" | sed -E 's/^Understanding gate \(G[1345]\): (.+\.html) · [0-9]{4}-[0-9]{2}-[0-9]{2} · Check-in: (accepted|declined)$/\1/')"
 case "$ARTIFACT" in
   /*) ABS="$ARTIFACT" ;;
   *)  ABS="$REPO_ROOT/$ARTIFACT" ;;
