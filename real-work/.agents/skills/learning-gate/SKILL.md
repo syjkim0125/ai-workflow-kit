@@ -38,9 +38,9 @@ Invoke `ce-explain` through the runtime's skill primitive, passing:
   sentences or fewer, zero jargon — before any other content.
 
 **G4 and the prediction order.** `ce-explain` already enforces predict-then-reveal
-in diff mode. Do not pre-empt it: show no summary, no file list, no "this change
-adds…" line before the prediction turn ends. Your own framing counts as
-interpretation too.
+in diff mode. Show the raw diff or its stat summary before `ce-explain` starts — this
+is the stimulus the prediction guards against. Do not add narrative interpretation,
+assessment of impact, or your own framing; only the mechanical change reference.
 
 **The check-in is offered, never forced.** `ce-explain` grants the user a final
 decline. Record what actually happened.
@@ -71,7 +71,7 @@ Then verify rather than assert:
 
 ```bash
 bash .claude/skills/learning-gate/scripts/check-understanding.sh \
-  --gate G1 --contract <path-to-canonical-contract>
+  --gate <G1|G3|G4|G5> --contract <path-to-canonical-contract>
 ```
 
 Exit 0 means the gate is satisfied. Report the exit code; do not claim the gate
