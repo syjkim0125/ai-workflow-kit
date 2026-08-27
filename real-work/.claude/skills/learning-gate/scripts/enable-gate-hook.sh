@@ -18,6 +18,27 @@ done
 command -v jq >/dev/null 2>&1 || { printf 'jq is required\n' >&2; exit 2; }
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || ROOT="$PWD"
+
+# $ROOT and $CONTRACT both get interpolated below as literal shell text inside
+# a double-quoted CMD word, not through jq's argument escaping. A literal "
+# would close that quoting early and hand the hook a shell syntax error on
+# every single Bash call; a $ or a backtick would be re-expanded when the
+# hook itself runs. Rather than add quoting machinery to handle a path nobody
+# has, refuse to install and say why, at the one moment a human is watching —
+# a hook that errors on every Bash call is a hook that gets switched off, and
+# a switched-off hook enforces nothing. Reject before touching the settings
+# file at all.
+reject_if_unsafe() {
+  local label="$1" value="$2"
+  case "$value" in
+    *'"'*) printf 'refusing to install: %s contains a double quote (unsafe to embed): %s\n' "$label" "$value" >&2; exit 2 ;;
+    *'$'*) printf 'refusing to install: %s contains a $ (unsafe to embed): %s\n'            "$label" "$value" >&2; exit 2 ;;
+    *'`'*) printf 'refusing to install: %s contains a backtick (unsafe to embed): %s\n'     "$label" "$value" >&2; exit 2 ;;
+  esac
+}
+reject_if_unsafe "repo root"    "$ROOT"
+reject_if_unsafe "contract path" "$CONTRACT"
+
 SET="$ROOT/.claude/settings.local.json"
 mkdir -p "$ROOT/.claude"
 [ -f "$SET" ] || printf '{}\n' > "$SET"

@@ -14,6 +14,9 @@
 #      it still warns when run from a copy that shares no repo with the caller
 #   9. the installed command falls back to the install-time repo root when
 #      $CLAUDE_PROJECT_DIR is unset, instead of silently resolving to nothing
+#  10. a repo root containing a literal double quote is refused at install
+#      time (exit 2) rather than emitted into an unparsable hook command,
+#      and the settings file is left untouched
 
 set -uo pipefail
 
@@ -80,6 +83,13 @@ out8="$( cd "$CWD3" && GATE_GUARD_CONTRACT="$CONTRACT_ISO" bash "$ISO/gate-guard
 check "iso guard exits 0 (warn only)" "0"   "$rc8"
 check "guard finds its checker via a copy sharing no repo with the caller" \
                                    "yes"  "$(printf '%s' "$out8" | grep -qi 'understanding gate' && printf yes || printf no)"
+
+# 10 refuse to install when the repo root can't be safely embedded in CMD
+REPOQ="$TMP/quotetest/repo\"weird"; mkdir -p "$REPOQ"; git -C "$REPOQ" init -q
+SETQ="$REPOQ/.claude/settings.local.json"
+( cd "$REPOQ" && bash "$ENABLE" --contract docs/CONTRACT.md >/dev/null 2>&1 ); rcq=$?
+check "refuses unsafe repo root"              "2"   "$rcq"
+check "settings file not created for unsafe root" "no" "$( [ -e "$SETQ" ] && printf yes || printf no )"
 
 printf '\nPASS %d / FAIL %d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
