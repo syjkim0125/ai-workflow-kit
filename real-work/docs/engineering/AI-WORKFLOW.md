@@ -52,6 +52,8 @@ Choose one canonical Acceptance artifact
         ↓
 Write templates/ACCEPTANCE.md content into it (Draft)
         ↓
+G1 understanding gate: learning-gate acceptance
+        ↓
 Human approves exact Acceptance contract (Approved)
         ↓
 Classify and size the approved work
@@ -135,8 +137,9 @@ The canonical Acceptance contract is also the review checklist. After all approv
 5. Treat SHOULD items as non-blocking but record any omissions explicitly.
 6. Re-run affected checks after fixes; never convert a prior failure to PASS without fresh evidence.
 7. Record results in the canonical Acceptance artifact. For a Story-canonical Jira issue, append the `templates/ACCEPTANCE.md` review record only after integration begins; the Story creation template stays focused on the approved contract. If Jira is not canonical, keep only its source link and stable ID coverage instead of a second contract or verdict.
-8. Ask the human owner to judge evidence sufficiency and record `Accepted` or `Rejected`. Agents may prepare evidence but do not make this verdict implicitly.
-9. Open or merge the Story PR to `main` only after all MUST and Verification items pass and the human verdict is `Accepted`.
+8. Run `learning-gate story` (G5) over the integrated Story branch: does the whole satisfy the contract, including the integration points no single Task owned? Confirm every Task's G4 record line is present, then write the G5 record line.
+9. Ask the human owner to judge evidence sufficiency and record `Accepted` or `Rejected`. Agents may prepare evidence but do not make this verdict implicitly.
+10. Open or merge the Story PR to `main` only after all MUST and Verification items pass and the human verdict is `Accepted`.
 
 For a verification Story built on an earlier feature, map the earlier Story's Acceptance IDs to the new Story's interactive or automated checks. This makes the verification Story a concrete acceptance harness for the already-merged behavior instead of a disconnected demo.
 
@@ -144,13 +147,13 @@ For a verification Story built on an earlier feature, map the earlier Story's Ac
 
 ### Small / reversible
 ```text
-inspect → implement → focused verify → review diff
+inspect → implement → focused verify → review diff → G4 (or record N/A)
 ```
 Do not force `/ce-plan` when it adds no decision value.
 
 ### Normal multi-step
 ```text
-/ce-plan → /ce-work → right-sized review → verify → merge
+/ce-plan → /ce-work → right-sized review → verify → G4 → merge
 ```
 `ce-plan` should capture decisions, scope, relevant files, test scenarios, and risks — guardrails rather than pre-written implementation choreography.
 
@@ -158,7 +161,7 @@ Do not force `/ce-plan` when it adds no decision value.
 Examples: payment, auth/security, public contracts, schema/data migration, message/event compatibility, concurrency correctness.
 
 ```text
-/ce-plan → human plan checkpoint → /ce-work → deeper review/verification → merge
+/ce-plan → G3 → human plan checkpoint → /ce-work → deeper review/verification → G4 → merge
 ```
 
 ## Bugs
@@ -169,7 +172,11 @@ Review depth should match risk and diff complexity. Ground truth is the approved
 
 Review is comprehension, not approval: the reviewer should be able to explain the change afterward. If a diff has grown past what one reviewer can genuinely understand, that is a signal to re-split the task, not to skim harder.
 
-For high-risk changes or large AI-generated diffs, add an understanding gate before merge: have the agent explain the change in runtime/data-flow order (not file order) — why this structure, how a request flows, invariants, failure paths, what each test proves and what remains unproven. The owner must be able to restate it. Purpose is preventing cognitive debt, not producing documentation.
+Every change passes an understanding gate before merge: run `learning-gate diff` (G4). It produces a three-layer artifact — an eli5 opening of one picture and at most five jargon-free sentences, then the decisions the owner must make, then runtime/data-flow order, invariants, failure paths, what each test proves and what remains unproven. In diff mode the owner predicts before anything is revealed, and the reveal names the gaps; that prediction is what makes the gate a check rather than a reading assignment. The owner must be able to restate the change afterward.
+
+When the diff is small enough to read at a glance, record `Understanding gate (G4): N/A — <reason>` instead of running the full cycle, the same way `Plan source: N/A — small reversible task` works. The skip stays visible.
+
+The gate is satisfied by evidence: an artifact under `docs/understanding/` and one record line in the canonical Acceptance artifact, verified with `bash .claude/skills/learning-gate/scripts/check-understanding.sh`. Purpose is preventing cognitive debt, not producing documentation.
 
 Use goal-backward verification: **what must be true if this outcome is actually complete?** Every non-trivial task ends with an explained completion: what changed, why it fits, key trade-offs, verification run with results, remaining assumptions/risks.
 
@@ -202,6 +209,8 @@ For this repository, Superpowers is **explicit opt-in only**:
 - Team AI development workflow: `docs/engineering/AI-WORKFLOW.md`
 - AI tooling/onboarding: `docs/engineering/AI-SETUP.md`
 - Requirement templates: `templates/`
+- Understanding gate contract: `templates/UNDERSTANDING.md`
+- Understanding gate artifacts: `docs/understanding/` when present
 - Durable solved problems: `docs/solutions/` when present
 
 ## V2 trigger: Second Brain

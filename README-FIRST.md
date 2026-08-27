@@ -26,17 +26,26 @@ Absorb the following into the repository instead of nesting `ai-workflow-kit/`:
 ├── CLAUDE.md
 ├── .claude/
 │   └── skills/
-│       └── story-breakdown/      # Claude Code copy
+│       ├── story-breakdown/      # Claude Code copy
+│       │   ├── SKILL.md
+│       │   └── EVALS.md          # optional validation material
+│       └── learning-gate/        # Claude Code copy; scripts live here for both runtimes
 │           ├── SKILL.md
-│           └── EVALS.md          # optional validation material
+│           ├── EVALS.md
+│           ├── scripts/
+│           └── tests/
 ├── .agents/
 │   └── skills/
-│       └── story-breakdown/      # Codex copy — keep in sync with .claude copy
+│       ├── story-breakdown/      # Codex copy — keep in sync with .claude copy
+│       │   ├── SKILL.md
+│       │   └── EVALS.md
+│       └── learning-gate/        # Codex copy — SKILL.md and EVALS.md mirrored; no scripts
 │           ├── SKILL.md
 │           └── EVALS.md
 ├── docs/
 │   ├── product/
 │   │   └── PRD.md                # project-specific PRD; not supplied by the generic kit
+│   ├── understanding/            # understanding-gate artifacts
 │   └── engineering/
 │       ├── AI-WORKFLOW.md
 │       ├── AI-SETUP.md
@@ -44,6 +53,7 @@ Absorb the following into the repository instead of nesting `ai-workflow-kit/`:
 └── templates/
     ├── PRD.md
     ├── ACCEPTANCE.md
+    ├── UNDERSTANDING.md
     ├── JIRA-STORY.md
     └── JIRA-TASK.md
 ```
@@ -54,6 +64,7 @@ Absorb the following into the repository instead of nesting `ai-workflow-kit/`:
 - **Primary engineering lifecycle:** Compound Engineering — declared in `AGENTS.md` ("Engineering lifecycle") so Claude Code and Codex receive the same routing.
 - **Globally installed Superpowers:** keep it installed, but treat it as **explicit opt-in only**; installation/discovery alone must not trigger Superpowers lifecycle skills.
 - **Custom Skill:** `story-breakdown` only when an approved Story is too large to be one reviewable PR.
+- **Understanding gates:** `learning-gate` runs before Acceptance approval (G1) and before merge (G4). Slots and record-line grammar live in `templates/UNDERSTANDING.md`.
 - **Second Brain / Obsidian:** optional V2, not required to start.
 - **Extra MCP / RTK / vector/graph infrastructure:** add only after a concrete pain appears.
 
@@ -65,6 +76,8 @@ Product intent and scope      → docs/product/PRD.md (when present)
 Team AI development workflow  → docs/engineering/AI-WORKFLOW.md
 AI tooling/onboarding         → docs/engineering/AI-SETUP.md
 Requirement templates         → templates/
+Understanding gate contract   → templates/UNDERSTANDING.md
+Understanding gate artifacts  → docs/understanding/ when present
 Durable solved problems       → docs/solutions/ when present
 ```
 
@@ -79,7 +92,8 @@ Normally, merge `AGENTS.md` / `CLAUDE.md` with existing project-specific convent
 3. Install/enable Compound Engineering and use one pilot Story/Issue.
 4. If the Story is already PR-sized, skip breakdown; otherwise invoke `story-breakdown`.
 5. Right-size execution by risk: direct work for tiny reversible changes, `/ce-plan` for normal multi-step work, explicit human plan checkpoint for high-risk changes.
-6. Verify with fresh executable evidence before claiming completion.
-7. Run `/ce-compound` only when verified work produced a durable repo-local learning; ask before persisting it.
+6. Run `learning-gate acceptance` before approving the Acceptance contract, and `learning-gate diff` before merging.
+7. Verify with fresh executable evidence before claiming completion.
+8. Run `/ce-compound` only when verified work produced a durable repo-local learning; ask before persisting it.
 
 See `real-work/docs/engineering/AI-WORKFLOW.md` and `real-work/docs/engineering/AI-SETUP.md`.

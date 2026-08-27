@@ -15,6 +15,10 @@ This kit intentionally distills ideas instead of installing every framework that
 - Comparative checkpoint/"rope" framing informed the risk-adaptive workflow: small reversible changes get fewer checkpoints; high-risk changes get shorter rope and deeper review.
   - https://theaiengineer.substack.com/p/superpowers-vs-gsd-vs-compound-engineering
 - Geoffrey Litt (Notion) — "understanding to participate": delegate correctness checking, keep human understanding; structure-first explainer docs, a quiz gate as speed regulator, disposable microworlds. Informed "Explained completion" in `AGENTS.md` and "review is comprehension, not approval" in `AI-WORKFLOW.md`. (Two uploads of the same talk: Korean commentary and subtitled original.)
+- Compound Engineering `ce-explain`: selected as the learning-gate engine because it already implements predict-then-reveal for diffs and states its own purpose as replacing the learning that hand-writing code used to provide. `learning-gate` wraps it rather than reimplementing the mechanic.
+  - https://github.com/EveryInc/compound-engineering-plugin
+- `eli5` (claude-community): the register — "big pictures and few words" — adopted as the mandatory first layer of every gate artifact, not as the whole artifact. Alone it cannot carry the density an acceptance contract or a diff review needs.
+  - https://github.com/claude-community/eli5
   - https://youtu.be/iv60GIHpijE
   - https://youtu.be/81EIe6h7mnw
 - Addy Osmani — agents run the inner loop (and report evidence), humans own the outer loop including the verdict; "explain it or don't ship it". Informed the ownership-split bullet and the Explained completion ship gate in `AGENTS.md`. His review-bandwidth argument also backs the mid-flight re-split rule.
