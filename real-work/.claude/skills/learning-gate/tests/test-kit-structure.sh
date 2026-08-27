@@ -7,8 +7,9 @@
 #   3. templates/UNDERSTANDING.md defines all four gate ids
 #   4. AGENTS.md registers the skill and the blocking rules
 #   5. AI-WORKFLOW.md flow contains the G1 step and the G4 gate
-#   6. AI-SETUP.md and README-FIRST.md list the new paths
+#   6. AI-SETUP.md lists the new paths; README-FIRST.md (kit-only) is conditionally tested
 #   7. docs/understanding/ exists
+#   8. AI-WORKFLOW-SOURCES.md keeps source URLs on their correct bullets (defect guard)
 
 set -uo pipefail
 
@@ -16,7 +17,7 @@ TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 KIT="$(cd "$TEST_DIR/../../../.." && pwd -P)"   # -> real-work/
 ROOT="$(cd "$KIT/.." && pwd -P)"                # -> kit root
 
-pass=0; fail=0
+pass=0; fail=0; skip=0
 check() {
   local name="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
@@ -24,6 +25,9 @@ check() {
   else
     fail=$((fail+1)); printf '  FAIL  %s\n        expected: %s\n        actual:   %s\n' "$name" "$expected" "$actual"
   fi
+}
+skipcheck() {
+  skip=$((skip+1)); printf '  SKIP  %s (%s)\n' "$1" "$2"
 }
 has() { grep -qF -- "$2" "$1" 2>/dev/null && printf 'yes' || printf 'no'; }
 exists() { [ -e "$1" ] && printf 'yes' || printf 'no'; }
@@ -67,12 +71,21 @@ check "setup lists learning-gate" "yes" "$(has "$S" "learning-gate/")"
 check "setup lists UNDERSTANDING.md" "yes" "$(has "$S" "UNDERSTANDING.md")"
 
 R="$ROOT/README-FIRST.md"
-check "README-FIRST lists learning-gate" "yes" "$(has "$R" "learning-gate/")"
-check "README-FIRST lists UNDERSTANDING.md" "yes" "$(has "$R" "UNDERSTANDING.md")"
+if [ -f "$R" ]; then
+  check "README-FIRST lists learning-gate" "yes" "$(has "$R" "learning-gate/")"
+  check "README-FIRST lists UNDERSTANDING.md" "yes" "$(has "$R" "UNDERSTANDING.md")"
+else
+  skipcheck "README-FIRST lists learning-gate" "kit-only check: no README-FIRST.md at repo root"
+  skipcheck "README-FIRST lists UNDERSTANDING.md" "kit-only check: no README-FIRST.md at repo root"
+fi
 
 SRC="$KIT/docs/engineering/AI-WORKFLOW-SOURCES.md"
 check "sources record ce-explain" "yes" "$(has "$SRC" "ce-explain")"
 check "sources record eli5" "yes" "$(has "$SRC" "eli5")"
+littnext() {
+  awk '/^- Geoffrey Litt/{f=1;next} f{print; exit}' "$1" 2>/dev/null
+}
+check "sources: Litt bullet keeps its own first URL" "  - https://youtu.be/iv60GIHpijE" "$(littnext "$SRC")"
 
-printf '\nPASS %d / FAIL %d\n' "$pass" "$fail"
+printf '\nPASS %d / FAIL %d / SKIP %d\n' "$pass" "$fail" "$skip"
 [ "$fail" -eq 0 ]
