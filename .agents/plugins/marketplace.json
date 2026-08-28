@@ -1,0 +1,17 @@
+{
+  "name": "ai-workflow-kit",
+  "owner": {
+    "name": "syjkim0125"
+  },
+  "metadata": {
+    "description": "Understanding gates for Claude Code and Codex",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "ai-workflow-kit",
+      "description": "Understanding gates for agent-driven work.",
+      "source": "../../"
+    }
+  ]
+}

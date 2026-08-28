@@ -1,0 +1,27 @@
+{
+  "name": "ai-workflow-kit",
+  "owner": {
+    "name": "syjkim0125"
+  },
+  "metadata": {
+    "description": "Understanding gates for Claude Code and Codex",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "ai-workflow-kit",
+      "description": "Understanding gates for agent-driven work: an eli5-first explainer and a recorded, checkable gate before a human approves a contract or merges a diff.",
+      "author": {
+        "name": "syjkim0125"
+      },
+      "homepage": "https://github.com/syjkim0125/ai-workflow-kit",
+      "tags": [
+        "understanding-gates",
+        "comprehension",
+        "code-review",
+        "workflow"
+      ],
+      "source": "./"
+    }
+  ]
+}
