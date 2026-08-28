@@ -980,6 +980,9 @@ check() {
 }
 exists() { [ -e "$1" ] && printf yes || printf no; }
 validjson() { jq -e . "$1" >/dev/null 2>&1 && printf yes || printf no; }
+# NOTE: `grep -c PAT file || printf 0` double-fires — grep -c prints "0" on zero
+# matches but still exits 1, so the || runs too and you get "0\n0". Capture first.
+count() { local c; c="$(grep -c "$1" "$2" 2>/dev/null)"; printf '%s' "${c:-0}"; }
 
 # 1-2 manifests
 for m in .claude-plugin/plugin.json .claude-plugin/marketplace.json .codex-plugin/plugin.json .agents/plugins/marketplace.json; do
@@ -1013,9 +1016,9 @@ printf '# House rules\n\n- do not touch me\n' > "$T/AGENTS.md"
 bash "$ROOT/skills/workflow-setup/scripts/workflow-install.sh" \
   --references "$REF" --repo-root "$T" --version vTEST >/dev/null 2>&1
 check "install exit 0" "0" "$?"
-check "block in AGENTS.md"      "1"   "$(grep -c '<!-- BEGIN ai-workflow-kit' "$T/AGENTS.md" 2>/dev/null || printf 0)"
-check "block in CLAUDE.md"      "1"   "$(grep -c '<!-- BEGIN ai-workflow-kit' "$T/CLAUDE.md" 2>/dev/null || printf 0)"
-check "user content preserved"  "1"   "$(grep -c 'do not touch me' "$T/AGENTS.md" 2>/dev/null || printf 0)"
+check "block in AGENTS.md"      "1"   "$(count '<!-- BEGIN ai-workflow-kit' "$T/AGENTS.md")"
+check "block in CLAUDE.md"      "1"   "$(count '<!-- BEGIN ai-workflow-kit' "$T/CLAUDE.md")"
+check "user content preserved"  "1"   "$(count 'do not touch me' "$T/AGENTS.md")"
 check "bin installed"           "yes" "$(exists "$T/.ai-workflow/bin/check-understanding.sh")"
 check "VERSION written"         "vTEST" "$(cat "$T/.ai-workflow/VERSION" 2>/dev/null)"
 check "templates installed"     "yes" "$(exists "$T/templates/UNDERSTANDING.md")"
@@ -1023,15 +1026,15 @@ check "gate artifact dir"       "yes" "$(exists "$T/docs/understanding/.gitkeep"
 
 bash "$ROOT/skills/workflow-setup/scripts/workflow-install.sh" \
   --references "$REF" --repo-root "$T" --version vTEST >/dev/null 2>&1
-check "idempotent: one block"   "1"   "$(grep -c '<!-- BEGIN ai-workflow-kit' "$T/AGENTS.md" 2>/dev/null || printf 0)"
+check "idempotent: one block"   "1"   "$(count '<!-- BEGIN ai-workflow-kit' "$T/AGENTS.md")"
 
 bash "$T/.ai-workflow/bin/check-understanding.sh" --gate G1 --contract "$T/AGENTS.md" --repo-root "$T" >/dev/null 2>&1
 check "copied checker runs (1=no record line)" "1" "$?"
 
 bash "$ROOT/skills/workflow-setup/scripts/workflow-install.sh" \
   --references "$REF" --repo-root "$T" --remove >/dev/null 2>&1
-check "remove: block gone"      "0"   "$(grep -c '<!-- BEGIN ai-workflow-kit' "$T/AGENTS.md" 2>/dev/null || printf 0)"
-check "remove: user content kept" "1" "$(grep -c 'do not touch me' "$T/AGENTS.md" 2>/dev/null || printf 0)"
+check "remove: block gone"      "0"   "$(count '<!-- BEGIN ai-workflow-kit' "$T/AGENTS.md")"
+check "remove: user content kept" "1" "$(count 'do not touch me' "$T/AGENTS.md")"
 check "remove: .ai-workflow gone" "no" "$(exists "$T/.ai-workflow")"
 check "remove: templates kept"    "yes" "$(exists "$T/templates/UNDERSTANDING.md")"
 
