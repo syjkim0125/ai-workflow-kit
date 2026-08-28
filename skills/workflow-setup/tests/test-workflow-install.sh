@@ -14,6 +14,10 @@
 #  10. Missing --references -> exit 2
 #  11. Copied bin/ scripts are executable
 #  12. VERSION records the installed version
+#  13. An END marker before a BEGIN -> exit 3, nothing written (order, not just count)
+#  14. Unreadable/empty block file -> exit 2, target left byte-identical (no silent wipe)
+#  15. Target file mode is preserved across a write; a fresh file gets 644, not mktemp's 600
+#  16. Markers quoted inside a fenced code example are not treated as the live block
 
 set -uo pipefail
 
@@ -126,6 +130,66 @@ check "templates kept on remove"     "yes" "$([ -f "$R/templates/UNDERSTANDING.m
 R="$TMP/r10"; mkrepo "$R"
 bash "$SCRIPT" --repo-root "$R" >/dev/null 2>&1
 check "missing --references exit 2"  "2"   "$?"
+
+# --- helper: reads a file's permission bits portably (perl works on macOS + Linux) ---
+mode_of() { perl -e 'printf "%04o", (stat($ARGV[0]))[2] & 07777' "$1" 2>/dev/null; }
+
+# 13 finding 1: an END before a BEGIN must refuse, not swallow everything to EOF
+R="$TMP/r13"; mkrepo "$R"
+printf 'line1 keep\n<!-- END ai-workflow-kit -->\nline2 keep\n<!-- BEGIN ai-workflow-kit vOLD -->\nline3 SHOULD SURVIVE\nline4 SHOULD SURVIVE\n' > "$R/AGENTS.md"
+sha_before="$(shasum "$R/AGENTS.md" | cut -d' ' -f1)"
+check "END-before-BEGIN exits 3"       "3"  "$(run "$R")"
+check "END-before-BEGIN file untouched" "$sha_before" "$(shasum "$R/AGENTS.md" | cut -d' ' -f1)"
+check "SHOULD-SURVIVE lines intact"    "2"  "$(grep -c 'SHOULD SURVIVE' "$R/AGENTS.md")"
+
+# 14 finding 2: an unreadable (or empty) block file must not silently wipe the target
+REF_BAD="$TMP/references-unreadable"
+mkdir -p "$REF_BAD"
+cp "$REF/agents-block.md" "$REF_BAD/agents-block.md"
+chmod 000 "$REF_BAD/agents-block.md"
+R="$TMP/r14"; mkrepo "$R"
+run "$R" >/dev/null   # good install first, so the target already has real content
+sha_before="$(shasum "$R/AGENTS.md" | cut -d' ' -f1)"
+size_before="$(wc -c < "$R/AGENTS.md" | tr -d ' ')"
+bash "$SCRIPT" --references "$REF_BAD" --repo-root "$R" --version vTEST >/dev/null 2>&1
+check "unreadable block file exits 2"      "2"           "$?"
+check "target untouched (sha)"             "$sha_before" "$(shasum "$R/AGENTS.md" | cut -d' ' -f1)"
+check "target not wiped to 0 bytes"        "$size_before" "$(wc -c < "$R/AGENTS.md" | tr -d ' ')"
+chmod 644 "$REF_BAD/agents-block.md"  # so the trap can clean up TMP unconditionally
+
+# 15 finding 3: writing must preserve the target's mode, not mktemp's 600
+R="$TMP/r15"; mkrepo "$R"
+run "$R" >/dev/null
+check "fresh AGENTS.md is 0644, not 0600"  "0644" "$(mode_of "$R/AGENTS.md")"
+R="$TMP/r15b"; mkrepo "$R"
+printf '# Mine\n' > "$R/AGENTS.md"; chmod 640 "$R/AGENTS.md"
+run "$R" >/dev/null
+check "existing 0640 mode preserved"       "0640" "$(mode_of "$R/AGENTS.md")"
+
+# 16 finding 5: markers quoted inside a fenced doc example are not the live block
+R="$TMP/r16"; mkrepo "$R"
+cat > "$R/AGENTS.md" <<'EOF'
+# My rules
+
+Here is what the managed block looks like, as documentation:
+
+```
+<!-- BEGIN ai-workflow-kit vDOC-EXAMPLE -->
+example content, not live
+<!-- END ai-workflow-kit -->
+```
+
+- keep me
+EOF
+check "fenced example: install exits 0"     "0"   "$(run "$R")"
+check "fenced example left untouched"       "1"   "$(grep -c 'vDOC-EXAMPLE' "$R/AGENTS.md")"
+check "fenced example content intact"       "1"   "$(grep -c 'example content, not live' "$R/AGENTS.md")"
+check "live block was actually installed"   "1"   "$(grep -c 'vTEST' "$R/AGENTS.md")"
+check "user content survives"               "1"   "$(grep -c 'keep me' "$R/AGENTS.md")"
+# second run must update the live block in place, still ignoring the fenced example
+run "$R" >/dev/null
+check "fenced example survives second run"  "1"   "$(grep -c 'vDOC-EXAMPLE' "$R/AGENTS.md")"
+check "still exactly one live block"        "1"   "$(grep -c '<!-- BEGIN ai-workflow-kit vTEST' "$R/AGENTS.md")"
 
 printf '\nPASS %d / FAIL %d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

@@ -13,7 +13,8 @@
 # Exit codes:
 #   0  done
 #   2  usage error
-#   3  refused — the target's markers are unbalanced; not guessing
+#   3  refused — the target's markers are unbalanced, out of order, or the
+#      block content to install is missing/empty; not guessing
 
 set -uo pipefail
 
@@ -31,7 +32,7 @@ while [ $# -gt 0 ]; do
     --version)    need_value "$@"; VERSION="$2"; shift 2 ;;
     --dry-run)    DRY=1; shift ;;
     --remove)     REMOVE=1; shift ;;
-    -h|--help)    sed -n '2,18p' "$0"; exit 0 ;;
+    -h|--help)    sed -n '2,17p' "$0"; exit 0 ;;
     *) printf 'unknown argument: %s\n' "$1" >&2; exit 2 ;;
   esac
 done
@@ -46,49 +47,117 @@ if [ "$REMOVE" -eq 0 ]; then
     printf 'references directory required and must exist (--references)\n' >&2; exit 2; }
   [ -f "$REFS/agents-block.md" ] || {
     printf 'references missing agents-block.md: %s\n' "$REFS" >&2; exit 2; }
+  [ -r "$REFS/agents-block.md" ] || {
+    printf 'references block file not readable: %s\n' "$REFS/agents-block.md" >&2; exit 2; }
+  [ -s "$REFS/agents-block.md" ] || {
+    printf 'references block file is empty: %s\n' "$REFS/agents-block.md" >&2; exit 2; }
 fi
 
 INSTR_FILES="AGENTS.md CLAUDE.md"
 
-# Refuse before writing anything if any target's markers are unbalanced.
+# Count BEGIN/END markers in $1, ignoring anything inside a fenced code block
+# (``` toggles fence state) — a doc example that quotes our own markers must
+# not be mistaken for a live block. Prints "B E OK" where OK is 1 unless
+# exactly one BEGIN/END pair exists and the END appears before the BEGIN.
+count_markers() {
+  awk -v bp="$BEGIN_PAT" -v ep="$END_PAT" '
+    function is_fence(l) { return l ~ /^[ \t]*```/ }
+    {
+      if (is_fence($0)) { fence = !fence; next }
+      if (fence) next
+      if (index($0, bp)) { b++; if (bline == 0) bline = NR }
+      if (index($0, ep)) { e++; if (eline == 0) eline = NR }
+    }
+    END {
+      ok = 1
+      if (b == 1 && e == 1 && eline < bline) ok = 0
+      printf "%d %d %d\n", b, e, ok
+    }
+  ' "$1"
+}
+
+# Refuse before writing anything if any target's live markers are unbalanced
+# or out of order (fenced doc examples of the markers don't count).
 for name in $INSTR_FILES; do
   f="$ROOT/$name"
   [ -f "$f" ] || continue
-  b=$(grep -c "$BEGIN_PAT" "$f" 2>/dev/null || true); b=${b:-0}
-  e=$(grep -c "$END_PAT" "$f" 2>/dev/null || true);   e=${e:-0}
-  if [ "$b" != "$e" ] || [ "$b" -gt 1 ]; then
-    printf 'refusing: %s has %s BEGIN and %s END markers (expected 0/0 or 1/1)\n' "$name" "$b" "$e" >&2
+  read -r b e ok < <(count_markers "$f")
+  if [ "$b" != "$e" ] || [ "$b" -gt 1 ] || [ "$ok" -eq 0 ]; then
+    printf 'refusing: %s has %s BEGIN and %s END markers outside fenced examples (expected 0/0 or 1/1, BEGIN before END)\n' "$name" "$b" "$e" >&2
     exit 3
   fi
 done
 
 say() { [ "$DRY" -eq 1 ] && printf '[dry-run] %s\n' "$*" || printf '%s\n' "$*"; }
 
-strip_block() {  # $1=file -> stdout without the managed block
+# A tmp file for $1's replacement, staged in the SAME directory so the final
+# mv is an atomic rename rather than a cross-filesystem copy-and-unlink.
+stage_tmp() {
+  local dir
+  dir="$(dirname "$1")"
+  mktemp "$dir/.ai-workflow-kit.tmp.XXXXXX"
+}
+
+# The target's current permission bits (octal), or 644 if it doesn't exist yet
+# or its mode can't be read — never the umask-derived mode of a mktemp file.
+target_mode() {
+  local f="$1" m=""
+  if [ -f "$f" ]; then
+    m="$(perl -e 'printf "%04o", (stat($ARGV[0]))[2] & 07777' "$f" 2>/dev/null)"
+  fi
+  printf '%s' "${m:-644}"
+}
+
+strip_block() {  # $1=file -> stdout without the managed block (fence-aware)
   awk -v bp="$BEGIN_PAT" -v ep="$END_PAT" '
-    index($0, bp) { inb=1; next }
-    inb && index($0, ep) { inb=0; next }
-    inb { next }
-    { print }
+    function is_fence(l) { return l ~ /^[ \t]*```/ }
+    {
+      if (is_fence($0)) { fence = !fence; print; next }
+      if (fence) { print; next }
+      if (index($0, bp)) { inb = 1; next }
+      if (inb && index($0, ep)) { inb = 0; next }
+      if (inb) next
+      print
+    }
   ' "$1"
 }
 
 apply_block() {  # $1=file  $2=blockfile
-  local f="$1" bf="$2" tmp
-  tmp="$(mktemp)"
-  if [ -f "$f" ] && grep -q "$BEGIN_PAT" "$f" 2>/dev/null; then
+  local f="$1" bf="$2" tmp b e ok mode
+  tmp="$(stage_tmp "$f")"
+  b=0
+  if [ -f "$f" ]; then
+    read -r b e ok < <(count_markers "$f")
+  fi
+  if [ -f "$f" ] && [ "$b" -ge 1 ]; then
     awk -v bp="$BEGIN_PAT" -v ep="$END_PAT" -v bfile="$bf" '
-      BEGIN { while ((getline l < bfile) > 0) blk = blk l "\n" }
-      index($0, bp) { inb=1; printf "%s", blk; next }
-      inb && index($0, ep) { inb=0; next }
-      inb { next }
-      { print }
+      function is_fence(l) { return l ~ /^[ \t]*```/ }
+      BEGIN {
+        while ((getline l < bfile) > 0) blk = blk l "\n"
+        if (blk == "") { print "refusing: block file produced no content" > "/dev/stderr"; exit 2 }
+      }
+      {
+        if (is_fence($0)) { fence = !fence; print; next }
+        if (fence) { print; next }
+        if (index($0, bp)) { inb = 1; printf "%s", blk; next }
+        if (inb && index($0, ep)) { inb = 0; next }
+        if (inb) next
+        print
+      }
     ' "$f" > "$tmp"
+    if [ $? -ne 0 ]; then
+      rm -f "$tmp"
+      printf 'refusing: could not build replacement content for %s\n' "$f" >&2
+      exit 2
+    fi
   elif [ -f "$f" ]; then
     { cat "$f"; printf '\n'; cat "$bf"; } > "$tmp"
   else
+    [ -s "$bf" ] || { rm -f "$tmp"; printf 'refusing: block file produced no content\n' >&2; exit 2; }
     cat "$bf" > "$tmp"
   fi
+  mode="$(target_mode "$f")"
+  chmod "$mode" "$tmp" 2>/dev/null || true
   if [ "$DRY" -eq 1 ]; then
     printf '[dry-run] would write %s:\n' "$f"
     diff -u "${f:-/dev/null}" "$tmp" 2>/dev/null | sed 's/^/    /' || true
@@ -102,9 +171,14 @@ if [ "$REMOVE" -eq 1 ]; then
   for name in $INSTR_FILES; do
     f="$ROOT/$name"
     [ -f "$f" ] || continue
-    grep -q "$BEGIN_PAT" "$f" 2>/dev/null || continue
+    read -r b e ok < <(count_markers "$f")
+    [ "$b" -ge 1 ] || continue
     if [ "$DRY" -eq 1 ]; then say "would strip block from $name"; else
-      tmp="$(mktemp)"; strip_block "$f" > "$tmp"; mv "$tmp" "$f"; say "stripped block from $name"
+      tmp="$(stage_tmp "$f")"
+      strip_block "$f" > "$tmp"
+      chmod "$(target_mode "$f")" "$tmp" 2>/dev/null || true
+      mv "$tmp" "$f"
+      say "stripped block from $name"
     fi
   done
   if [ "$DRY" -eq 1 ]; then say "would remove .ai-workflow/"; else
