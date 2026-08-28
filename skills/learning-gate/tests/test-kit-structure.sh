@@ -14,8 +14,8 @@
 set -uo pipefail
 
 TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-KIT="$(cd "$TEST_DIR/../../../.." && pwd -P)"   # -> real-work/
-ROOT="$(cd "$KIT/.." && pwd -P)"                # -> kit root
+KIT="$(cd "$TEST_DIR/../../.." && pwd -P)"      # -> repo root (plugin root)
+ROOT="$KIT"                                      # kit root == plugin root now
 
 pass=0; fail=0; skip=0
 check() {
