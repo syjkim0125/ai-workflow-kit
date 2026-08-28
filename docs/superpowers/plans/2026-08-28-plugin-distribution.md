@@ -18,7 +18,7 @@
 - 관리 블록 마커는 정확히 이 형태다. BEGIN 매칭은 **버전 비의존 접두사**로 한다(구버전 블록을 교체해야 하므로):
   - 접두사: `<!-- BEGIN ai-workflow-kit`
   - 종료: `<!-- END ai-workflow-kit -->`
-- 레포 로컬 디렉터리 이름은 `.ai-workflow/`. 스킬 이름은 `workflow-setup`, `workflow-principles`. `awk`라는 이름을 쓰지 않는다(유닉스 도구와 혼동).
+- 레포 로컬 디렉터리 이름은 `.ai-workflow/`. 스킬 이름은 `workflow-setup`. `awk`라는 이름을 쓰지 않는다(유닉스 도구와 혼동).
 - 키트 버전은 `v2.6`.
 - 테스트는 `PASS n / FAIL n` 형식으로 카운트를 출력한다(기존 `usage-handoff` 스위트는 `n/n passed` 형식을 유지한다 — 건드리지 않는다).
 - **회귀 기준선 — 어느 것도 낮아지면 안 된다:**
@@ -254,7 +254,7 @@ bash skills/learning-gate/tests/test-kit-structure.sh | tail -3
 
 `test-check-understanding.sh`, `test-enable-gate-hook.sh`, `usage-handoff` 3종은 **기준선 그대로**여야 한다.
 
-`test-kit-structure.sh`는 **실패한다** — `real-work/` 기준으로 문서 배선을 검사하는데 문서가 아직 안 옮겨졌기 때문이다. 그 실패는 예상된 것이고 Task 7이 이 파일을 재작성한다. 실패한 검사 이름들을 리포트에 적고 진행한다. **다른 다섯 스위트 중 하나라도 떨어지면 멈추고 보고한다.**
+`test-kit-structure.sh`는 **실패한다** — `real-work/` 기준으로 문서 배선을 검사하는데 문서가 아직 안 옮겨졌기 때문이다. 그 실패는 예상된 것이고 Task 6이 이 파일을 재작성한다. 실패한 검사 이름들을 리포트에 적고 진행한다. **다른 다섯 스위트 중 하나라도 떨어지면 멈추고 보고한다.**
 
 - [ ] **Step 6: Commit**
 
@@ -662,18 +662,62 @@ Expected: `PASS 20 / FAIL 0`, `PASS 18 / FAIL 0`, `17/17 passed`, `13/13 passed`
 
 - [ ] **Step 4: `references/agents-block.md` 작성**
 
-정확히 이 내용. 마커의 버전은 `v2.6`.
+정확히 이 내용. 원칙 8종은 옛 `real-work/AGENTS.md` 에서 **한 글자도 바꾸지 않고** 옮긴 것이며,
+`##` 이 `###` 으로 한 단계 내려간 것만 다르다(블록이 두 부분으로 읽히게).
 
-```markdown
+````markdown
 <!-- BEGIN ai-workflow-kit v2.6 — managed; edits inside are overwritten -->
+## Engineering Operating Principles (ai-workflow-kit)
+
+These are always-on. Keep project-specific build commands, architecture rules,
+security policies, and conventions alongside them.
+
+### Evidence before assumption
+- Inspect the task, current code, tests, config, schema, build files, and relevant docs before deciding how the system works.
+- Resolve uncertainty from available evidence first. Ask only about material ambiguity that cannot be resolved safely.
+- Memory and prior solutions are navigation aids; current executable evidence wins when they conflict.
+
+### Simplest durable implementation
+- Choose the simplest implementation that satisfies known requirements and real existing contracts.
+- Do not add abstractions, configurability, packages, or future-proofing solely for hypothetical reuse.
+- Introduce an abstraction when it protects a real boundary, invariant, or meaningful complexity.
+- Prefer small end-to-end working slices over speculative platform work.
+
+### Surgical change
+- Prefer extending existing patterns over creating parallel architectures.
+- Every changed line should be necessary for the requested outcome, repository consistency, or verification.
+- Avoid unrelated refactors. Remove obsolete/orphaned code caused by the change only when safe.
+
+### Dependencies and retrieval
+- Prefer capabilities already provided by the repository and its dependencies before adding packages or custom implementations.
+- Verify the installed version. Check local types/source or version-matched documentation before assuming a library does or does not support a capability.
+
+### Compatibility boundary
+- Do not add backward-compatibility layers by default.
+- Preserve or deliberately migrate compatibility when a released API, persisted data/schema/event, external consumer, or explicit migration requirement makes it real.
+- Internal/unreleased obsolete paths may be removed rather than preserved through shims.
+
+### Debugging discipline
+- Reproduce and trace failures before proposing a fix.
+- Prefer a root-cause fix over a symptom-masking workaround.
+- Add regression evidence for material bugs when practical.
+
+### Goal-backward verification
+- Define observable success before or during implementation: what must be true if the task is actually done?
+- Translate the requirement into a compact acceptance checklist of independently verifiable behaviors — including what must NOT happen — then verify each item. Fix recurring failures in response to patterns across runs, never off a single failing run.
+- Verify with fresh tests/build/static checks/runtime evidence appropriate to the change.
+- Do not claim completion from reasoning alone when executable verification is available.
+
+### Explained completion
+- A change no human can understand is not done: explain it or don't ship it — someone must understand the change well enough to defend it.
+- Finish every non-trivial task with an explainer, structure first: how the change is organized, a one-line summary per part, then code details last — plus verification actually run with results, and remaining assumptions or risks. Writing the explainer doubles as a bug sweep.
+- Review is comprehension, not approval: the reviewer should be able to explain the change afterward. When generated code outpaces understanding, run the `learning-gate` skill — it produces the eli5-first understanding artifact and records it, per `templates/UNDERSTANDING.md` — and re-split the task when it exceeds one reviewable unit.
+
 ## Engineering lifecycle (ai-workflow-kit)
 
 - Compound Engineering is this repository's primary lifecycle for every agent
   runtime. This repository-level default takes precedence over global or
   user-level workflow preferences.
-- Operating principles: load the `workflow-principles` skill before non-trivial
-  work — evidence before assumption, simplest durable implementation, surgical
-  change, goal-backward verification, explained completion.
 - Understanding gates are part of approval, not a courtesy. Before an Acceptance
   contract moves `Draft` → `Approved` run `learning-gate acceptance` (G1). Before
   a PR merges run `learning-gate diff` (G4) or record its `N/A` form. High-risk
@@ -697,7 +741,7 @@ Repository knowledge: `templates/UNDERSTANDING.md` (gate contract) ·
 `docs/understanding/` (gate artifacts) · `templates/` (requirement templates) ·
 `docs/engineering/AI-WORKFLOW.md` (full lifecycle) · `docs/solutions/` when present.
 <!-- END ai-workflow-kit -->
-```
+````
 
 - [ ] **Step 5: `skills/workflow-setup/SKILL.md` 작성**
 
@@ -794,62 +838,7 @@ git commit -m "feat(workflow-setup): add setup skill and populate references"
 
 ---
 
-### Task 5: `workflow-principles` 스킬
-
-**Files:**
-- Create: `skills/workflow-principles/SKILL.md`
-
-**Interfaces:**
-- Consumes: `real-work/AGENTS.md` 의 원칙 8개 섹션(원문)
-- Produces: 스킬 이름 `workflow-principles`. Task 4의 `agents-block.md` 가 이미 이 이름으로 로드를 지시한다.
-
-- [ ] **Step 1: 원문 확보**
-
-`real-work/AGENTS.md` 의 `## Evidence before assumption` 부터 `## Explained completion` 섹션 끝까지가 대상이다. 다음으로 정확한 범위를 확인한다:
-
-```bash
-cd /Users/jongkkim/Desktop/ai-workflow-kit
-sed -n '/^## Evidence before assumption/,/^## Engineering lifecycle/p' real-work/AGENTS.md | head -50
-```
-
-- [ ] **Step 2: SKILL.md 작성**
-
-frontmatter를 붙이고, 위 범위의 여덟 섹션을 **한 글자도 바꾸지 않고** 옮긴다. `## Engineering lifecycle` 이후는 포함하지 않는다(그쪽은 관리 블록이 담당).
-
-```markdown
----
-name: workflow-principles
-description: The always-on engineering principles this repository works by — evidence before assumption, simplest durable implementation, surgical change, dependency and retrieval discipline, real compatibility boundaries, root-cause debugging, goal-backward verification, and explained completion. Load before non-trivial work.
----
-
-# Engineering Operating Principles
-
-These are always-on project principles. Keep project-specific build commands,
-architecture rules, security policies, and conventions alongside them.
-
-<원문 여덟 섹션을 그대로>
-```
-
-- [ ] **Step 3: 원문과 대조**
-
-```bash
-cd /Users/jongkkim/Desktop/ai-workflow-kit
-diff <(sed -n '/^## Evidence before assumption/,/^## Engineering lifecycle/p' real-work/AGENTS.md | sed '$d') \
-     <(sed -n '/^## Evidence before assumption/,$p' skills/workflow-principles/SKILL.md) \
-  && echo "IDENTICAL" || echo "DIFFERS — review the diff above"
-```
-Expected: `IDENTICAL`. 다르면 공백/줄바꿈까지 맞춘다.
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add skills/workflow-principles
-git commit -m "feat(workflow-principles): move always-on principles into a skill"
-```
-
----
-
-### Task 6: 하드코딩 경로 재배선
+### Task 5: 하드코딩 경로 재배선
 
 **Files:**
 - Modify: `skills/workflow-setup/references/engineering/AI-WORKFLOW.md`
@@ -861,7 +850,7 @@ git commit -m "feat(workflow-principles): move always-on principles into a skill
 
 **Interfaces:**
 - Consumes: `.ai-workflow/bin/` 규약 (Task 3/4)
-- Produces: 문서와 스크립트가 실재하는 레포 경로를 가리킨다. Task 7의 구조 테스트가 이를 검사한다.
+- Produces: 문서와 스크립트가 실재하는 레포 경로를 가리킨다. Task 6의 구조 테스트가 이를 검사한다.
 
 - [ ] **Step 1: 남아있는 하드코딩 경로 전수 조사**
 
@@ -941,7 +930,7 @@ git commit -m "fix(paths): point docs and hooks at .ai-workflow/bin"
 
 ---
 
-### Task 7: 구조 테스트 역할 전환
+### Task 6: 구조 테스트 역할 전환
 
 **Files:**
 - Rewrite: `skills/learning-gate/tests/test-kit-structure.sh`
@@ -1005,7 +994,7 @@ check "no .agents/skills mirror" "no" "$(exists "$ROOT/.agents/skills")"
 check "real-work is gone"        "no" "$(exists "$ROOT/real-work")"
 
 # 4 skills
-for s in learning-gate story-breakdown usage-handoff workflow-setup workflow-principles; do
+for s in learning-gate story-breakdown usage-handoff workflow-setup; do
   check "skill present: $s" "yes" "$(exists "$ROOT/skills/$s/SKILL.md")"
   check "skill frontmatter: $s" "---" "$(head -1 "$ROOT/skills/$s/SKILL.md" 2>/dev/null)"
 done
@@ -1061,7 +1050,7 @@ cd /Users/jongkkim/Desktop/ai-workflow-kit
 bash skills/learning-gate/tests/test-kit-structure.sh | tail -3
 ```
 
-`real-work is gone` 검사는 Task 9까지 FAIL 한다(아직 디렉터리가 남아 있다). 그 하나만 FAIL 하는지 확인하고, 다른 FAIL이 있으면 그 항목이 가리키는 태스크로 돌아가 고친다. 실패 목록을 리포트에 적는다.
+`real-work is gone` 검사는 Task 8까지 FAIL 한다(아직 디렉터리가 남아 있다). 그 하나만 FAIL 하는지 확인하고, 다른 FAIL이 있으면 그 항목이 가리키는 태스크로 돌아가 고친다. 실패 목록을 리포트에 적는다.
 
 - [ ] **Step 3: Commit**
 
@@ -1072,7 +1061,7 @@ git commit -m "test: retarget structure suite at workflow-install output"
 
 ---
 
-### Task 8: README 3층 보강과 README-FIRST 재작성
+### Task 7: README 3층 보강과 README-FIRST 재작성
 
 **Files:**
 - Modify: `README.md`
@@ -1181,7 +1170,7 @@ git commit -m "docs: add the full-flow layer to README and rewrite README-FIRST 
 
 ---
 
-### Task 9: `real-work/` 해체, optional-v2 이전, CHANGELOG v2.6
+### Task 8: `real-work/` 해체, optional-v2 이전, CHANGELOG v2.6
 
 **Files:**
 - Move: `real-work/optional-v2/second-brain/` → `docs/optional-v2/second-brain/`
@@ -1210,7 +1199,7 @@ ls docs/optional-v2/second-brain/
 
 - [ ] **Step 3: `real-work/` 제거**
 
-`AGENTS.md` 와 `CLAUDE.md` 는 Task 4·5로 내용이 모두 이관됐다(원칙 → `workflow-principles`, 라이프사이클 → `agents-block.md`). `docs/understanding/.gitkeep` 은 설치 시 생성된다.
+`AGENTS.md` 와 `CLAUDE.md` 는 Task 4로 내용이 모두 이관됐다(원칙과 라이프사이클 모두 `agents-block.md`). `docs/understanding/.gitkeep` 은 설치 시 생성된다.
 
 ```bash
 git rm -r -q real-work
@@ -1235,7 +1224,7 @@ git rm -r -q real-work
 ### Enforcement
 - Hook-invoked scripts and the gate checker are installed into the repository at `.ai-workflow/bin/` rather than run from the plugin. Plugin cache paths are versioned, so a baked path breaks on every update — and `gate-guard.sh` exits 0 when it cannot find its checker, making that break silent. Keeping the checker in the repo also means CI, or a teammate without the plugin, can still verify a gate.
 - `usage-handoff` had the identical defect: its hook baked `.claude/skills/usage-handoff/scripts/usage-guard.sh`, a path that only exists when the skill is copied into the repo. Its hook scripts move to `.ai-workflow/bin/` too.
-- The always-on engineering principles move to the `workflow-principles` skill; the managed block instructs agents to load it. This is weaker than a repo-root file that is always in context, and is the price of not writing 80 lines into someone else's `AGENTS.md`.
+- The eight always-on engineering principles stay always-on: they are carried verbatim inside the managed block, not demoted to a skill. They are dispositions rather than procedures — they have no trigger moment, so "load this when relevant" would put the decision to apply them back into discovery. `Explained completion` is also what mandates the gates in the first place, so moving it below them would invert the dependency.
 
 ### Repository
 - `README.md` gains the full-flow layer: the eli5 picture shows the two gates, and a second diagram shows all thirteen steps and the four points where a human decides. The intake node no longer reads as the agent deciding alone — the kit's rule is to interview the requester, not to expand a request silently.
@@ -1258,7 +1247,7 @@ for t in enable-hook new-handoff usage-guard; do
 done
 git status --short
 ```
-Expected: `PASS 20 / FAIL 0`, `PASS 18 / FAIL 0`, `PASS 28 / FAIL 0`, 구조 스위트 `PASS 42 / FAIL 0`(이제 `real-work is gone` 도 통과), `17/17`, `16/16`, `13/13`, 작업 트리 깨끗.
+Expected: `PASS 20 / FAIL 0`, `PASS 18 / FAIL 0`, `PASS 28 / FAIL 0`, 구조 스위트 `PASS 40 / FAIL 0`(이제 `real-work is gone` 도 통과), `17/17`, `16/16`, `13/13`, 작업 트리 깨끗.
 
 어느 하나라도 FAIL이면 멈추고 보고한다.
 

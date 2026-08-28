@@ -65,7 +65,6 @@ CE는 스킬 30개를 **한 벌만** `./skills/`에 두고 Codex 매니페스트
 `awk`는 유닉스 표준 도구 이름이다. `/awk-setup`은 사람에게도 에이전트에게도 혼동을 준다.
 
 - 설치 스킬: **`workflow-setup`**
-- 원칙 스킬: **`workflow-principles`**
 - 레포 로컬 디렉터리: **`.ai-workflow/`** (CE의 `.compound-engineering/` 선례를 따름)
 
 ## 5. 레포 구조
@@ -86,7 +85,6 @@ ai-workflow-kit/
 │   ├── learning-gate/                  SKILL.md · EVALS.md · tests/
 │   ├── story-breakdown/                SKILL.md · EVALS.md
 │   ├── usage-handoff/                  SKILL.md · scripts/(스킬용만) · tests/ · templates/
-│   ├── workflow-principles/            신규: 항상 켜져 있던 원칙 8개 섹션
 │   └── workflow-setup/                 신규: 설치기
 │       ├── SKILL.md                    disable-model-invocation: true
 │       └── references/                 타겟 레포로 복사될 것들
@@ -174,16 +172,24 @@ ai-workflow-kit/
 - 마커에 버전을 박아 무엇이 설치됐는지 판별한다
 - 대상 파일이 없으면 새로 만든다
 
-### 블록 내용 (~20줄)
+### 블록 내용 (~75줄)
 
-게이트 규칙 + 라이프사이클 + 지식 인덱스만 담는다. 현재 `AGENTS.md`의 엔지니어링 원칙
-8개 섹션은 `workflow-principles` 스킬로 옮기되, **블록 안에 그 원칙을 로드하라는 한 줄을
-남긴다.**
+두 부분이다: 현재 `AGENTS.md`의 **엔지니어링 원칙 8개 섹션 전문**과, 게이트 규칙 +
+라이프사이클 + 지식 인덱스.
 
-이건 절충이다. 원칙이 상시 컨텍스트에서 스킬로 내려가면 discovery 의존이 생긴다.
-상시 컨텍스트가 로드를 *명령*하는 형태는 수동적 discovery보다 강하지만, 오늘의
-"레포 루트 파일이라 항상 켜져 있음"보다는 약하다. 남의 레포 `AGENTS.md`에 80줄을
-쓰지 않기 위해 치르는 값이다.
+**원칙을 스킬로 내리지 않는다.** 초안에서는 블록을 얇게 두려고 원칙을
+`workflow-principles` 스킬로 옮기고 블록에는 "로드하라"는 한 줄만 남기려 했다.
+검토에서 뒤집었다:
+
+- **원칙은 절차가 아니라 태도다.** 스킬은 발동 시점이 있는 절차에 맞는다("머지 전에
+  게이트를 돌려라"). 이 8종은 발동 시점이 없고 첫 도구 호출부터 작동해야 한다.
+  "필요하면 로드하라"는 로드 여부를 매번 모델 판단에 맡기는 것이고, 그게 키트가
+  거부한 discovery 의존이다.
+- **`Explained completion`이 게이트를 명령하는 원칙이다.** 그 세 번째 불릿이 문자
+  그대로 `learning-gate` 실행을 지시한다. 그것을 discovery 의존 스킬로 내리면서
+  게이트만 상시 규칙으로 두면 의존 방향이 뒤집힌다.
+- 비용은 38줄이다. `AGENTS.md`는 애초에 에이전트 규칙을 담는 파일이고, 실제로 하중을
+  받는 규칙 75줄은 과하지 않다.
 
 ## 8. 업데이트 · 멱등성 · 제거
 
@@ -243,7 +249,6 @@ ai-workflow-kit/
 - `.codex-plugin/plugin.json`
 - `.agents/plugins/marketplace.json`
 - `skills/workflow-setup/{SKILL.md,references/…}`
-- `skills/workflow-principles/SKILL.md`
 
 이동:
 - `real-work/.claude/skills/*` → `skills/*`
