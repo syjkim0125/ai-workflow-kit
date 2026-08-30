@@ -42,6 +42,34 @@ if [ -z "$ROOT" ]; then
 fi
 [ -d "$ROOT" ] || { printf 'repo root not a directory: %s\n' "$ROOT" >&2; exit 2; }
 
+# Count BEGIN/END markers in $1. Fence tracking (``` toggles fence state)
+# applies ONLY outside a managed block — a doc example that quotes our own
+# markers must not be mistaken for a live block. Once a live BEGIN is seen,
+# everything up to its closing END is block content, fences included: fences
+# inside the block must never suppress recognition of that closing END, or
+# the block's own fenced content leaks past the boundary on rewrite. Prints
+# "B E OK" where OK is 1 unless exactly one BEGIN/END pair exists and the END
+# appears before the BEGIN.
+count_markers() {
+  awk -v bp="$BEGIN_PAT" -v ep="$END_PAT" '
+    function is_fence(l) { return l ~ /^[ \t]*```/ }
+    {
+      if (inb) {
+        if (index($0, ep)) { e++; if (eline == 0) eline = NR; inb = 0 }
+        next
+      }
+      if (is_fence($0)) { fence = !fence; next }
+      if (fence) next
+      if (index($0, bp)) { b++; if (bline == 0) bline = NR; inb = 1 }
+    }
+    END {
+      ok = 1
+      if (b == 1 && e == 1 && eline < bline) ok = 0
+      printf "%d %d %d\n", b, e, ok
+    }
+  ' "$1"
+}
+
 if [ "$REMOVE" -eq 0 ]; then
   [ -n "$REFS" ] && [ -d "$REFS" ] || {
     printf 'references directory required and must exist (--references)\n' >&2; exit 2; }
@@ -51,30 +79,19 @@ if [ "$REMOVE" -eq 0 ]; then
     printf 'references block file not readable: %s\n' "$REFS/agents-block.md" >&2; exit 2; }
   [ -s "$REFS/agents-block.md" ] || {
     printf 'references block file is empty: %s\n' "$REFS/agents-block.md" >&2; exit 2; }
+  # Non-empty is not a strong enough test: the block file's one job is to BE a
+  # well-formed block. Whitespace-only content passes -s but installs nothing,
+  # silently leaving the target permanently non-idempotent (every future run
+  # sees no markers and appends again). Require exactly one BEGIN/END pair,
+  # BEGIN first, before any branch runs.
+  read -r rb re rok < <(count_markers "$REFS/agents-block.md")
+  if [ "$rb" -ne 1 ] || [ "$re" -ne 1 ] || [ "$rok" -eq 0 ]; then
+    printf 'refusing: %s is not a well-formed block (need exactly one BEGIN and one END, BEGIN before END)\n' "$REFS/agents-block.md" >&2
+    exit 2
+  fi
 fi
 
 INSTR_FILES="AGENTS.md CLAUDE.md"
-
-# Count BEGIN/END markers in $1, ignoring anything inside a fenced code block
-# (``` toggles fence state) — a doc example that quotes our own markers must
-# not be mistaken for a live block. Prints "B E OK" where OK is 1 unless
-# exactly one BEGIN/END pair exists and the END appears before the BEGIN.
-count_markers() {
-  awk -v bp="$BEGIN_PAT" -v ep="$END_PAT" '
-    function is_fence(l) { return l ~ /^[ \t]*```/ }
-    {
-      if (is_fence($0)) { fence = !fence; next }
-      if (fence) next
-      if (index($0, bp)) { b++; if (bline == 0) bline = NR }
-      if (index($0, ep)) { e++; if (eline == 0) eline = NR }
-    }
-    END {
-      ok = 1
-      if (b == 1 && e == 1 && eline < bline) ok = 0
-      printf "%d %d %d\n", b, e, ok
-    }
-  ' "$1"
-}
 
 # Refuse before writing anything if any target's live markers are unbalanced
 # or out of order (fenced doc examples of the markers don't count).
@@ -108,15 +125,20 @@ target_mode() {
   printf '%s' "${m:-644}"
 }
 
-strip_block() {  # $1=file -> stdout without the managed block (fence-aware)
+strip_block() {  # $1=file -> stdout without the managed block
+  # Fence tracking applies only outside the block: once inside, a fence
+  # delimiter is block content like any other line and must not suppress
+  # recognition of the closing END (see count_markers for why).
   awk -v bp="$BEGIN_PAT" -v ep="$END_PAT" '
     function is_fence(l) { return l ~ /^[ \t]*```/ }
     {
+      if (inb) {
+        if (index($0, ep)) inb = 0
+        next
+      }
       if (is_fence($0)) { fence = !fence; print; next }
       if (fence) { print; next }
       if (index($0, bp)) { inb = 1; next }
-      if (inb && index($0, ep)) { inb = 0; next }
-      if (inb) next
       print
     }
   ' "$1"
@@ -130,6 +152,10 @@ apply_block() {  # $1=file  $2=blockfile
     read -r b e ok < <(count_markers "$f")
   fi
   if [ -f "$f" ] && [ "$b" -ge 1 ]; then
+    # Fence tracking applies only outside the block: once the live BEGIN is
+    # seen, everything up to its closing END is old block content, fences
+    # included, and must be discarded wholesale rather than have an internal
+    # fence toggle state and start passing lines through again.
     awk -v bp="$BEGIN_PAT" -v ep="$END_PAT" -v bfile="$bf" '
       function is_fence(l) { return l ~ /^[ \t]*```/ }
       BEGIN {
@@ -137,11 +163,13 @@ apply_block() {  # $1=file  $2=blockfile
         if (blk == "") { print "refusing: block file produced no content" > "/dev/stderr"; exit 2 }
       }
       {
+        if (inb) {
+          if (index($0, ep)) inb = 0
+          next
+        }
         if (is_fence($0)) { fence = !fence; print; next }
         if (fence) { print; next }
         if (index($0, bp)) { inb = 1; printf "%s", blk; next }
-        if (inb && index($0, ep)) { inb = 0; next }
-        if (inb) next
         print
       }
     ' "$f" > "$tmp"

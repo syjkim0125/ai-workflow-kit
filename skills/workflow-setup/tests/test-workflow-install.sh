@@ -18,6 +18,10 @@
 #  14. Unreadable/empty block file -> exit 2, target left byte-identical (no silent wipe)
 #  15. Target file mode is preserved across a write; a fresh file gets 644, not mktemp's 600
 #  16. Markers quoted inside a fenced code example are not treated as the live block
+#  17. A fence inside the managed block's OWN content doesn't leak/duplicate on
+#      reinstall, and is fully gone after --remove
+#  18. A whitespace-only block file is refused (exit 2) before any branch runs,
+#      including the append path (existing file, no block yet)
 
 set -uo pipefail
 
@@ -190,6 +194,51 @@ check "user content survives"               "1"   "$(grep -c 'keep me' "$R/AGENT
 run "$R" >/dev/null
 check "fenced example survives second run"  "1"   "$(grep -c 'vDOC-EXAMPLE' "$R/AGENTS.md")"
 check "still exactly one live block"        "1"   "$(grep -c '<!-- BEGIN ai-workflow-kit vTEST' "$R/AGENTS.md")"
+
+# 17 finding A: a fence inside the live block's OWN content must not leak/duplicate.
+# Fence tracking must apply only outside the managed block — inside, fences are
+# just block content and must not suppress recognition of the closing END.
+REF_FENCED="$TMP/references-fenced"
+mkdir -p "$REF_FENCED/bin" "$REF_FENCED/templates" "$REF_FENCED/engineering"
+cat > "$REF_FENCED/agents-block.md" <<'BLOCK'
+<!-- BEGIN ai-workflow-kit vTEST — managed; edits inside are overwritten -->
+## Engineering lifecycle (ai-workflow-kit)
+
+Example command:
+```
+echo hello
+```
+
+- Understanding gates are part of approval, not a courtesy.
+<!-- END ai-workflow-kit -->
+BLOCK
+printf '#!/usr/bin/env bash\necho checker\n' > "$REF_FENCED/bin/check-understanding.sh"
+printf '# T\n' > "$REF_FENCED/templates/UNDERSTANDING.md"
+printf '# W\n' > "$REF_FENCED/engineering/AI-WORKFLOW.md"
+run_fenced() { bash "$SCRIPT" --references "$REF_FENCED" --repo-root "$1" --version vTEST "${@:2}" >/dev/null 2>&1; printf '%s' "$?"; }
+
+R="$TMP/r17"; mkrepo "$R"
+run_fenced "$R" >/dev/null
+run_fenced "$R" >/dev/null
+check "fence-in-block: third install exits 0"          "0" "$(run_fenced "$R")"
+check "fenced sample appears exactly once"              "1" "$(grep -c 'echo hello' "$R/AGENTS.md")"
+check "still exactly one live block after 3 installs"   "1" "$(blocks "$R/AGENTS.md")"
+run_fenced "$R" --remove >/dev/null
+check "--remove leaves none of the fenced sample"       "0" "$(grep -c 'echo hello' "$R/AGENTS.md" 2>/dev/null)"
+
+# 18 finding B: a whitespace-only block file must be refused before any branch
+# runs — including the append path (existing file, no block yet), which had no
+# content check of its own and would otherwise silently install nothing.
+REF_WS="$TMP/references-whitespace"
+mkdir -p "$REF_WS"
+printf '   \n\n  \t \n' > "$REF_WS/agents-block.md"
+R="$TMP/r18"; mkrepo "$R"
+printf '# Mine\n\n- keep me\n' > "$R/AGENTS.md"   # existing file, no block yet -> append path
+sha_before="$(shasum "$R/AGENTS.md" | cut -d' ' -f1)"
+bash "$SCRIPT" --references "$REF_WS" --repo-root "$R" --version vTEST >/dev/null 2>&1
+check "whitespace-only block file exits 2"     "2"           "$?"
+check "append-path target untouched (sha)"     "$sha_before" "$(shasum "$R/AGENTS.md" | cut -d' ' -f1)"
+check "append-path: still no markers installed" "0"          "$(blocks "$R/AGENTS.md")"
 
 printf '\nPASS %d / FAIL %d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
