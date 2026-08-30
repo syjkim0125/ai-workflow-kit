@@ -22,6 +22,8 @@
 #      reinstall, and is fully gone after --remove
 #  18. A whitespace-only block file is refused (exit 2) before any branch runs,
 #      including the append path (existing file, no block yet)
+#  19. Ordinary prose inside the block body that quotes the END marker text is
+#      not mistaken for the real END; a version bump still replaces cleanly
 
 set -uo pipefail
 
@@ -239,6 +241,33 @@ bash "$SCRIPT" --references "$REF_WS" --repo-root "$R" --version vTEST >/dev/nul
 check "whitespace-only block file exits 2"     "2"           "$?"
 check "append-path target untouched (sha)"     "$sha_before" "$(shasum "$R/AGENTS.md" | cut -d' ' -f1)"
 check "append-path: still no markers installed" "0"          "$(blocks "$R/AGENTS.md")"
+
+# 19: ordinary prose inside the block body that quotes the END marker text
+# (no fence, just a sentence) must not be mistaken for the real closing END —
+# a marker is an anchored match (BEGIN: line starts with the prefix; END: the
+# whole trimmed line), not "the pattern text appears somewhere on this line".
+REF_MIMIC_V1="$TMP/references-mimic-v1"; mkdir -p "$REF_MIMIC_V1"
+cat > "$REF_MIMIC_V1/agents-block.md" <<'BLOCK'
+<!-- BEGIN ai-workflow-kit v2.6 -->
+The block ends with the line <!-- END ai-workflow-kit --> exactly.
+REAL BODY CONTENT
+<!-- END ai-workflow-kit -->
+BLOCK
+REF_MIMIC_V2="$TMP/references-mimic-v2"; mkdir -p "$REF_MIMIC_V2"
+cat > "$REF_MIMIC_V2/agents-block.md" <<'BLOCK'
+<!-- BEGIN ai-workflow-kit v2.7 -->
+The block ends with the line <!-- END ai-workflow-kit --> exactly.
+REAL BODY CONTENT
+<!-- END ai-workflow-kit -->
+BLOCK
+R="$TMP/r19"; mkrepo "$R"
+bash "$SCRIPT" --references "$REF_MIMIC_V1" --repo-root "$R" --version v2.6 >/dev/null 2>&1
+check "mimic-prose: install #1 exits 0"          "0" "$?"
+bash "$SCRIPT" --references "$REF_MIMIC_V2" --repo-root "$R" --version v2.7 >/dev/null 2>&1
+check "mimic-prose: install #2 (bumped) exits 0" "0" "$?"
+check "mimic-prose: body appears exactly once"   "1" "$(grep -c 'REAL BODY CONTENT' "$R/AGENTS.md")"
+check "mimic-prose: version bumped to v2.7"      "1" "$(grep -c 'v2.7' "$R/AGENTS.md")"
+check "mimic-prose: old v2.6 gone"               "0" "$(grep -c 'v2.6' "$R/AGENTS.md")"
 
 printf '\nPASS %d / FAIL %d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

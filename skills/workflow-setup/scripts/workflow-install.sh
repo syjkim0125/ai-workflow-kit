@@ -53,14 +53,22 @@ fi
 count_markers() {
   awk -v bp="$BEGIN_PAT" -v ep="$END_PAT" '
     function is_fence(l) { return l ~ /^[ \t]*```/ }
+    # A marker is an anchored match, not "the pattern text appears somewhere on
+    # this line" — prose that merely quotes the marker text must not be mistaken
+    # for the real thing. BEGIN: line starts with the prefix (after optional
+    # leading whitespace) — the version text follows on the same line, so this
+    # stays a prefix match, not an exact one. END: the WHOLE line, trimmed of
+    # leading/trailing whitespace, is exactly the closing tag.
+    function is_begin(l,    t) { t = l; sub(/^[ \t]+/, "", t); return index(t, bp) == 1 }
+    function is_end(l,    t)   { t = l; gsub(/^[ \t]+/, "", t); gsub(/[ \t]+$/, "", t); return t == ep }
     {
       if (inb) {
-        if (index($0, ep)) { e++; if (eline == 0) eline = NR; inb = 0 }
+        if (is_end($0)) { e++; if (eline == 0) eline = NR; inb = 0 }
         next
       }
       if (is_fence($0)) { fence = !fence; next }
       if (fence) next
-      if (index($0, bp)) { b++; if (bline == 0) bline = NR; inb = 1 }
+      if (is_begin($0)) { b++; if (bline == 0) bline = NR; inb = 1 }
     }
     END {
       ok = 1
@@ -131,14 +139,16 @@ strip_block() {  # $1=file -> stdout without the managed block
   # recognition of the closing END (see count_markers for why).
   awk -v bp="$BEGIN_PAT" -v ep="$END_PAT" '
     function is_fence(l) { return l ~ /^[ \t]*```/ }
+    function is_begin(l,    t) { t = l; sub(/^[ \t]+/, "", t); return index(t, bp) == 1 }
+    function is_end(l,    t)   { t = l; gsub(/^[ \t]+/, "", t); gsub(/[ \t]+$/, "", t); return t == ep }
     {
       if (inb) {
-        if (index($0, ep)) inb = 0
+        if (is_end($0)) inb = 0
         next
       }
       if (is_fence($0)) { fence = !fence; print; next }
       if (fence) { print; next }
-      if (index($0, bp)) { inb = 1; next }
+      if (is_begin($0)) { inb = 1; next }
       print
     }
   ' "$1"
@@ -158,18 +168,20 @@ apply_block() {  # $1=file  $2=blockfile
     # fence toggle state and start passing lines through again.
     awk -v bp="$BEGIN_PAT" -v ep="$END_PAT" -v bfile="$bf" '
       function is_fence(l) { return l ~ /^[ \t]*```/ }
+      function is_begin(l,    t) { t = l; sub(/^[ \t]+/, "", t); return index(t, bp) == 1 }
+      function is_end(l,    t)   { t = l; gsub(/^[ \t]+/, "", t); gsub(/[ \t]+$/, "", t); return t == ep }
       BEGIN {
         while ((getline l < bfile) > 0) blk = blk l "\n"
         if (blk == "") { print "refusing: block file produced no content" > "/dev/stderr"; exit 2 }
       }
       {
         if (inb) {
-          if (index($0, ep)) inb = 0
+          if (is_end($0)) inb = 0
           next
         }
         if (is_fence($0)) { fence = !fence; print; next }
         if (fence) { print; next }
-        if (index($0, bp)) { inb = 1; printf "%s", blk; next }
+        if (is_begin($0)) { inb = 1; printf "%s", blk; next }
         print
       }
     ' "$f" > "$tmp"
