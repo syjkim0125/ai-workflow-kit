@@ -85,7 +85,7 @@ Create the project `README.md` for the actual repository. Do not rename the kit'
 
 ## 4. Runtime routing
 - Compound Engineering is the default lifecycle for this repository, for every runtime. The lifecycle policy lives in `AGENTS.md` ("Engineering lifecycle") so Claude Code and Codex receive the same instructions.
-- `story-breakdown` is used only when an approved Story is too large for one reviewable PR. It ships in two mirrored locations — `.claude/skills/` (Claude Code) and `.agents/skills/` (Codex) — edit both together, or symlink one to the other when the project's platforms allow it.
+- `story-breakdown` is used only when an approved Story is too large for one reviewable PR. It ships from the plugin's single `skills/` directory, read by both runtimes; `/workflow-setup` installs the repo-local half (the always-on rules block and `.ai-workflow/bin/`) that the plugin cannot write itself.
 - Do not invoke Superpowers lifecycle skills automatically. Use them only when the user explicitly requests Superpowers or names a specific Superpowers skill.
 - Do not stack equivalent Superpowers and Compound lifecycle phases.
 - Use direct work for tiny reversible changes; use `/ce-plan` when planning adds decision value; add an explicit human plan checkpoint for high-risk changes.

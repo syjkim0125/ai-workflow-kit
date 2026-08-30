@@ -11,7 +11,7 @@ Claude adapter:       CLAUDE.md (imports AGENTS.md; slash-command mapping)
 Codex adapter:        AGENTS.md + .agents/skills/ (native discovery)
 Primary lifecycle:    Compound Engineering (all runtimes)
 Org adapter:          story-breakdown (only for oversized approved Stories;
-                      mirrored in .claude/skills/ and .agents/skills/)
+                      shipped from the plugin's skills/, single copy)
 Repo learning:        docs/solutions/ via ce-compound
 Global Superpowers:   keep installed; explicit opt-in only
 ```

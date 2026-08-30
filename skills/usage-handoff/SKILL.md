@@ -26,21 +26,21 @@ what happened this turn.
 
 ## Where This Skill Lives
 
-Two layouts, same scripts. Resolve in this order:
+Both runtimes read this same file from the plugin's `skills/usage-handoff/`
+directory — there is no separate per-runtime copy. Set `SKILL` to the absolute
+directory you loaded this SKILL.md from — the Bash tool's working directory is
+the user's project, not the skill directory, so a bare relative path will not
+resolve:
 
 ```bash
-# 1. Repository copy (shared with the team, works for every runtime)
-SKILL="$(git rev-parse --show-toplevel 2>/dev/null)/.claude/skills/usage-handoff"
-# 2. Personal copy (repos that have not adopted it)
-[ -d "$SKILL" ] || SKILL="$HOME/.claude/skills/usage-handoff"
+SKILL="<absolute path of the directory containing this SKILL.md>"
 ```
 
-Codex reads `.agents/skills/usage-handoff/SKILL.md`, a mirror of this file.
 `new-handoff.sh`, `usage.py`, and `usage-refresh.py` stay under this skill's own
-`scripts/` directory, so running them requires the skill (or its Codex mirror) to
-be present. `enable-hook.sh` and the hook it installs (`usage-guard.sh`) are
-installed into this repository at `.ai-workflow/bin/` by `/workflow-setup`, so the
-warning hook fires without the plugin.
+`scripts/` directory, so running them requires the skill to be present.
+`enable-hook.sh` and the hook it installs (`usage-guard.sh`) are installed into
+this repository at `.ai-workflow/bin/` by `/workflow-setup`, so the warning hook
+fires without the plugin.
 
 ## Procedure
 
