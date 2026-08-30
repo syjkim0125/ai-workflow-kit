@@ -1,23 +1,27 @@
 #!/usr/bin/env bash
-# Structural consistency checks for the learning-gate wiring.
+# Structural checks for the plugin and for what workflow-install.sh produces.
+#
+# The kit's known failure mode is a target repo that ends up half-installed or
+# drifted. This suite installs into a throwaway repo and inspects the result.
 #
 # Contract under test:
-#   1. Both skill mirrors exist and are byte-identical
-#   2. Scripts exist only under .claude (single copy, both runtimes)
-#   3. templates/UNDERSTANDING.md defines all four gate ids
-#   4. AGENTS.md registers the skill and the blocking rules
-#   5. AI-WORKFLOW.md flow contains the G1 step and the G4 gate
-#   6. AI-SETUP.md lists the new paths; README-FIRST.md (kit-only) is conditionally tested
-#   7. docs/understanding/ exists
-#   8. AI-WORKFLOW-SOURCES.md keeps source URLs on their correct bullets (defect guard)
+#   1. Plugin manifests exist and are valid JSON
+#   2. The Codex manifest points at the same skills/ directory (no mirror)
+#   3. No .agents/skills mirror exists anywhere
+#   4. Every shipped skill has a SKILL.md with frontmatter
+#   5. references/ carries agents-block.md, bin/, templates/, engineering/
+#   6. A fresh install produces all five artifacts
+#   7. The install is idempotent
+#   8. The copied checker actually runs in the target repo
+#   9. --remove strips the block and .ai-workflow/ and keeps the rest
+#  10. Docs carry no stale .claude/skills/ paths
 
 set -uo pipefail
 
 TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-KIT="$(cd "$TEST_DIR/../../.." && pwd -P)"      # -> repo root (plugin root)
-ROOT="$KIT"                                      # kit root == plugin root now
+ROOT="$(cd "$TEST_DIR/../../.." && pwd -P)"     # repo root == plugin root
 
-pass=0; fail=0; skip=0
+pass=0; fail=0
 check() {
   local name="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
@@ -26,72 +30,69 @@ check() {
     fail=$((fail+1)); printf '  FAIL  %s\n        expected: %s\n        actual:   %s\n' "$name" "$expected" "$actual"
   fi
 }
-skipcheck() {
-  skip=$((skip+1)); printf '  SKIP  %s (%s)\n' "$1" "$2"
-}
-has() { grep -qF -- "$2" "$1" 2>/dev/null && printf 'yes' || printf 'no'; }
-exists() { [ -e "$1" ] && printf 'yes' || printf 'no'; }
+exists() { [ -e "$1" ] && printf yes || printf no; }
+validjson() { jq -e . "$1" >/dev/null 2>&1 && printf yes || printf no; }
+# NOTE: `grep -c PAT file || printf 0` double-fires — grep -c prints "0" on zero
+# matches but still exits 1, so the || runs too and you get "0\n0". Capture first.
+count() { local c; c="$(grep -c "$1" "$2" 2>/dev/null)"; printf '%s' "${c:-0}"; }
 
-C="$KIT/.claude/skills/learning-gate"
-A="$KIT/.agents/skills/learning-gate"
-
-check "claude SKILL.md exists" "yes" "$(exists "$C/SKILL.md")"
-check "agents SKILL.md exists" "yes" "$(exists "$A/SKILL.md")"
-check "claude EVALS.md exists" "yes" "$(exists "$C/EVALS.md")"
-check "agents EVALS.md exists" "yes" "$(exists "$A/EVALS.md")"
-
-check "SKILL.md mirrors identical" "yes" "$(cmp -s "$C/SKILL.md" "$A/SKILL.md" && printf yes || printf no)"
-check "EVALS.md mirrors identical" "yes" "$(cmp -s "$C/EVALS.md" "$A/EVALS.md" && printf yes || printf no)"
-
-check "checker script present" "yes" "$(exists "$C/scripts/check-understanding.sh")"
-check "checker not mirrored to .agents" "no" "$(exists "$A/scripts/check-understanding.sh")"
-check "docs/understanding exists" "yes" "$(exists "$KIT/docs/understanding")"
-
-T="$KIT/templates/UNDERSTANDING.md"
-check "template exists" "yes" "$(exists "$T")"
-for g in G1 G3 G4 G5; do
-  check "template mentions $g" "yes" "$(has "$T" "$g")"
+# 1-2 manifests
+for m in .claude-plugin/plugin.json .claude-plugin/marketplace.json .codex-plugin/plugin.json .agents/plugins/marketplace.json; do
+  check "manifest present: $m" "yes" "$(exists "$ROOT/$m")"
+  check "manifest valid json: $m" "yes" "$(validjson "$ROOT/$m")"
 done
-check "template states record grammar" "yes" "$(has "$T" "Understanding gate (G1):")"
+check "codex points at shared skills dir" "./skills/" "$(jq -r '.skills' "$ROOT/.codex-plugin/plugin.json" 2>/dev/null)"
+check "marketplace source is repo root"   "./"        "$(jq -r '.plugins[0].source' "$ROOT/.claude-plugin/marketplace.json" 2>/dev/null)"
 
-G="$KIT/AGENTS.md"
-check "AGENTS registers learning-gate" "yes" "$(has "$G" '`learning-gate` ships in this repository')"
-check "AGENTS names the checker" "yes" "$(has "$G" "check-understanding.sh")"
-check "AGENTS points at the template" "yes" "$(has "$G" "templates/UNDERSTANDING.md")"
-check "AGENTS drops the stale prose" "no" "$(has "$G" "quiz yourself against the change")"
+# 3 no mirror
+check "no .agents/skills mirror" "no" "$(exists "$ROOT/.agents/skills")"
+check "real-work is gone"        "no" "$(exists "$ROOT/real-work")"
 
-W="$KIT/docs/engineering/AI-WORKFLOW.md"
-check "flow has G1 step" "yes" "$(has "$W" "G1 understanding gate: learning-gate acceptance")"
-check "workflow names G4 command" "yes" "$(has "$W" "learning-gate diff")"
-check "workflow keeps N/A escape" "yes" "$(has "$W" "Understanding gate (G4): N/A")"
-check "workflow drops the stale prose" "no" "$(has "$W" "add an understanding gate before merge: have the agent explain")"
+# 4 skills
+for s in learning-gate story-breakdown usage-handoff workflow-setup; do
+  check "skill present: $s" "yes" "$(exists "$ROOT/skills/$s/SKILL.md")"
+  check "skill frontmatter: $s" "---" "$(head -1 "$ROOT/skills/$s/SKILL.md" 2>/dev/null)"
+done
 
-S="$KIT/docs/engineering/AI-SETUP.md"
-check "setup lists learning-gate" "yes" "$(has "$S" "learning-gate/")"
-check "setup lists UNDERSTANDING.md" "yes" "$(has "$S" "UNDERSTANDING.md")"
+# 5 references
+REF="$ROOT/skills/workflow-setup/references"
+for r in agents-block.md bin templates engineering; do
+  check "references has $r" "yes" "$(exists "$REF/$r")"
+done
+check "references bin has the checker" "yes" "$(exists "$REF/bin/check-understanding.sh")"
 
-R="$ROOT/README-FIRST.md"
-if [ -f "$R" ]; then
-  check "README-FIRST lists learning-gate" "yes" "$(has "$R" "learning-gate/")"
-  check "README-FIRST lists UNDERSTANDING.md" "yes" "$(has "$R" "UNDERSTANDING.md")"
-else
-  skipcheck "README-FIRST lists learning-gate" "kit-only check: no README-FIRST.md at repo root"
-  skipcheck "README-FIRST lists UNDERSTANDING.md" "kit-only check: no README-FIRST.md at repo root"
-fi
+# 6-9 install into a throwaway repo
+T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
+git -C "$T" init -q
+printf '# House rules\n\n- do not touch me\n' > "$T/AGENTS.md"
+bash "$ROOT/skills/workflow-setup/scripts/workflow-install.sh" \
+  --references "$REF" --repo-root "$T" --version vTEST >/dev/null 2>&1
+check "install exit 0" "0" "$?"
+check "block in AGENTS.md"      "1"   "$(count '<!-- BEGIN ai-workflow-kit' "$T/AGENTS.md")"
+check "block in CLAUDE.md"      "1"   "$(count '<!-- BEGIN ai-workflow-kit' "$T/CLAUDE.md")"
+check "user content preserved"  "1"   "$(count 'do not touch me' "$T/AGENTS.md")"
+check "bin installed"           "yes" "$(exists "$T/.ai-workflow/bin/check-understanding.sh")"
+check "VERSION written"         "vTEST" "$(cat "$T/.ai-workflow/VERSION" 2>/dev/null)"
+check "templates installed"     "yes" "$(exists "$T/templates/UNDERSTANDING.md")"
+check "gate artifact dir"       "yes" "$(exists "$T/docs/understanding/.gitkeep")"
 
-SRC="$KIT/docs/engineering/AI-WORKFLOW-SOURCES.md"
-if [ -f "$SRC" ]; then
-  check "sources record ce-explain" "yes" "$(has "$SRC" "ce-explain")"
-  check "sources record eli5" "yes" "$(has "$SRC" "eli5")"
-  littnext() {
-    awk '/^- Geoffrey Litt/{f=1;next} f{print; exit}' "$1" 2>/dev/null
-  }
-  check "sources: Litt bullet keeps its own first URL" "  - https://youtu.be/iv60GIHpijE" "$(littnext "$SRC")"
-else
-  skipcheck "sources record ce-explain" "kit-only check: no AI-WORKFLOW-SOURCES.md in this absorption"
-  skipcheck "sources record eli5" "kit-only check: no AI-WORKFLOW-SOURCES.md in this absorption"
-  skipcheck "sources: Litt bullet keeps its own first URL" "kit-only check: no AI-WORKFLOW-SOURCES.md in this absorption"
-fi
+bash "$ROOT/skills/workflow-setup/scripts/workflow-install.sh" \
+  --references "$REF" --repo-root "$T" --version vTEST >/dev/null 2>&1
+check "idempotent: one block"   "1"   "$(count '<!-- BEGIN ai-workflow-kit' "$T/AGENTS.md")"
 
-printf '\nPASS %d / FAIL %d / SKIP %d\n' "$pass" "$fail" "$skip"
+bash "$T/.ai-workflow/bin/check-understanding.sh" --gate G1 --contract "$T/AGENTS.md" --repo-root "$T" >/dev/null 2>&1
+check "copied checker runs (1=no record line)" "1" "$?"
+
+bash "$ROOT/skills/workflow-setup/scripts/workflow-install.sh" \
+  --references "$REF" --repo-root "$T" --remove >/dev/null 2>&1
+check "remove: block gone"      "0"   "$(count '<!-- BEGIN ai-workflow-kit' "$T/AGENTS.md")"
+check "remove: user content kept" "1" "$(count 'do not touch me' "$T/AGENTS.md")"
+check "remove: .ai-workflow gone" "no" "$(exists "$T/.ai-workflow")"
+check "remove: templates kept"    "yes" "$(exists "$T/templates/UNDERSTANDING.md")"
+
+# 10 no stale paths in shipped docs
+stale=$(grep -rl '\.claude/skills/' "$ROOT/skills" 2>/dev/null | wc -l | tr -d ' ')
+check "no stale .claude/skills paths in skills/" "0" "$stale"
+
+printf '\nPASS %d / FAIL %d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
