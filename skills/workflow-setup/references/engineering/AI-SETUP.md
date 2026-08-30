@@ -34,41 +34,24 @@ Codex notes:
 After installation, run the runtime-appropriate Compound setup (`/ce-setup` on slash-command hosts) in the project when needed.
 
 ## 3. Repository workflow files
-The project should absorb the kit rather than nest the whole distribution bundle:
+Skills (`story-breakdown`, `learning-gate`, `usage-handoff`, `workflow-setup`) ship from the plugin's own `skills/` directory and are read directly from there by both runtimes — nothing is copied into the target repository for them. `/workflow-setup` writes only the repo-local half a plugin cannot supply: the always-on rules block and the gate checker. After it runs, a target repository contains:
 
 ```text
 <project-root>/
-├── AGENTS.md
-├── CLAUDE.md
-├── .claude/
-│   └── skills/
-│       ├── story-breakdown/    # Claude Code copy
-│       │   ├── SKILL.md
-│       │   └── EVALS.md        # optional validation material
-│       ├── learning-gate/      # Claude Code copy; scripts live here for both runtimes
-│       │   ├── SKILL.md
-│       │   ├── EVALS.md
-│       │   ├── scripts/
-│       │   └── tests/
-│       └── usage-handoff/      # Claude Code copy; scripts live here for both runtimes
-│           ├── SKILL.md
-│           ├── scripts/
-│           ├── templates/
-│           └── tests/
-├── .agents/
-│   └── skills/
-│       ├── story-breakdown/    # Codex copy — keep in sync with .claude copy
-│       │   ├── SKILL.md
-│       │   └── EVALS.md
-│       ├── learning-gate/      # Codex copy — SKILL.md and EVALS.md mirrored; no scripts
-│       │   ├── SKILL.md
-│       │   └── EVALS.md
-│       └── usage-handoff/      # Codex copy — SKILL.md mirrored; no scripts
-│           └── SKILL.md
+├── AGENTS.md                       # managed block added between markers
+├── CLAUDE.md                       # managed block added between markers
+├── .ai-workflow/
+│   ├── bin/                        # gate checker + hook-invoked scripts
+│   │   ├── check-understanding.sh
+│   │   ├── enable-gate-hook.sh
+│   │   ├── enable-hook.sh
+│   │   ├── gate-guard.sh
+│   │   └── usage-guard.sh
+│   └── VERSION                     # installed kit version
 ├── docs/
 │   ├── product/
-│   │   └── PRD.md              # project-specific canonical/snapshot PRD
-│   ├── understanding/          # understanding-gate artifacts
+│   │   └── PRD.md                  # project-specific; kept only if the project already has one
+│   ├── understanding/              # understanding-gate artifacts
 │   └── engineering/
 │       ├── AI-WORKFLOW.md
 │       ├── AI-SETUP.md
@@ -80,6 +63,8 @@ The project should absorb the kit rather than nest the whole distribution bundle
     ├── JIRA-STORY.md
     └── JIRA-TASK.md
 ```
+
+There is no repo-local, per-runtime skill-copy directory — the hand-copied Claude Code folder and its mirrored Codex counterpart belonged to the pre-plugin distribution and are gone. Content outside the `AGENTS.md`/`CLAUDE.md` markers, and everything under `docs/product/`, is never touched by the installer.
 
 Create the project `README.md` for the actual repository. Do not rename the kit's `README-FIRST.md` into the project README.
 

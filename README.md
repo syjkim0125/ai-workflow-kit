@@ -6,7 +6,7 @@ AI 에이전트와 함께 일할 때 **사람이 이해를 놓치지 않게** �
 
 ```mermaid
 flowchart TD
-    A["한 줄 요청<br/>'결제 취소 되게 해줘'"] --> B["무엇을 만들지 정하고 보여줌"]
+    A["한 줄 요청<br/>'결제 취소 되게 해줘'"] --> B["사람과 이야기하며 무엇을 만들지 정함"]
     B --> G1{{"G1 · 그림으로 확인<br/>'이게 맞아요?'"}}
     G1 --> C["사람이 승인"]
     C --> D["에이전트가 구현하고 테스트"]
@@ -24,6 +24,35 @@ flowchart TD
 그래서 아무도 이해하지 못한 코드가 쌓입니다.
 이 키트는 사람이 승인하기 **직전**마다 짧은 설명을 만들게 합니다.
 설명 없이는 다음 단계로 못 갑니다.
+
+## 전체 흐름
+
+위 그림은 게이트 두 개만 보여줍니다. 실제로는 이런 순서입니다.
+
+```mermaid
+flowchart TD
+    R["한 줄 요청"] --> I["사람과 인터뷰<br/>에이전트가 혼자 넓히지 않음"]
+    I --> D1["인수조건 초안 (Draft)"]
+    D1 --> G1{{"G1 · 그림으로 확인"}}
+    G1 --> A1["사람 승인 → Approved"]
+    A1 --> S["크기 판단"]
+    S -->|한 PR로 충분| P["위험도 판단"]
+    S -->|너무 큼| B1["story-breakdown"]
+    B1 --> A2["사람이 쪼갠 결과 승인"]
+    A2 --> P
+    P -->|작고 되돌릴 수 있음| W["구현 · 테스트"]
+    P -->|보통| PL["ce-plan"]
+    P -->|위험함| PH["ce-plan + 사람 확인"]
+    PL --> W
+    PH --> W
+    W --> G4{{"G4 · 먼저 맞춰보기"}}
+    G4 --> M["사람이 이해한 채로 머지"]
+
+    style G1 fill:#fff3cd,stroke:#d39e00,color:#000
+    style G4 fill:#fff3cd,stroke:#d39e00,color:#000
+```
+
+사람이 판단하는 지점은 네 곳입니다: 인수조건 승인, 쪼갠 결과 승인, 위험한 작업의 계획 확인, 그리고 머지.
 
 ## 노란 상자(게이트)가 하는 일
 
@@ -55,17 +84,29 @@ Understanding gate (G4): N/A — 상수 한 줄 변경
 
 ## 시작하기
 
-이 저장소를 통째로 복사하지 마세요. `real-work/` 안의 파일들을 프로젝트에 흡수시키는 방식입니다.
+```text
+한 번만    /plugin marketplace add syjkim0125/ai-workflow-kit
+           /plugin install ai-workflow-kit
 
-전체 배포 지침: **[README-FIRST.md](README-FIRST.md)**
+레포마다   /workflow-setup
+
+업데이트   /plugin update  →  /workflow-setup 다시 실행
+```
+
+`/workflow-setup` 은 레포에 다섯 가지만 씁니다: `AGENTS.md`/`CLAUDE.md` 안의 관리 블록,
+`.ai-workflow/bin/`(게이트 검사기와 훅 스크립트), `.ai-workflow/VERSION`,
+`templates/`와 `docs/engineering/`, 그리고 `docs/understanding/`.
+쓰기 전에 diff를 보여주고 물어봅니다. 마커 바깥은 건드리지 않습니다.
+
+설치 상세와 이행 경로: **[README-FIRST.md](README-FIRST.md)**
 
 | 알고 싶은 것 | 읽을 곳 |
 |---|---|
-| 어떻게 설치하나 | [README-FIRST.md](README-FIRST.md) · [AI-SETUP.md](real-work/docs/engineering/AI-SETUP.md) |
-| 전체 작업 흐름 | [AI-WORKFLOW.md](real-work/docs/engineering/AI-WORKFLOW.md) |
-| 항상 지킬 원칙 | [AGENTS.md](real-work/AGENTS.md) |
-| 게이트가 뭘 물어보나 | [UNDERSTANDING.md](real-work/templates/UNDERSTANDING.md) |
-| 왜 이렇게 만들었나 | [AI-WORKFLOW-SOURCES.md](real-work/docs/engineering/AI-WORKFLOW-SOURCES.md) |
+| 어떻게 설치하나 | [README-FIRST.md](README-FIRST.md) · [AI-SETUP.md](skills/workflow-setup/references/engineering/AI-SETUP.md) |
+| 전체 작업 흐름 | [AI-WORKFLOW.md](skills/workflow-setup/references/engineering/AI-WORKFLOW.md) |
+| 항상 지킬 원칙 | [관리 블록 원문](skills/workflow-setup/references/agents-block.md) |
+| 게이트가 뭘 물어보나 | [UNDERSTANDING.md](skills/workflow-setup/references/templates/UNDERSTANDING.md) |
+| 왜 이렇게 만들었나 | [AI-WORKFLOW-SOURCES.md](skills/workflow-setup/references/engineering/AI-WORKFLOW-SOURCES.md) |
 
 ## 필요한 것
 

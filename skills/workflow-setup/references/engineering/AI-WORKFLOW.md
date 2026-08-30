@@ -8,7 +8,7 @@ Use one primary orchestration lifecycle, right-size checkpoints by risk, and pre
 ```text
 Always-on principles + lifecycle: AGENTS.md (read by every runtime)
 Claude adapter:       CLAUDE.md (imports AGENTS.md; slash-command mapping)
-Codex adapter:        AGENTS.md + .agents/skills/ (native discovery)
+Codex adapter:        AGENTS.md (native discovery; no repo-local skill copy)
 Primary lifecycle:    Compound Engineering (all runtimes)
 Org adapter:          story-breakdown (only for oversized approved Stories;
                       shipped from the plugin's skills/, single copy)
