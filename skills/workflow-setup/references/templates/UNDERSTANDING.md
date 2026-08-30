@@ -122,7 +122,7 @@ Grammar:
 Verify with:
 
 ```bash
-bash .claude/skills/learning-gate/scripts/check-understanding.sh --gate G1 --contract <path>
+bash .ai-workflow/bin/check-understanding.sh --gate G1 --contract <path>
 ```
 
 ## Blocking rules

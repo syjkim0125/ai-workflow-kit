@@ -35,9 +35,12 @@ SKILL="$(git rev-parse --show-toplevel 2>/dev/null)/.claude/skills/usage-handoff
 [ -d "$SKILL" ] || SKILL="$HOME/.claude/skills/usage-handoff"
 ```
 
-Codex reads `.agents/skills/usage-handoff/SKILL.md`, a mirror of this file; the
-scripts are not mirrored, so both runtimes run the single copy under
-`.claude/skills/usage-handoff/scripts/`.
+Codex reads `.agents/skills/usage-handoff/SKILL.md`, a mirror of this file.
+`new-handoff.sh`, `usage.py`, and `usage-refresh.py` stay under this skill's own
+`scripts/` directory, so running them requires the skill (or its Codex mirror) to
+be present. `enable-hook.sh` and the hook it installs (`usage-guard.sh`) are
+installed into this repository at `.ai-workflow/bin/` by `/workflow-setup`, so the
+warning hook fires without the plugin.
 
 ## Procedure
 
@@ -98,9 +101,9 @@ The hook is personal — it reads *your* quota with *your* credentials — so it
 committed, and nothing enables it for you.
 
 ```bash
-bash .claude/skills/usage-handoff/scripts/enable-hook.sh                  # both runtimes, 90%
-bash .claude/skills/usage-handoff/scripts/enable-hook.sh --threshold 80   # warn earlier
-bash .claude/skills/usage-handoff/scripts/enable-hook.sh --codex          # one runtime only
+bash .ai-workflow/bin/enable-hook.sh                  # both runtimes, 90%
+bash .ai-workflow/bin/enable-hook.sh --threshold 80   # warn earlier
+bash .ai-workflow/bin/enable-hook.sh --codex          # one runtime only
 ```
 
 It merges into `.claude/settings.local.json` (Claude Code) and `.codex/hooks.json`

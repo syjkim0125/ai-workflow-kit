@@ -85,7 +85,7 @@ check "still one entry"           "1"    "$(count "$SET")"
 check "updates contract path"     "yes"  "$(cmdof "$SET" | grep -q 'GATE_GUARD_CONTRACT=docs/OTHER.md' && printf yes || printf no)"
 
 # 7 guard warns, never blocks
-# $REPO deliberately has no .claude/skills/learning-gate installed in it.
+# $REPO deliberately has no .ai-workflow/bin/ installed in it.
 printf '# no record line here\n' > "$REPO/docs_contract.md"
 out="$( cd "$REPO" && GATE_GUARD_CONTRACT=docs_contract.md bash "$GUARD" 2>&1 )"; rc=$?
 check "guard exits 0 (warn only)" "0"    "$rc"

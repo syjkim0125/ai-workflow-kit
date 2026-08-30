@@ -50,7 +50,7 @@ repo="$(cd "$repo" && pwd -P)"
 
 # Resolved at hook run time, not now: the path must work on every teammate's
 # machine, so it can hold no absolute prefix.
-guard='bash "$(git rev-parse --show-toplevel)/.claude/skills/usage-handoff/scripts/usage-guard.sh"'
+guard='bash "$(git rev-parse --show-toplevel)/.ai-workflow/bin/usage-guard.sh"'
 if [ "$threshold" -ne 90 ]; then
   cmd="USAGE_GUARD_THRESHOLD=$threshold $guard"
 else

@@ -70,15 +70,16 @@ work already uses. One line per gate, in the grammar
 Then verify rather than assert:
 
 ```bash
-bash .claude/skills/learning-gate/scripts/check-understanding.sh \
+bash .ai-workflow/bin/check-understanding.sh \
   --gate <G1|G3|G4|G5> --contract <path-to-canonical-contract>
 ```
 
 When the canonical contract is Jira-only there is no local file for `--contract`, so verify the artifact path directly instead — `[ -f docs/understanding/<slug>.html ]` — and report that.
 
 Exit 0 means the gate is satisfied. Report the exit code; do not claim the gate
-passed without running this. Both runtimes run the single copy under
-`.claude/skills/learning-gate/scripts/`.
+passed without running this. The checker is installed into this repository at `.ai-workflow/bin/` by
+`/workflow-setup`, so it runs without the plugin — CI and teammates who have not
+installed it can still verify a gate.
 
 ## 5. Blocking rules
 

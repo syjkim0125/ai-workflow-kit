@@ -89,7 +89,7 @@ Create the project `README.md` for the actual repository. Do not rename the kit'
 - Do not invoke Superpowers lifecycle skills automatically. Use them only when the user explicitly requests Superpowers or names a specific Superpowers skill.
 - Do not stack equivalent Superpowers and Compound lifecycle phases.
 - Use direct work for tiny reversible changes; use `/ce-plan` when planning adds decision value; add an explicit human plan checkpoint for high-risk changes.
-- `learning-gate` runs at the understanding gates (G1 before Acceptance approval, G4 before merge, G3/G5 conditionally). Both runtimes run the single script copy under `.claude/skills/learning-gate/scripts/`.
+- `learning-gate` runs at the understanding gates (G1 before Acceptance approval, G4 before merge, G3/G5 conditionally). The checker is installed into this repository at `.ai-workflow/bin/` by `/workflow-setup`, so it runs without the plugin — CI and teammates who have not installed it can still verify a gate.
 
 ## 5. Durable learning
 `/ce-compound` is not an automatic post-task ritual. After verified work, persist only a non-obvious, evidence-backed repo-local lesson that future work would otherwise have to rediscover, and ask before writing it.

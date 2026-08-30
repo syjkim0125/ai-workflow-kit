@@ -176,7 +176,7 @@ Every change passes an understanding gate before merge: run `learning-gate diff`
 
 When the diff is small enough to read at a glance, record `Understanding gate (G4): N/A — <reason>` instead of running the full cycle, the same way `Plan source: N/A — small reversible task` works. The skip stays visible.
 
-The gate is satisfied by evidence: an artifact under `docs/understanding/` and one record line in the canonical Acceptance artifact, verified with `bash .claude/skills/learning-gate/scripts/check-understanding.sh`. Purpose is preventing cognitive debt, not producing documentation.
+The gate is satisfied by evidence: an artifact under `docs/understanding/` and one record line in the canonical Acceptance artifact, verified with `bash .ai-workflow/bin/check-understanding.sh`. Purpose is preventing cognitive debt, not producing documentation.
 
 Use goal-backward verification: **what must be true if this outcome is actually complete?** Every non-trivial task ends with an explained completion: what changed, why it fits, key trade-offs, verification run with results, remaining assumptions/risks.
 

@@ -62,7 +62,7 @@ jq -e . "$SET" >/dev/null 2>&1 || { printf 'not valid JSON: %s\n' "$SET" >&2; ex
 # invocation nothing surfaces. $ROOT, the absolute repo root known right now
 # at install time, is baked in as the fallback so there is no single point of
 # failure on that variable being populated correctly later.
-CMD="GATE_GUARD_CONTRACT=$CONTRACT bash \"\${CLAUDE_PROJECT_DIR:-$ROOT}/.claude/skills/learning-gate/scripts/gate-guard.sh\""
+CMD="GATE_GUARD_CONTRACT=$CONTRACT bash \"\${CLAUDE_PROJECT_DIR:-$ROOT}/.ai-workflow/bin/gate-guard.sh\""
 
 TMPF="$(mktemp)"; trap 'rm -f "$TMPF"' EXIT
 jq --arg cmd "$CMD" '
