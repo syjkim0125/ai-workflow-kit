@@ -24,6 +24,12 @@
 #      including the append path (existing file, no block yet)
 #  19. Ordinary prose inside the block body that quotes the END marker text is
 #      not mistaken for the real END; a version bump still replaces cleanly
+#  20. A CRLF-terminated existing block is still recognized as live (the \r
+#      doesn't defeat the anchored exact-line match) and a version bump
+#      replaces it cleanly
+#  21. A blockquoted marker is correctly left as prose (not live) AND the
+#      installer warns about it on the append path; still exactly one live
+#      block gets appended and the quoted text is untouched
 
 set -uo pipefail
 
@@ -268,6 +274,31 @@ check "mimic-prose: install #2 (bumped) exits 0" "0" "$?"
 check "mimic-prose: body appears exactly once"   "1" "$(grep -c 'REAL BODY CONTENT' "$R/AGENTS.md")"
 check "mimic-prose: version bumped to v2.7"      "1" "$(grep -c 'v2.7' "$R/AGENTS.md")"
 check "mimic-prose: old v2.6 gone"               "0" "$(grep -c 'v2.6' "$R/AGENTS.md")"
+
+# 20: a CRLF-terminated existing block must still be recognized as live — the
+# exact-line END match must trim a trailing \r, not just space/tab, or the
+# repo gets locked out (refuses forever, version never lands).
+R="$TMP/r20"; mkrepo "$R"
+printf '<!-- BEGIN ai-workflow-kit vOLD -->\r\nold body\r\n<!-- END ai-workflow-kit -->\r\n' > "$R/AGENTS.md"
+check "CRLF block: install exits 0"        "0" "$(run "$R")"
+check "CRLF block: new version present"    "1" "$(grep -c 'vTEST' "$R/AGENTS.md")"
+check "CRLF block: old version gone"       "0" "$(grep -c 'vOLD' "$R/AGENTS.md")"
+check "CRLF block: still exactly one block" "1" "$(blocks "$R/AGENTS.md")"
+
+# 21: a blockquoted marker (`> <!-- BEGIN ... -->`) is quoted text, the same
+# category as a marker inside a fence — correctly NOT treated as live, so the
+# installer takes the append path and appends a fresh block below it. That
+# must not be silent: a warning should name the file and line number.
+R="$TMP/r21"; mkrepo "$R"
+printf '# Mine\n\n> <!-- BEGIN ai-workflow-kit v2.5 -->\n> quoted example, not live\n\n- keep me\n' > "$R/AGENTS.md"
+stderr_out="$(bash "$SCRIPT" --references "$REF" --repo-root "$R" --version vTEST 2>&1 >/dev/null)"
+exit_code=$?
+check "blockquote: install exits 0"              "0" "$exit_code"
+check "blockquote: warning names the file"       "1" "$(printf '%s\n' "$stderr_out" | grep -c 'AGENTS.md')"
+check "blockquote: warning says appended"        "1" "$(printf '%s\n' "$stderr_out" | grep -ci 'appended')"
+check "blockquote: quoted line untouched"        "1" "$(grep -c '> <!-- BEGIN ai-workflow-kit v2.5 -->' "$R/AGENTS.md")"
+check "blockquote: exactly one live block"       "1" "$(grep -c '<!-- BEGIN ai-workflow-kit vTEST' "$R/AGENTS.md")"
+check "blockquote: user content survives"        "1" "$(grep -c 'keep me' "$R/AGENTS.md")"
 
 printf '\nPASS %d / FAIL %d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

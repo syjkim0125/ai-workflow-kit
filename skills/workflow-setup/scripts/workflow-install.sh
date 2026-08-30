@@ -59,8 +59,11 @@ count_markers() {
     # leading whitespace) — the version text follows on the same line, so this
     # stays a prefix match, not an exact one. END: the WHOLE line, trimmed of
     # leading/trailing whitespace, is exactly the closing tag.
-    function is_begin(l,    t) { t = l; sub(/^[ \t]+/, "", t); return index(t, bp) == 1 }
-    function is_end(l,    t)   { t = l; gsub(/^[ \t]+/, "", t); gsub(/[ \t]+$/, "", t); return t == ep }
+    # Trim a trailing \r along with space/tab: a CRLF checkout (or Windows
+    # editor) leaves \r attached to $0 since only \n is the record separator,
+    # and an exact-line match must not be defeated by that alone.
+    function is_begin(l,    t) { t = l; sub(/^[ \t]+/, "", t); sub(/\r$/, "", t); return index(t, bp) == 1 }
+    function is_end(l,    t)   { t = l; gsub(/^[ \t]+/, "", t); gsub(/[ \t\r]+$/, "", t); return t == ep }
     {
       if (inb) {
         if (is_end($0)) { e++; if (eline == 0) eline = NR; inb = 0 }
@@ -139,8 +142,11 @@ strip_block() {  # $1=file -> stdout without the managed block
   # recognition of the closing END (see count_markers for why).
   awk -v bp="$BEGIN_PAT" -v ep="$END_PAT" '
     function is_fence(l) { return l ~ /^[ \t]*```/ }
-    function is_begin(l,    t) { t = l; sub(/^[ \t]+/, "", t); return index(t, bp) == 1 }
-    function is_end(l,    t)   { t = l; gsub(/^[ \t]+/, "", t); gsub(/[ \t]+$/, "", t); return t == ep }
+    # Trim a trailing \r along with space/tab: a CRLF checkout (or Windows
+    # editor) leaves \r attached to $0 since only \n is the record separator,
+    # and an exact-line match must not be defeated by that alone.
+    function is_begin(l,    t) { t = l; sub(/^[ \t]+/, "", t); sub(/\r$/, "", t); return index(t, bp) == 1 }
+    function is_end(l,    t)   { t = l; gsub(/^[ \t]+/, "", t); gsub(/[ \t\r]+$/, "", t); return t == ep }
     {
       if (inb) {
         if (is_end($0)) inb = 0
@@ -150,6 +156,27 @@ strip_block() {  # $1=file -> stdout without the managed block
       if (fence) { print; next }
       if (is_begin($0)) { inb = 1; next }
       print
+    }
+  ' "$1"
+}
+
+# Warn (stderr only; never refuses, never changes what gets written) when $1
+# contains a line that merely LOOKS like a marker — the raw pattern text
+# appears on the line somewhere — but the anchored predicate deliberately
+# does not recognize it as live (it's inside a fence, inside a blockquote,
+# indented, or otherwise not an exact/prefix match at column 1). That is
+# correct behavior — quoted marker text must never be treated as live — but
+# it should not also be silent: the file ends up with the quoted text left
+# alone and a fresh block appended below it, and the person should know why.
+warn_marker_like() {  # $1=file
+  awk -v bp="$BEGIN_PAT" -v ep="$END_PAT" -v fname="$1" '
+    function is_begin(l,    t) { t = l; sub(/^[ \t]+/, "", t); sub(/\r$/, "", t); return index(t, bp) == 1 }
+    function is_end(l,    t)   { t = l; gsub(/^[ \t]+/, "", t); gsub(/[ \t\r]+$/, "", t); return t == ep }
+    {
+      looks_like = (index($0, bp) > 0) || (index($0, ep) > 0)
+      if (looks_like && !is_begin($0) && !is_end($0)) {
+        printf "warning: appended a new block to %s, which also has marker-like text at line %d that was left as prose (not a live marker)\n", fname, NR > "/dev/stderr"
+      }
     }
   ' "$1"
 }
@@ -168,8 +195,8 @@ apply_block() {  # $1=file  $2=blockfile
     # fence toggle state and start passing lines through again.
     awk -v bp="$BEGIN_PAT" -v ep="$END_PAT" -v bfile="$bf" '
       function is_fence(l) { return l ~ /^[ \t]*```/ }
-      function is_begin(l,    t) { t = l; sub(/^[ \t]+/, "", t); return index(t, bp) == 1 }
-      function is_end(l,    t)   { t = l; gsub(/^[ \t]+/, "", t); gsub(/[ \t]+$/, "", t); return t == ep }
+      function is_begin(l,    t) { t = l; sub(/^[ \t]+/, "", t); sub(/\r$/, "", t); return index(t, bp) == 1 }
+      function is_end(l,    t)   { t = l; gsub(/^[ \t]+/, "", t); gsub(/[ \t\r]+$/, "", t); return t == ep }
       BEGIN {
         while ((getline l < bfile) > 0) blk = blk l "\n"
         if (blk == "") { print "refusing: block file produced no content" > "/dev/stderr"; exit 2 }
@@ -191,6 +218,7 @@ apply_block() {  # $1=file  $2=blockfile
       exit 2
     fi
   elif [ -f "$f" ]; then
+    warn_marker_like "$f"
     { cat "$f"; printf '\n'; cat "$bf"; } > "$tmp"
   else
     [ -s "$bf" ] || { rm -f "$tmp"; printf 'refusing: block file produced no content\n' >&2; exit 2; }
