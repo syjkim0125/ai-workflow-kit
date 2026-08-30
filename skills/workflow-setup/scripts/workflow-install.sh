@@ -266,7 +266,11 @@ if [ "$REMOVE" -eq 1 ]; then
   settings="$ROOT/.claude/settings.local.json"
   if [ -f "$settings" ] && grep -q 'gate-guard\.sh\|usage-guard\.sh' "$settings" 2>/dev/null; then
     say "NOTE: $settings still references .ai-workflow/bin/gate-guard.sh and/or"
-    say "      .ai-workflow/bin/usage-guard.sh, which were just removed. Remove"
+    if [ "$DRY" -eq 1 ]; then
+      say "      .ai-workflow/bin/usage-guard.sh, which --remove would delete. Remove"
+    else
+      say "      .ai-workflow/bin/usage-guard.sh, which were just removed. Remove"
+    fi
     say "      those hook entries from $settings yourself — this installer does"
     say "      not edit that file."
   fi

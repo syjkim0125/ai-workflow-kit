@@ -27,7 +27,7 @@ after an update     /plugin update  →  re-run /workflow-setup
 The marketplace/install step is once per machine (or per Codex `CODEX_HOME`).
 `/workflow-setup` runs once per repository — the plugin cannot write into a
 target repo itself, so this skill writes the repo-local half described in
-§3 below. See the kit's own `README-FIRST.md` for the full install and
+§4 below. See the kit's own `README-FIRST.md` for the full install and
 migration story.
 
 ## 3. Compound Engineering — primary lifecycle

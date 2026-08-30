@@ -17,7 +17,7 @@
 ### Repository
 - `README.md` gains the full-flow layer: the eli5 picture shows the two gates, and a second diagram shows all fourteen steps and the four points where a human decides. The intake node no longer reads as the agent deciding alone — the kit's rule is to interview the requester, not to expand a request silently.
 - `README-FIRST.md` rewritten: plugin installation replaces the manual file-copy tree, with a migration note for repositories absorbed the old way.
-- The structure suite now installs into a throwaway repository and inspects the result, instead of checking the kit's own layout — rewritten from 30 checks to 40. A new `test-workflow-install.sh` suite covers the installer itself: 65 checks.
+- The structure suite now installs into a throwaway repository and inspects the result, instead of checking the kit's own layout — rewritten from 30 checks to 40. A new `test-workflow-install.sh` suite covers the installer itself: 71 checks.
 - `real-work/` is dissolved. Second Brain material moved to `docs/optional-v2/`.
 
 ## v2.5 — 2026-08-27
