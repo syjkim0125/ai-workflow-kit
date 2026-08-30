@@ -26,8 +26,8 @@
 set -uo pipefail
 
 TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-ENABLE="$TEST_DIR/../scripts/enable-gate-hook.sh"
-GUARD="$TEST_DIR/../scripts/gate-guard.sh"
+ENABLE="$TEST_DIR/../../workflow-setup/references/bin/enable-gate-hook.sh"
+GUARD="$TEST_DIR/../../workflow-setup/references/bin/gate-guard.sh"
 
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 TMP="$(cd "$TMP" && pwd -P)"
@@ -99,7 +99,7 @@ check "guard mentions the gate"   "yes"  "$(printf '%s' "$out" | grep -qi 'under
 # nothing; under sibling resolution it still finds it and warns.
 ISO="$TMP/iso"; mkdir -p "$ISO"
 cp "$GUARD" "$ISO/gate-guard.sh"
-cp "$TEST_DIR/../scripts/check-understanding.sh" "$ISO/check-understanding.sh"
+cp "$TEST_DIR/../../workflow-setup/references/bin/check-understanding.sh" "$ISO/check-understanding.sh"
 CONTRACT_ISO="$TMP/iso-contract.md"; printf '# no record line here\n' > "$CONTRACT_ISO"
 CWD3="$TMP/elsewhere"; mkdir -p "$CWD3"
 out8="$( cd "$CWD3" && GATE_GUARD_CONTRACT="$CONTRACT_ISO" bash "$ISO/gate-guard.sh" 2>&1 )"; rc8=$?

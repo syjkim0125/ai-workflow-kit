@@ -23,7 +23,7 @@
 set -uo pipefail
 
 TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-SCRIPT="$TEST_DIR/../scripts/check-understanding.sh"
+SCRIPT="$TEST_DIR/../../workflow-setup/references/bin/check-understanding.sh"
 
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 TMP="$(cd "$TMP" && pwd -P)"

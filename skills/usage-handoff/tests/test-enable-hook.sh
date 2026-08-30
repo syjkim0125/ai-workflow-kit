@@ -17,13 +17,19 @@ set -uo pipefail
 
 TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 _find() {
-  for c in "$TEST_DIR/../scripts/$1" "$TEST_DIR/../$1" \
+  for c in "$TEST_DIR/../../workflow-setup/references/bin/$1" "$TEST_DIR/../$1" \
            "$HOME/.claude/skills/usage-handoff/scripts/$1"; do
     [ -f "$c" ] && { printf '%s\n' "$c"; return 0; }
   done
   printf '%s\n' "$1"
 }
 SCRIPT="$(_find enable-hook.sh)"
+# Guard against silently falling back to a stale copy outside this repo (e.g.
+# ~/.claude/skills/usage-handoff/scripts/enable-hook.sh) when the intended
+# candidate above is missing — that would pass this suite against the wrong
+# script instead of failing loudly.
+REPO_ROOT="$(cd "$TEST_DIR" && git rev-parse --show-toplevel 2>/dev/null)"
+in_repo() { case "$1" in "$REPO_ROOT"/*) return 0 ;; *) return 1 ;; esac; }
 
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 TMP="$(cd "$TMP" && pwd -P)"
@@ -40,6 +46,8 @@ ccount() { jq -r '[.hooks.PostToolUse[]|select(.matcher=="*")|.hooks[]|select(.c
 
 echo "test-enable-hook"
 if [ ! -f "$SCRIPT" ]; then echo "  FAIL  script does not exist at $SCRIPT"; echo "0/9 passed"; exit 1; fi
+check "script resolves inside this repo (not a stale \$HOME copy)" "yes" \
+  "$(in_repo "$SCRIPT" && printf yes || printf no)"
 
 # 1 & 2: default installs both runtimes
 r="$TMP/a"; mkrepo "$r"
