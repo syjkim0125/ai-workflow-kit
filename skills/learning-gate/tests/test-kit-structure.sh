@@ -14,7 +14,9 @@
 #   7. The install is idempotent
 #   8. The copied checker actually runs in the target repo
 #   9. --remove strips the block and .ai-workflow/ and keeps the rest
-#  10. Docs carry no stale .claude/skills/ paths
+#  10. No bare (non-$HOME) .claude/skills/ path remains — that would mean
+#      leftover pre-move repo-layout code. $HOME/${HOME}/~-prefixed paths are
+#      legitimate user-level install fallbacks and don't count as stale.
 
 set -uo pipefail
 
@@ -90,8 +92,14 @@ check "remove: user content kept" "1" "$(count 'do not touch me' "$T/AGENTS.md")
 check "remove: .ai-workflow gone" "no" "$(exists "$T/.ai-workflow")"
 check "remove: templates kept"    "yes" "$(exists "$T/templates/UNDERSTANDING.md")"
 
-# 10 no stale paths in shipped docs
-stale=$(grep -rl '\.claude/skills/' "$ROOT/skills" 2>/dev/null | wc -l | tr -d ' ')
+# 10 no bare (pre-move) .claude/skills/ paths — exclude legitimate $HOME/
+# ${HOME}/~-prefixed user-level install fallbacks, and this suite's own file
+# (it necessarily mentions the pattern it's checking for).
+SELF="$TEST_DIR/$(basename "${BASH_SOURCE[0]}")"
+stale=$(grep -rnE '\.claude/skills/' "$ROOT/skills" 2>/dev/null \
+  | grep -vE '(\$HOME|\$\{HOME\}|~)/\.claude/skills/' \
+  | grep -vF "$SELF" \
+  | cut -d: -f1 | sort -u | wc -l | tr -d ' ')
 check "no stale .claude/skills paths in skills/" "0" "$stale"
 
 printf '\nPASS %d / FAIL %d\n' "$pass" "$fail"
