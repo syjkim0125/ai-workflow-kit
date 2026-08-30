@@ -1,5 +1,25 @@
 # Changelog
 
+## v2.6 — 2026-08-28
+
+### Distribution
+- The kit is now a Claude Code and Codex plugin. Install once with `/plugin marketplace add syjkim0125/ai-workflow-kit` and `/plugin install ai-workflow-kit`; apply to a repository with `/workflow-setup`.
+- Skills live in a single `skills/` directory. The Codex manifest points at the same directory (`"skills": "./skills/"`), so the `.claude/skills` ↔ `.agents/skills` mirror is gone — along with the rule that every skill edit had to be applied twice and the two `cmp` checks that policed it.
+- New `workflow-setup` skill installs, updates, and removes the repo-local footprint. It writes exactly five things — a managed block in `AGENTS.md` and `CLAUDE.md`, `.ai-workflow/bin/`, `.ai-workflow/VERSION`, `templates/` and `docs/engineering/`, and `docs/understanding/` — and nothing else.
+- The managed block is delimited by markers and content outside them is never touched. Unbalanced markers make the installer refuse and write nothing rather than guess. Re-running replaces the block instead of appending a second one, so a version bump updates in place.
+- Repo-local writing is a tested script (`workflow-install.sh`), not prose. Idempotent block editing interpreted freshly each time is how someone's `AGENTS.md` gets mangled.
+
+### Enforcement
+- Hook-invoked scripts and the gate checker are installed into the repository at `.ai-workflow/bin/` rather than run from the plugin. Plugin cache paths are versioned, so a baked path breaks on every update — and `gate-guard.sh` exits 0 when it cannot find its checker, making that break silent. Keeping the checker in the repo also means CI, or a teammate without the plugin, can still verify a gate.
+- `usage-handoff` had the identical defect: its hook baked `.claude/skills/usage-handoff/scripts/usage-guard.sh`, a path that only exists when the skill is copied into the repo. Its hook scripts move to `.ai-workflow/bin/` too.
+- The eight always-on engineering principles stay always-on: they are carried verbatim inside the managed block, not demoted to a skill. They are dispositions rather than procedures — they have no trigger moment, so "load this when relevant" would put the decision to apply them back into discovery. `Explained completion` is also what mandates the gates in the first place, so moving it below them would invert the dependency.
+
+### Repository
+- `README.md` gains the full-flow layer: the eli5 picture shows the two gates, and a second diagram shows all fourteen steps and the four points where a human decides. The intake node no longer reads as the agent deciding alone — the kit's rule is to interview the requester, not to expand a request silently.
+- `README-FIRST.md` rewritten: plugin installation replaces the manual file-copy tree, with a migration note for repositories absorbed the old way.
+- The structure suite now installs into a throwaway repository and inspects the result, instead of checking the kit's own layout.
+- `real-work/` is dissolved. Second Brain material moved to `docs/optional-v2/`.
+
 ## v2.5 — 2026-08-27
 
 ### Understanding gates
