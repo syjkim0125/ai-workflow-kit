@@ -50,6 +50,14 @@ To remove: add `--remove`. It strips the block and `.ai-workflow/`, and leaves
 `templates/`, `docs/engineering/`, and `docs/understanding/` in place — those may
 carry the user's own work.
 
+`--remove` never edits `.claude/settings.local.json` — that file belongs to the
+user, not this installer. But `enable-hook.sh`/`enable-gate-hook.sh` may have
+pointed its hooks at `.ai-workflow/bin/gate-guard.sh` and `.ai-workflow/bin/usage-guard.sh`,
+which `--remove` just deleted; left dangling, every subsequent Bash call would
+exit 127. If that file still mentions either script, the installer prints a
+closing note naming both hook entries and telling the user to remove them by
+hand. Pass that note along to the user.
+
 ## After a plugin update
 
 `/plugin update` refreshes the skills; it cannot refresh what lives in the repo.

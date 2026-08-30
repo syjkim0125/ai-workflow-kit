@@ -67,7 +67,11 @@ security policies, and conventions alongside them.
   normal → CE plan → CE work → right-sized review; high-risk → add an explicit
   human plan checkpoint.
 - Superpowers: explicit opt-in only. Do not invoke it merely because a skill is
-  discoverable or looks relevant.
+  discoverable, looks relevant, or the agent believes a Superpowers capability
+  would be useful. Invoke it only when the user explicitly (1) asks to use
+  Superpowers, or (2) names a specific Superpowers skill. Do not stack an
+  equivalent Superpowers phase before or after a Compound phase. Do not
+  uninstall or modify the global Superpowers installation.
 
 Repository knowledge: `templates/UNDERSTANDING.md` (gate contract) ·
 `docs/understanding/` (gate artifacts) · `templates/` (requirement templates) ·

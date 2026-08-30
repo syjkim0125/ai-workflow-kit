@@ -95,6 +95,16 @@ def install(path: pathlib.Path, extra: dict) -> str:
 if target in ("claude", "both"):
     p = repo / ".claude" / "settings.local.json"
     print(f"  Claude Code  {install(p, {'shell': 'bash', 'timeout': 10})}: {p}")
+    # .claude/settings.local.json is personal (it embeds this hook's own
+    # config) and this script's own header says it is not committed. Keep it
+    # out of git locally, same as .codex/hooks.json below.
+    exclude = repo / ".git" / "info" / "exclude"
+    exclude.parent.mkdir(parents=True, exist_ok=True)
+    lines = exclude.read_text().splitlines() if exclude.exists() else []
+    if ".claude/settings.local.json" not in lines:
+        with exclude.open("a") as f:
+            f.write(".claude/settings.local.json\n")
+        print("  ignored locally: .claude/settings.local.json (.git/info/exclude)")
 
 if target in ("codex", "both"):
     p = repo / ".codex" / "hooks.json"

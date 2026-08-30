@@ -30,6 +30,11 @@
 #  21. A blockquoted marker is correctly left as prose (not live) AND the
 #      installer warns about it on the append path; still exactly one live
 #      block gets appended and the quoted text is untouched
+#  22. finding 1: --dry-run on a repo with no AGENTS.md/CLAUDE.md yet still
+#      previews a non-empty diff body (diff against /dev/null when the target
+#      doesn't exist), not a silently empty preview
+#  23. finding 4: --remove never edits .claude/settings.local.json, even when
+#      it references the just-deleted hook scripts; it only prints a note
 
 set -uo pipefail
 
@@ -299,6 +304,26 @@ check "blockquote: warning says appended"        "1" "$(printf '%s\n' "$stderr_o
 check "blockquote: quoted line untouched"        "1" "$(grep -c '> <!-- BEGIN ai-workflow-kit v2.5 -->' "$R/AGENTS.md")"
 check "blockquote: exactly one live block"       "1" "$(grep -c '<!-- BEGIN ai-workflow-kit vTEST' "$R/AGENTS.md")"
 check "blockquote: user content survives"        "1" "$(grep -c 'keep me' "$R/AGENTS.md")"
+
+# 22 finding 1: dry-run preview on a fresh repo (no AGENTS.md/CLAUDE.md at all)
+# must still show diff body lines, not a silently empty preview
+R="$TMP/r22"; mkrepo "$R"
+diff_lines="$(bash "$SCRIPT" --references "$REF" --repo-root "$R" --version vTEST --dry-run 2>/dev/null | grep -c '^    [+-]')"
+check "fresh repo dry-run preview is non-empty"    "yes" "$([ "$diff_lines" -gt 0 ] && echo yes || echo no)"
+check "fresh repo dry-run wrote nothing"           "no"  "$([ -e "$R/AGENTS.md" ] && echo yes || echo no)"
+
+# 23 finding 4: --remove must not edit .claude/settings.local.json, but must
+# warn (not silently leave the user with dangling hooks that exit 127)
+R="$TMP/r23"; mkrepo "$R"
+run "$R" >/dev/null
+mkdir -p "$R/.claude"
+printf '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"bash .ai-workflow/bin/gate-guard.sh"}]}]}}\n' > "$R/.claude/settings.local.json"
+settings_sha_before="$(shasum "$R/.claude/settings.local.json" | cut -d' ' -f1)"
+remove_out="$(bash "$SCRIPT" --references "$REF" --repo-root "$R" --version vTEST --remove 2>&1)"
+check "remove: settings.local.json byte-identical" "$settings_sha_before" "$(shasum "$R/.claude/settings.local.json" | cut -d' ' -f1)"
+check "remove: warns about gate-guard.sh"           "1" "$(printf '%s\n' "$remove_out" | grep -c 'gate-guard.sh')"
+check "remove: warns about usage-guard.sh"          "1" "$(printf '%s\n' "$remove_out" | grep -c 'usage-guard.sh')"
+check "remove: names settings.local.json"           "yes" "$(printf '%s\n' "$remove_out" | grep -q 'settings.local.json' && echo yes || echo no)"
 
 printf '\nPASS %d / FAIL %d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

@@ -228,7 +228,11 @@ apply_block() {  # $1=file  $2=blockfile
   chmod "$mode" "$tmp" 2>/dev/null || true
   if [ "$DRY" -eq 1 ]; then
     printf '[dry-run] would write %s:\n' "$f"
-    diff -u "${f:-/dev/null}" "$tmp" 2>/dev/null | sed 's/^/    /' || true
+    # $f is always non-empty (it's the target path), so the old
+    # "${f:-/dev/null}" fallback never fired: on a target that doesn't exist
+    # yet, `diff` errored on the missing file and `|| true` silently swallowed
+    # it, leaving the preview empty on the most common case — a first install.
+    diff -u "$([ -f "$f" ] && printf '%s' "$f" || printf /dev/null)" "$tmp" 2>/dev/null | sed 's/^/    /' || true
     rm -f "$tmp"
   else
     mv "$tmp" "$f"
@@ -253,6 +257,19 @@ if [ "$REMOVE" -eq 1 ]; then
     rm -rf "$ROOT/.ai-workflow"; say "removed .ai-workflow/"
   fi
   say "templates/, docs/engineering/, and docs/understanding/ were left in place"
+  # .claude/settings.local.json belongs to the user, not this installer — it is
+  # explicitly out of what --remove owns, so never edit it here. But
+  # enable-hook.sh/enable-gate-hook.sh may have pointed its hooks at
+  # .ai-workflow/bin/{gate-guard,usage-guard}.sh, which --remove just deleted;
+  # left silent, every subsequent Bash call would exit 127. Only warn — never
+  # touch the file — and only when it actually mentions one of the two guards.
+  settings="$ROOT/.claude/settings.local.json"
+  if [ -f "$settings" ] && grep -q 'gate-guard\.sh\|usage-guard\.sh' "$settings" 2>/dev/null; then
+    say "NOTE: $settings still references .ai-workflow/bin/gate-guard.sh and/or"
+    say "      .ai-workflow/bin/usage-guard.sh, which were just removed. Remove"
+    say "      those hook entries from $settings yourself — this installer does"
+    say "      not edit that file."
+  fi
   exit 0
 fi
 

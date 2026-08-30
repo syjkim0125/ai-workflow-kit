@@ -10,6 +10,8 @@
 #   5. --threshold N is carried as USAGE_GUARD_THRESHOLD=N on the command
 #   6. Re-running with a new threshold UPDATES the existing entry
 #   7. .codex/hooks.json is added to .git/info/exclude (it holds personal paths)
+#   7b. .claude/settings.local.json is also added to .git/info/exclude (it is
+#       personal too, and the script's own header says it is not committed)
 #   8. --claude / --codex install only that runtime
 #   9. Output JSON is valid and the command resolves the repo at run time
 
@@ -63,10 +65,16 @@ check "default: no threshold override at 90" "yes" \
 check "codex hooks.json in .git/info/exclude" "yes" \
   "$(grep -qx '.codex/hooks.json' "$r/.git/info/exclude" 2>/dev/null && echo yes || echo no)"
 
+# 7b: claude settings.local.json locally ignored (finding 3)
+check "claude settings.local.json in .git/info/exclude" "yes" \
+  "$(grep -qx '.claude/settings.local.json' "$r/.git/info/exclude" 2>/dev/null && echo yes || echo no)"
+
 # 4: idempotent
 bash "$SCRIPT" --repo "$r" >/dev/null 2>&1
 check "idempotent: one claude entry" "1" "$(ccount "$r/.claude/settings.local.json")"
 check "idempotent: one codex entry"  "1" "$(ccount "$r/.codex/hooks.json")"
+check "idempotent: exclude has no duplicate claude line" "1" \
+  "$(grep -cx '.claude/settings.local.json' "$r/.git/info/exclude" 2>/dev/null)"
 
 # 3: merge preserves existing keys
 r2="$TMP/b"; mkrepo "$r2"; mkdir -p "$r2/.claude"
