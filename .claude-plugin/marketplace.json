@@ -1,0 +1,19 @@
+{
+  "name": "syjkim-ai-workflows",
+  "owner": {
+    "name": "JongKun Kim"
+  },
+  "plugins": [
+    {
+      "name": "ai-workflow-kit",
+      "source": ".",
+      "description": "Concise requirements-to-delivery workflow with human approval and understanding gates.",
+      "category": "development",
+      "tags": [
+        "workflow",
+        "requirements",
+        "review"
+      ]
+    }
+  ]
+}

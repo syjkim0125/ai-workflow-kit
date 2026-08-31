@@ -1,0 +1,44 @@
+{
+  "name": "@syjkim0125/ai-workflow-kit",
+  "version": "3.0.0",
+  "description": "Portable DDD-inspired AI engineering workflow with concise contracts and a human understanding gate.",
+  "type": "module",
+  "bin": {
+    "ai-workflow-kit": "bin/ai-workflow-kit.mjs",
+    "ai-workflow": "bin/ai-workflow-kit.mjs"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "assets/",
+    "skills/",
+    "examples/",
+    ".claude-plugin/",
+    ".codex-plugin/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "check:package": "npm pack --dry-run",
+    "verify": "npm test && npm run check:package",
+    "prepack": "npm test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {},
+  "keywords": [
+    "agent-skills",
+    "ai-workflow",
+    "codex",
+    "claude-code",
+    "compound-engineering",
+    "ddd"
+  ],
+  "author": "JongKun Kim",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}
