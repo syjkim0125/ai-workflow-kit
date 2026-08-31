@@ -1,73 +1,88 @@
-# ai-workflow-kit
+# AI Workflow Kit
 
-AI 에이전트와 함께 일할 때 **사람이 이해를 놓치지 않게** 하는 작업 규칙 모음.
+한 줄짜리 요청을 **사람이 승인한 요구사항 → 저장소 기반 구현 → 사람이 설명할 수 있는 결과**로 연결하는 휴대형 Agent Skill입니다.
 
-## 그림 한 장
+## 설치
 
-```mermaid
-flowchart TD
-    A["한 줄 요청<br/>'결제 취소 되게 해줘'"] --> B["무엇을 만들지 정하고 보여줌"]
-    B --> G1{{"G1 · 그림으로 확인<br/>'이게 맞아요?'"}}
-    G1 --> C["사람이 승인"]
-    C --> D["에이전트가 구현하고 테스트"]
-    D --> G4{{"G4 · 먼저 맞춰보기<br/>'이 변경이 뭘 할 것 같아요?'"}}
-    G4 --> E["사람이 이해한 채로 머지"]
-
-    style G1 fill:#fff3cd,stroke:#d39e00,color:#000
-    style G4 fill:#fff3cd,stroke:#d39e00,color:#000
+```bash
+npx @syjkim0125/ai-workflow-kit init
 ```
 
-## 다섯 문장
+이 명령은 Codex/Claude Code 프로젝트에 기존 내용을 보존하면서 다음을 설치합니다.
 
-에이전트는 코드를 아주 빨리 씁니다.
-사람이 읽는 속도는 그대로입니다.
-그래서 아무도 이해하지 못한 코드가 쌓입니다.
-이 키트는 사람이 승인하기 **직전**마다 짧은 설명을 만들게 합니다.
-설명 없이는 다음 단계로 못 갑니다.
+- Codex: `.agents/skills/workflow/`
+- Claude Code: `.claude/skills/workflow/`
+- 짧은 라우팅 규칙: `AGENTS.md`, `CLAUDE.md`
+- Contract/Task 템플릿과 정적 검사기
 
-## 노란 상자(게이트)가 하는 일
+특정 호스트만 쓸 때:
 
-**G1 — 만들기 전.** 무엇을 만들 건지 그림 한 장으로 보여줍니다(이것을 인수조건이라고 부릅니다). 그리고 이렇게 묻습니다: *"당신이 말 안 해서 제가 정한 것들, 이게 맞나요?"*
+```bash
+npx @syjkim0125/ai-workflow-kit init --host codex
+npx @syjkim0125/ai-workflow-kit init --host claude
+```
 
-**G4 — 머지 전.** 설명을 **먼저 안 보여줍니다.** 바뀐 코드만 보여주고 묻습니다: *"이게 뭘 하는 것 같아요?"* 답하고 나서야 정답이 나옵니다. 틀린 부분이 어디였는지 알려줍니다.
+## 사용
 
-맞춰보기를 먼저 하는 이유는, 설명을 읽는 것과 이해하는 것이 다르기 때문입니다.
-
-## 지키게 만드는 방법
-
-규칙을 문서에 적어두는 것만으로는 지켜지지 않습니다. 그래서 게이트는 **파일을 남깁니다.**
+Coding agent에서 호스트의 native skill 호출 방식으로 시작합니다.
 
 ```text
-Understanding gate (G1): docs/understanding/2026-08-27-checkout.html · 2026-08-27 · Check-in: accepted
+Claude Code: /workflow 결제 시스템 만들고 싶어
+Codex: $workflow 결제 시스템 만들고 싶어
 ```
 
-이 G1 줄이 없으면 인수조건이 승인되지 않습니다.
-"설명했습니다"라고 말할 수는 있어도, 없는 파일을 있다고 할 수는 없으니까요.
+ChatGPT Skills가 제공되는 계정/워크스페이스에서는 `skills/workflow/` 폴더를 Skill로 업로드한 뒤 관련 제품·개발 요청을 입력하면 `workflow`가 필요할 때 자동으로 선택될 수 있습니다. 플러그인으로 설치한 Claude Code에서는 namespaced command도 표시될 수 있습니다.
 
-작은 변경이라 건너뛰고 싶으면 그것도 적습니다:
+Workflow는 다음 순서를 지킵니다.
 
 ```text
-Understanding gate (G4): N/A — 상수 한 줄 변경
+요청 → 필요한 행동 질문 → Story Contract → 사람 승인(G1)
+    → 위험도/크기 → plan/work/review → 사람 이해도 질문(G4) → 완료
 ```
 
-이 G4 줄이나 N/A 기록이 없으면 머지할 수 없습니다.
-건너뛴 것도 기록이라 눈에 보입니다.
+### 사람이 읽는 Contract
 
-## 시작하기
+하나의 Story만 요구사항 원본으로 관리합니다.
 
-이 저장소를 통째로 복사하지 마세요. `real-work/` 안의 파일들을 프로젝트에 흡수시키는 방식입니다.
+```text
+Goal · Domain/Invariants · MUST · SHOULD · OUT · Decisions · Verify
+```
 
-전체 배포 지침: **[README-FIRST.md](README-FIRST.md)**
+AI에게 필요한 코드·테스트·plan context는 실행할 때 붙입니다. 별도의 “AI 요구사항 문서”를 만들지 않습니다.
 
-| 알고 싶은 것 | 읽을 곳 |
-|---|---|
-| 어떻게 설치하나 | [README-FIRST.md](README-FIRST.md) · [AI-SETUP.md](real-work/docs/engineering/AI-SETUP.md) |
-| 전체 작업 흐름 | [AI-WORKFLOW.md](real-work/docs/engineering/AI-WORKFLOW.md) |
-| 항상 지킬 원칙 | [AGENTS.md](real-work/AGENTS.md) |
-| 게이트가 뭘 물어보나 | [UNDERSTANDING.md](real-work/templates/UNDERSTANDING.md) |
-| 왜 이렇게 만들었나 | [AI-WORKFLOW-SOURCES.md](real-work/docs/engineering/AI-WORKFLOW-SOURCES.md) |
+### Task 규칙
 
-## 필요한 것
+Story가 한 PR로 리뷰되지 않을 때만 나눕니다. Task는 기본 30줄 이하이며 Story의 M/V ID만 참조합니다. 구현 HOW는 `ce-plan` 또는 저장소 기반 plan이 담당합니다.
 
-- 코딩 에이전트 (Claude Code 또는 Codex)
-- [Compound Engineering](https://github.com/EveryInc/compound-engineering-plugin) 플러그인 — 게이트의 설명 엔진(`ce-explain`)이 여기 들어 있습니다
+### 마지막 G4
+
+구현 후 AI가 먼저 정답을 설명하지 않습니다. diff와 증거만 보여준 뒤 담당자에게 behavior, invariant/failure path, 테스트가 증명한 범위와 남은 한계를 자기 말로 설명하게 합니다. 핵심 이해가 부족하면 보완 후 다시 답해야 완료됩니다.
+
+## 선택적 Compound Engineering 연동
+
+설치되어 있으면 `ce-plan → ce-work → ce-code-review`를 사용합니다. 없어도 같은 plan/work/review 단계를 호스트 기본 기능으로 수행합니다. 이 패키지는 Compound Engineering을 번들하지 않습니다.
+
+## 검사와 제거
+
+```bash
+ai-workflow-kit doctor
+ai-workflow-kit check story path/to/STORY.md
+ai-workflow-kit check task path/to/TASK.md
+ai-workflow-kit check gate G4 path/to/STORY.md
+ai-workflow-kit remove
+```
+
+재설치는 idempotent합니다. 관리 marker 밖의 `AGENTS.md`/`CLAUDE.md` 내용과 사용자가 수정한 템플릿은 제거 시 보존합니다.
+
+## 로컬 tarball 테스트
+
+```bash
+npm pack
+npx --package ./syjkim0125-ai-workflow-kit-3.0.0.tgz ai-workflow-kit init
+```
+
+공개 배포는 scope 소유자의 npm 인증 후 다음 한 줄입니다.
+
+```bash
+npm publish --access public
+```
