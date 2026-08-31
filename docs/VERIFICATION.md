@@ -7,7 +7,7 @@ Verified on 2026-08-30 with Node.js v22.16.0.
 - `node --check bin/*.mjs src/*.mjs assets/*.mjs test/*.mjs`: PASS
 - `npm test`: 31/31 PASS
 - `npm publish --dry-run --access public --json`: PASS; 20 package entries, 15,800 bytes packed, 45,881 bytes unpacked
-- `npm pack --json`: `syjkim0125-ai-workflow-kit-3.0.0.tgz`
+- `npm pack --json`: `pazmo-ai-workflow-kit-3.0.0.tgz`
 - Packed SHA-256: `d2e0cf1cd99e523fa02c9ccf70b09575e3f3ae9c30b819997250c860d325e5fa`
 - Clean-project tarball E2E: PASS
 

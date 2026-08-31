@@ -32,7 +32,7 @@ A single `skills/workflow/` source works as the canonical workflow. A zero-depen
 ## User experience
 
 ```text
-npx @syjkim0125/ai-workflow-kit init
+npx @pazmo/ai-workflow-kit init
 
 # In the coding agent
 Claude Code: /workflow 결제 시스템 만들고 싶어

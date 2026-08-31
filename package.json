@@ -1,5 +1,5 @@
 {
-  "name": "@syjkim0125/ai-workflow-kit",
+  "name": "@pazmo/ai-workflow-kit",
   "version": "3.0.0",
   "description": "Portable DDD-inspired AI engineering workflow with concise contracts and a human understanding gate.",
   "type": "module",

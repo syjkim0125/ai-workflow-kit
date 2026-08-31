@@ -4,7 +4,7 @@ AI와 함께 일할 때 **사람이 이해를 놓치지 않게** 하는 작업 �
 Claude Code · Codex · ChatGPT에서 같은 방식으로 씁니다.
 
 ```bash
-npx @syjkim0125/ai-workflow-kit init
+npx @pazmo/ai-workflow-kit init
 ```
 
 ---
@@ -92,7 +92,7 @@ Understanding gate (G4): N/A — 주석만 변경, 실행 동작 변화 없음
 ## 시작하기
 
 ```bash
-npx @syjkim0125/ai-workflow-kit init
+npx @pazmo/ai-workflow-kit init
 ```
 
 레포에 이것만 들어갑니다:
@@ -108,8 +108,8 @@ templates/ai-workflow/     Story · Task 템플릿
 한쪽 런타임만 쓴다면:
 
 ```bash
-npx @syjkim0125/ai-workflow-kit init --host claude
-npx @syjkim0125/ai-workflow-kit init --host codex
+npx @pazmo/ai-workflow-kit init --host claude
+npx @pazmo/ai-workflow-kit init --host codex
 ```
 
 ### 부르는 법
@@ -169,7 +169,7 @@ npm pack        # 로컬 tarball
 로컬 tarball로 시험 설치:
 
 ```bash
-npx --package ./syjkim0125-ai-workflow-kit-3.0.0.tgz ai-workflow-kit init
+npx --package ./pazmo-ai-workflow-kit-3.0.0.tgz ai-workflow-kit init
 ```
 
 배포는 scope 소유자 인증 후:

@@ -11,7 +11,7 @@ const wordCount = (text) => text.trim().split(/\s+/).filter(Boolean).length;
 
 test('package exposes a zero-dependency Node CLI', async () => {
   const pkg = JSON.parse(await read('package.json'));
-  assert.equal(pkg.name, '@syjkim0125/ai-workflow-kit');
+  assert.equal(pkg.name, '@pazmo/ai-workflow-kit');
   assert.equal(pkg.type, 'module');
   assert.equal(pkg.bin['ai-workflow-kit'], 'bin/ai-workflow-kit.mjs');
   assert.deepEqual(pkg.dependencies ?? {}, {});
