@@ -131,3 +131,33 @@ test('changing host selection removes only the previously managed host', async (
   assert.doesNotMatch(await readFile(path.join(root, 'AGENTS.md'), 'utf8'), /BEGIN ai-workflow-kit/);
   assert.match(await readFile(path.join(root, 'AGENTS.md'), 'utf8'), /Keep me\./);
 });
+
+test('a marker quoted inside a fenced example is documentation, not a live block', async () => {
+  // Instruction files legitimately document this kit's own marker syntax. Treating a
+  // fenced example as the live block silently rewrites that documentation.
+  const root = await tempProject();
+  const agents = path.join(root, 'AGENTS.md');
+  await writeFile(agents, [
+    '# House rules',
+    '',
+    'This kit manages the region between these markers:',
+    '',
+    '```',
+    '<!-- BEGIN ai-workflow-kit -->',
+    'DOC EXAMPLE BODY',
+    '<!-- END ai-workflow-kit -->',
+    '```',
+    '',
+    '- keep me',
+    ''
+  ].join('\n'));
+
+  const { installWorkflow } = await import('../src/install.mjs');
+  await installWorkflow({ root, packageRoot, hosts: ['codex', 'claude'] });
+  const after = await readFile(agents, 'utf8');
+
+  assert.ok(after.includes('DOC EXAMPLE BODY'), 'the fenced example must survive untouched');
+  assert.ok(after.includes('- keep me'), 'surrounding prose must survive');
+  const begins = after.split(/\r?\n/).filter((line) => line.trim() === '<!-- BEGIN ai-workflow-kit -->').length;
+  assert.equal(begins, 2, 'one quoted marker plus exactly one appended live block');
+});

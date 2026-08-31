@@ -55,6 +55,19 @@ async function evidencePath({ root, artifact, gate }) {
   if (!isWithin(realRoot, realCandidate)) {
     return { error: `${gate} evidence artifact escapes project root through a symlink: ${artifact}` };
   }
+
+  // A recorded gate with a blank artifact means the line was written but the gate was
+  // never held. Existence alone is a signature on an empty page.
+  let evidence;
+  try {
+    evidence = await readFile(candidate, 'utf8');
+  } catch (error) {
+    return { error: `${gate} evidence artifact cannot be read: ${artifact} (${error.message})` };
+  }
+  if (!evidence.trim()) {
+    return { error: `${gate} evidence artifact is empty: ${artifact}` };
+  }
+
   return { file: candidate };
 }
 

@@ -97,3 +97,22 @@ test('README documents invocation or selection behavior for each supported host'
   assert.match(readme, /Codex[^\n]*\$workflow/);
   assert.match(readme, /ChatGPT[^\n]*(자동|automatically)/i);
 });
+
+test('gate references and the managed block name the checker command, not just the rule', async () => {
+  // A checker nobody is told to run enforces nothing. Each gate reference, and the
+  // always-on block that survives session boundaries and context compaction, must
+  // carry the literal command — not prose like "the checker passes".
+  const command = /check\.mjs\b/;
+  const reportExit = /exit code/i;
+
+  const intake = await read('skills/workflow/references/intake.md');
+  assert.match(intake, command, 'intake.md must name the checker command for G1');
+  assert.match(intake, reportExit, 'intake.md must ask for the exit code');
+
+  const gate = await read('skills/workflow/references/understanding-gate.md');
+  assert.match(gate, command, 'understanding-gate.md must name the checker command for G4');
+  assert.match(gate, reportExit, 'understanding-gate.md must ask for the exit code');
+
+  const { MANAGED_BLOCK } = await import('../src/managed-block.mjs');
+  assert.match(MANAGED_BLOCK, command, 'the managed block must name the checker command');
+});

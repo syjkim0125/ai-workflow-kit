@@ -10,16 +10,43 @@ export const MANAGED_BLOCK = `${START_MARKER}
 - Keep Tasks at most 30 non-empty lines and reference Story M/V IDs; HOW belongs to the repository-grounded plan.
 - Use Compound Engineering when available: normal work \`ce-plan → ce-work → ce-code-review\`; high-risk work adds a human plan gate.
 - Do not merge non-trivial changes until the workflow's G4 question gate records that a human understands behavior, an invariant/failure path, and the evidence boundary.
+- Gates are satisfied by evidence, not by assertion. Verify with \`node .ai-workflow/bin/check.mjs story <story-file>\` and report the exit code; exit 0 is the only pass.
 ${END_MARKER}`;
 
+// A marker only counts when it is a line of its own and sits outside a fenced code
+// block. Instruction files legitimately document this kit's own marker syntax; a
+// substring match would treat that example as the live block and silently rewrite it.
+function scanMarkers(content) {
+  const lines = content.split(/\n/u);
+  let offset = 0;
+  let fenced = false;
+  const found = [];
+
+  for (const line of lines) {
+    const bare = line.replace(/\r$/u, '').trim();
+
+    if (/^(?:`{3,}|~{3,})/u.test(bare)) {
+      fenced = !fenced;
+    } else if (!fenced) {
+      if (bare === START_MARKER) found.push({ kind: 'start', start: offset, end: offset + line.length });
+      else if (bare === END_MARKER) found.push({ kind: 'end', start: offset, end: offset + line.length });
+    }
+
+    offset += line.length + 1; // + the newline consumed by split
+  }
+  return found;
+}
+
 function markerRange(content) {
-  const start = content.indexOf(START_MARKER);
-  const endStart = content.indexOf(END_MARKER);
-  if (start < 0 && endStart < 0) return null;
-  if (start < 0 || endStart < start) {
+  const found = scanMarkers(content);
+  if (found.length === 0) return null;
+
+  const starts = found.filter((marker) => marker.kind === 'start');
+  const ends = found.filter((marker) => marker.kind === 'end');
+  if (starts.length !== 1 || ends.length !== 1 || ends[0].start < starts[0].start) {
     throw new Error('Malformed ai-workflow-kit managed block. Restore both markers before retrying.');
   }
-  return { start, end: endStart + END_MARKER.length };
+  return { start: starts[0].start, end: ends[0].end };
 }
 
 export function upsertManagedBlock(content = '', block = MANAGED_BLOCK) {

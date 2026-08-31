@@ -16,4 +16,4 @@ Save the raw evidence, human answer, and evaluation to `docs/understanding/<slug
 
 `Understanding gate (G4): <artifact> · <date> · Check-in: accepted`
 
-Also append `G4: PASS — <what the human correctly restated>`. Set `Status: Delivered` only after both records exist and the checker passes. Use `G4: N/A — <specific reason>` only when no implementation behavior changed; never use it to bypass uncertainty.
+Also append `G4: PASS — <what the human correctly restated>`. Set `Status: Delivered` only after both records exist and `node .ai-workflow/bin/check.mjs story <story-file>` exits 0. Run it and report the exit code; never claim the gate passed without that output. Use `G4: N/A — <specific reason>` only when no implementation behavior changed; never use it to bypass uncertainty.

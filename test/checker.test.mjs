@@ -277,3 +277,19 @@ Something.
   assert.ok(invalid.errors.some((error) => error.includes('Covers')));
   assert.ok(invalid.errors.some((error) => error.includes('Plan source')));
 });
+
+test('an empty evidence artifact does not satisfy a gate', async () => {
+  // "Show your homework" must mean the page has something on it. A zero-byte artifact
+  // means the gate was recorded but never held.
+  const root = await fixture();
+  const story = path.join(root, 'STORY.md');
+  await writeFile(path.join(root, 'docs/understanding/payment-contract.md'), '');
+  await writeFile(story, `${baseStory}
+Understanding gate (G1): docs/understanding/payment-contract.md · 2026-08-31 · Check-in: accepted
+`);
+
+  const { checkGate } = await import('../assets/check.mjs');
+  const result = await checkGate({ root, file: 'STORY.md', gate: 'G1' });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join('\n'), /empty|no content|blank/i);
+});
