@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkArtifact, checkGate } from '../assets/check.mjs';
 import { installWorkflow, removeWorkflow } from '../src/install.mjs';
+import { checkerVisibility, ignoredCheckerAdvice } from '../src/git-visibility.mjs';
 import { END_MARKER, START_MARKER } from '../src/managed-block.mjs';
 import { HOSTS } from '../src/paths.mjs';
 
@@ -90,6 +91,16 @@ async function doctor(root) {
     console.log(`${present ? 'PASS' : 'MISS'}  ${label}: ${relative}`);
     ok &&= present;
   }
+
+  const visibility = await checkerVisibility(root);
+  if (visibility.status === 'ignored') {
+    console.log(`MISS  Checker reaches git: ${visibility.source}`);
+    for (const line of ignoredCheckerAdvice(visibility)) console.log(`      ${line}`);
+    ok = false;
+  } else if (visibility.status !== 'no-git') {
+    console.log('PASS  Checker reaches git: .ai-workflow/bin/check.mjs');
+  }
+
   return ok;
 }
 
@@ -112,6 +123,13 @@ async function main(argv) {
     console.log(result.changed ? 'Installed/updated AI Workflow Kit.' : 'AI Workflow Kit is already up to date.');
     console.log(`Hosts: ${result.hosts.join(', ')}`);
     if (result.preserved.length) console.log(`Preserved modified files: ${result.preserved.join(', ')}`);
+    const visibility = await checkerVisibility(root);
+    if (visibility.status === 'ignored') {
+      console.log('');
+      console.log('WARNING');
+      for (const line of ignoredCheckerAdvice(visibility)) console.log(`  ${line}`);
+      console.log('');
+    }
     if (result.hosts.includes('claude')) console.log('Next (Claude Code): /workflow <request>');
     if (result.hosts.includes('codex')) console.log('Next (Codex): $workflow <request>');
     return 0;

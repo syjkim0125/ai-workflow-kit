@@ -185,6 +185,21 @@ AGENTS.md · CLAUDE.md      정해진 표시 사이에 짧은 규칙 블록 (바
 templates/ai-workflow/     합의서 · 작업 조각 서식
 ```
 
+### 설치 후 한 번 확인하세요
+
+```bash
+npx @pazmo/ai-workflow-kit doctor
+```
+
+자바 계열 저장소에는 `.gitignore`에 `bin/` 규칙이 흔히 들어 있습니다. 이게 **검사기(`.ai-workflow/bin/check.mjs`)를 통째로 삼킵니다.** 파일은 디스크에 멀쩡히 있는데 `git add`가 말없이 건너뛰어서, 저장소를 받는 사람에게는 검사기가 없습니다.
+
+`init`과 `doctor`가 이걸 잡아내고 고칠 줄을 알려줍니다:
+
+```text
+MISS  Checker reaches git: .gitignore:21:bin/
+      Fix: add "!.ai-workflow/bin/" to .gitignore, below the rule above.
+```
+
 한쪽 도구만 쓴다면:
 
 ```bash
@@ -243,14 +258,14 @@ ai-workflow-kit remove          # 제거
 ## 개발
 
 ```bash
-npm test        # 34 checks
+npm test        # 39 checks
 npm pack        # 로컬 tarball
 ```
 
 로컬 tarball로 시험 설치:
 
 ```bash
-npx --package ./pazmo-ai-workflow-kit-3.0.2.tgz ai-workflow-kit init
+npx --package ./pazmo-ai-workflow-kit-3.0.3.tgz ai-workflow-kit init
 ```
 
 배포는 scope 소유자 인증 후:
