@@ -205,7 +205,7 @@ function checkStoryShape(text) {
   const errors = [];
   requireOrderedHeadings(text, REQUIRED_STORY_HEADINGS, errors, 'Story');
 
-  if (!/^#\s+Story:\s*\S.+$/imu.test(text)) errors.push('Story needs a descriptive “# Story:” title.');
+  if (!/^#\s+Story:\s*(?!<|pending\b)\S.+$/imu.test(text)) errors.push('Story needs a descriptive “# Story:” title.');
   if (!/^Status:\s*(Draft|Approved|Delivered)\s*$/imu.test(text)) {
     errors.push('Status must be Draft, Approved, or Delivered.');
   }
@@ -266,15 +266,30 @@ export async function checkArtifact({ root = process.cwd(), file, kind = 'story'
   if (kind !== 'story') return { ok: false, errors: [`Unsupported artifact kind: ${kind}`] };
 
   const errors = checkStoryShape(text);
-  if (/^Status:\s*(Approved|Delivered)\s*$/imu.test(text)) {
+
+  // Status decides which gates are due. A Story that has not reached a gate cannot
+  // fail it — but then exit 0 only means the shape is right, and a caller who was
+  // told "exit 0 is the only pass" will read it as approval. Say which gate went
+  // unchecked, so a pass can never be quoted as one that was.
+  const notes = [];
+  const approved = /^Status:\s*(Approved|Delivered)\s*$/imu.test(text);
+  const delivered = /^Status:\s*Delivered\s*$/imu.test(text);
+
+  if (approved) {
     const g1 = await checkGate({ root, file: artifactFile, gate: 'G1' });
     errors.push(...g1.errors);
+  } else {
+    notes.push('Status is not Approved, so the G1 approval gate was not checked. Exit 0 means the Story is well formed, not that a human approved it.');
   }
-  if (/^Status:\s*Delivered\s*$/imu.test(text)) {
+
+  if (delivered) {
     const g4 = await checkGate({ root, file: artifactFile, gate: 'G4' });
     errors.push(...g4.errors);
+  } else {
+    notes.push('Status is not Delivered, so the G4 understanding gate was not checked.');
   }
-  return { ok: errors.length === 0, errors };
+
+  return { ok: errors.length === 0, errors, notes };
 }
 
 async function runCli(argv) {
@@ -291,6 +306,7 @@ async function runCli(argv) {
 
   if (result.ok) {
     console.log('PASS');
+    for (const note of result.notes ?? []) console.log(`NOTE  ${note}`);
     return 0;
   }
   for (const error of result.errors) console.error(`- ${error}`);

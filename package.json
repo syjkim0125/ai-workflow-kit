@@ -1,6 +1,6 @@
 {
   "name": "@pazmo/ai-workflow-kit",
-  "version": "3.0.3",
+  "version": "3.0.4",
   "description": "Portable DDD-inspired AI engineering workflow with concise contracts and a human understanding gate.",
   "type": "module",
   "bin": {
