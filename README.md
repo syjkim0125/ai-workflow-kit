@@ -147,7 +147,13 @@ G4: PASS — 환불은 결제수단으로만 돌아간다는 규칙을 담당자
 
 ```bash
 node .ai-workflow/bin/check.mjs story docs/STORY.md
+node .ai-workflow/bin/check.mjs gate G1 docs/STORY.md
 ```
+
+`story`는 합의서의 **모양**을, `gate`는 **사람이 실제로 확인했는지**를 봅니다. 아직 `Draft`인
+파일에 `story`를 돌리면 모양만 맞아도 통과합니다 — 그건 승인이 아니고, 통과 메시지가 어느
+게이트를 건너뛰었는지 `NOTE`로 알려줍니다. 승인을 확인하려면 `gate G1`을, 이해 게이트를
+확인하려면 `gate G4`를 함께 돌리세요.
 
 이 검사기가 잡는 것:
 

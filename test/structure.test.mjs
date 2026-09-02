@@ -113,6 +113,11 @@ test('gate references and the managed block name the checker command, not just t
   assert.match(gate, command, 'understanding-gate.md must name the checker command for G4');
   assert.match(gate, reportExit, 'understanding-gate.md must ask for the exit code');
 
+  // `check story` only enforces a gate once Status says the gate should exist. The
+  // strict form names the gate outright, so it cannot pass by being run too early.
+  assert.match(intake, /check\.mjs gate G1/, 'intake.md must run the strict G1 check');
+  assert.match(gate, /check\.mjs gate G4/, 'understanding-gate.md must run the strict G4 check');
+
   const { MANAGED_BLOCK } = await import('../src/managed-block.mjs');
   assert.match(MANAGED_BLOCK, command, 'the managed block must name the checker command');
 });

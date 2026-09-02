@@ -293,3 +293,33 @@ Understanding gate (G1): docs/understanding/payment-contract.md · 2026-08-31 ·
   assert.equal(result.ok, false);
   assert.match(result.errors.join('\n'), /empty|no content|blank/i);
 });
+
+test('a Draft passes shape checks but says exit 0 is not G1 approval', async () => {
+  // The G1 check only switches on at Status: Approved. Run on the Draft — which is
+  // where the intake reference sends you — a placeholder Story exits 0, and an agent
+  // can report "exit 0" while nothing has been approved. The pass must say so.
+  const { checkArtifact } = await import('../assets/check.mjs');
+  const root = await fixture();
+  const contract = path.join(root, 'story.md');
+  await writeFile(contract, baseStory.replace('Status: Approved', 'Status: Draft'));
+
+  const result = await checkArtifact({ root, file: contract, kind: 'story' });
+  assert.equal(result.ok, true, result.errors.join('\n'));
+  assert.ok(
+    (result.notes ?? []).some((note) => note.includes('G1')),
+    'a Draft pass must name the gate it did not check',
+  );
+});
+
+test('a placeholder Story title is not a title', async () => {
+  const { checkArtifact } = await import('../assets/check.mjs');
+  const root = await fixture();
+  const contract = path.join(root, 'story.md');
+  await writeFile(contract, baseStory
+    .replace('Status: Approved', 'Status: Draft')
+    .replace('# Story: payment', '# Story: <observable outcome>'));
+
+  const result = await checkArtifact({ root, file: contract, kind: 'story' });
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('title')));
+});

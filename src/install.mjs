@@ -263,7 +263,9 @@ async function removeEmptyParents(file, stopAt) {
   while (current.startsWith(stopAt) && current !== stopAt) {
     try {
       if ((await readdir(current)).length > 0) break;
-      await rm(current, { recursive: false });
+      // fs.rm refuses a directory without `recursive`, and the catch below would
+      // swallow the EISDIR — leaving every emptied parent on disk, silently.
+      await rm(current, { recursive: true });
       current = path.dirname(current);
     } catch {
       break;

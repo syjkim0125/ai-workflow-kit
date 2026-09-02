@@ -161,3 +161,14 @@ test('a marker quoted inside a fenced example is documentation, not a live block
   const begins = after.split(/\r?\n/).filter((line) => line.trim() === '<!-- BEGIN ai-workflow-kit -->').length;
   assert.equal(begins, 2, 'one quoted marker plus exactly one appended live block');
 });
+
+test('remove leaves no empty managed directories behind', async () => {
+  const { installWorkflow, removeWorkflow } = await import('../src/install.mjs');
+  const root = await tempProject();
+  await installWorkflow({ root, packageRoot, hosts: ['codex', 'claude'] });
+  await removeWorkflow({ root });
+
+  for (const relative of ['.claude', '.agents', '.ai-workflow', 'templates']) {
+    assert.equal(await exists(path.join(root, relative)), false, `${relative} should be gone`);
+  }
+});
