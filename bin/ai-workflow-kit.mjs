@@ -153,6 +153,7 @@ async function main(argv) {
     }
     if (result.ok) {
       console.log('PASS');
+      for (const note of result.notes ?? []) console.log(`NOTE  ${note}`);
       return 0;
     }
     for (const error of result.errors) console.error(`- ${error}`);

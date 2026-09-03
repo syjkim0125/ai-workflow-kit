@@ -32,9 +32,17 @@ Show the full concise draft and ask: “이 내용이 이번 구현의 범위와
 
 `Understanding gate (G1): <artifact> · <date> · Check-in: accepted`
 
-Then verify instead of assuming: run `node .ai-workflow/bin/check.mjs story <story-file>`
-and report the exit code. Exit 0 means the contract is well formed and G1 is valid; any
-other exit names what is wrong. Do not start implementation on a non-zero exit, and never
-claim the gate passed without that output.
+Then verify instead of assuming. Write `Status: Approved` and the G1 record first, then run
+both checks and report both exit codes:
+
+```
+node .ai-workflow/bin/check.mjs story <story-file>
+node .ai-workflow/bin/check.mjs gate G1 <story-file>
+```
+
+`story` checks that the contract is well formed. `gate G1` checks that a human actually
+approved it. Run `story` while the file still says `Draft` and it exits 0 on shape alone —
+that is not approval, and the output says which gate it skipped. Do not start implementation
+unless both exit 0, and never claim the gate passed without that output.
 
 No approval means no implementation.
