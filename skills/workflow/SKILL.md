@@ -6,6 +6,8 @@ argument-hint: "[request | status | finish]"
 
 # Workflow
 
+Invoke in Codex with `$workflow`; in Claude Code with `/workflow`. After installation or updates, start a new task/session.
+
 Turn `$ARGUMENTS` into an approved, reviewable change without creating documentation debt.
 
 ## Non-negotiable gates

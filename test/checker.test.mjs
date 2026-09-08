@@ -177,6 +177,20 @@ test('Story checker accepts bracket and arrow M/V mappings', async () => {
   assert.equal(result.ok, true, result.errors.join('\n'));
 });
 
+test('hyphenated M/V IDs preserve identity and cannot bypass mapping validation', async () => {
+  const { checkArtifact } = await import('../assets/check.mjs');
+  const root = await fixture();
+  const file = path.join(root, 'story.md');
+  const text = baseStory.replace('Status: Approved', 'Status: Draft').replaceAll(/\b([MV])(\d+)/g, '$1-$2');
+  await writeFile(file, text);
+  const valid = await checkArtifact({ root, file });
+  assert.equal(valid.ok, true, valid.errors.join('\n'));
+  await writeFile(file, text.replace('[M-2]', '[M-99]'));
+  assert.equal((await checkArtifact({ root, file })).ok, false);
+  await writeFile(file, text.replace('- M-2.', '- M-1.'));
+  assert.equal((await checkArtifact({ root, file })).ok, false);
+});
+
 test('Story checker rejects duplicate or unknown requirement mappings', async () => {
   const { checkArtifact } = await import('../assets/check.mjs');
   const root = await fixture();

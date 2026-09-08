@@ -217,11 +217,11 @@ npx @pazmo/ai-workflow-kit init --host codex
 
 | 도구 | 시작 |
 |---|---|
-| Claude Code | `/workflow 결제 취소 되게 해줘` |
-| Codex | `$workflow 결제 취소 되게 해줘` |
+| Claude Code | `/workflow 결제 취소 되게 해줘` · `/workflow status` · `/workflow finish` |
+| Codex | `$workflow 결제 취소 되게 해줘` · `$workflow status` · `$workflow finish` |
 | ChatGPT | `skills/workflow/` 폴더를 Skill로 올리면 관련 요청에서 **자동으로** 선택됩니다 |
 
-한 번만 부르면 됩니다. 지금 어디까지 왔는지 합의서를 읽고 알아서 다음 단계로 갑니다. 대화가 끊겼다 돌아왔다면 `/workflow` 또는 `/workflow finish`로 다시 들어가면 됩니다.
+한 번만 부르면 됩니다. 지금 어디까지 왔는지 합의서를 읽고 알아서 다음 단계로 갑니다. 대화가 끊겼다 돌아왔다면 위 표의 호스트별 status 또는 finish 명령으로 다시 들어가면 됩니다. 설치·업데이트 후에는 새 Codex 작업 또는 새 Claude Code 세션을 시작해야 바뀐 스킬을 발견할 수 있습니다.
 
 ---
 
@@ -248,10 +248,19 @@ ai-workflow-kit doctor          # 설치 상태 점검
 ai-workflow-kit check story  <file>
 ai-workflow-kit check task   <file>
 ai-workflow-kit check gate G4 <story-file>
+ai-workflow-kit jira preview <story-file> # 로컬 미리보기만 출력
 ai-workflow-kit remove          # 제거
 ```
 
 `init`은 여러 번 돌려도 안전합니다. `remove`는 표시 **사이만** 지우고, 사용자가 고친 서식과 확인 기록은 남깁니다.
+
+설치는 `.ai-workflow-install/`에 먼저 준비한 뒤 기존 파일을 백업하고 적용합니다. 처리 가능한 실패는 이전 파일·권한·디렉터리를 복구합니다. 프로세스가 강제 종료되면 다음 `init`이 같은 장비의 종료된 프로세스 기록을 확인하고 복구한 뒤 시작합니다. 여러 파일이 한순간에 동시에 바뀌는 것은 아니므로 설치 중에는 대상 파일을 편집하거나 다른 설치·제거를 실행하지 마세요. 복구까지 실패하면 백업과 기록을 보존하고 오류를 알립니다. 기록이 불완전하거나 소유 프로세스를 확인할 수 없으면 자동 삭제하지 않습니다. 영구 디스크 손상·전원 장애의 내구성을 보장하는 파일시스템 트랜잭션은 아닙니다.
+
+## Jira 발행 (선택)
+
+`ai-workflow-kit jira preview <story-file>`은 Goal, Domain, MUST, SHOULD, OUT, Decisions, Verify 순서의 읽기 쉬운 미리보기만 출력합니다. 실제 발행은 G1 승인, 별도의 명시적 발행 승인과 대상, 호스트가 제공하는 어댑터가 필요합니다. 자격증명이나 Jira 클라이언트는 패키지에 포함하지 않습니다.
+
+새 `publishStory` 모듈은 안정적인 발행 ID, 생성 전 로컬 기록, 중복 조회, 생성 결과 재조회·내용 검증을 지원합니다. 생성 결과가 불명확하면 새 이슈를 다시 만들지 않고 확인을 요구합니다. 원본 Story는 수정하지 않습니다. ADF 설명과 어댑터 계약, 실패 복구 및 검증 한계는 [Jira 안내](skills/workflow/references/jira.md)를 확인하세요. 이 릴리스의 Jira 검증은 fixture 기반이며 실제 Jira 이슈 생성은 수행하지 않았습니다.
 
 ---
 
@@ -264,14 +273,15 @@ ai-workflow-kit remove          # 제거
 ## 개발
 
 ```bash
-npm test        # 39 checks
+npm test        # 전체 테스트
 npm pack        # 로컬 tarball
 ```
 
 로컬 tarball로 시험 설치:
 
 ```bash
-npx --package ./pazmo-ai-workflow-kit-3.0.3.tgz ai-workflow-kit init
+# npm pack 출력에 나온 실제 파일명으로 <version>을 바꾸세요.
+npx --package './pazmo-ai-workflow-kit-<version>.tgz' ai-workflow-kit init
 ```
 
 배포는 scope 소유자 인증 후:

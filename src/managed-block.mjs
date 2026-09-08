@@ -13,6 +13,11 @@ export const MANAGED_BLOCK = `${START_MARKER}
 - Gates are satisfied by evidence, not by assertion. Verify with \`node .ai-workflow/bin/check.mjs story <story-file>\` and report the exit code; exit 0 is the only pass.
 ${END_MARKER}`;
 
+export function managedBlockFor(host) {
+  const command = host === 'codex' ? '$workflow' : '/workflow';
+  return MANAGED_BLOCK.replace('## AI workflow', `## AI workflow\n\nInvoke: \`${command} <request>\`, \`${command} status\`, \`${command} finish\`. Start a new task/session after installation or updates.`);
+}
+
 // A marker only counts when it is a line of its own and sits outside a fenced code
 // block. Instruction files legitimately document this kit's own marker syntax; a
 // substring match would treat that example as the live block and silently rewrite it.

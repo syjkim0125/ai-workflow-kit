@@ -1,6 +1,6 @@
 {
   "name": "ai-workflow-kit",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Concise requirements-to-delivery workflow with human approval and understanding gates.",
   "skills": "./skills/"
 }
