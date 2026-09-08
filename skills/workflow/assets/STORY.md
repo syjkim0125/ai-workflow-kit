@@ -5,7 +5,7 @@ Understanding gate (G1): <pending>
 Understanding gate (G4): <pending>
 
 ## Goal
-<Actor can achieve observable outcome because...>
+<In a few plain-language sentences: what goes wrong today, what the person can do after the change, what must remain safe, and how we will check it. Put technical detail below; label assumptions.>
 
 ## Domain
 - Terms: <term = meaning>
