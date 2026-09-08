@@ -14,6 +14,10 @@ Turn `$ARGUMENTS` into an approved, reviewable change without creating documenta
 - Do not declare delivery complete or merge a non-trivial change before G4 passes.
 - Requirements have one source of truth. AI context may be richer; copied requirements may not diverge.
 
+## Explain before asking
+
+Before G1 or G3, explain the problem, intended change, safety rule and verification in plain language. Put the short explanation before technical details; use one concrete example when helpful. Keep G4 prediction-before-reveal intact.
+
 ## Route by current state
 
 1. **No approved Story:** read `references/intake.md`. Use `assets/STORY.md`; ask only missing behavior questions and obtain G1.
