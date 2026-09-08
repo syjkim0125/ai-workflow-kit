@@ -11,7 +11,8 @@ import {
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { HOSTS, normalizeHosts, projectPath } from './paths.mjs';
-import { MANAGED_BLOCK, removeManagedBlock, upsertManagedBlock } from './managed-block.mjs';
+import { managedBlockFor, removeManagedBlock, upsertManagedBlock } from './managed-block.mjs';
+import { installTransaction } from './install-transaction.mjs';
 
 const modulePackageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CONFIG_PATH = '.ai-workflow/config.json';
@@ -153,7 +154,7 @@ async function removeFileIfUnchanged(root, relative, expectedHash, preserved) {
   return true;
 }
 
-export async function installWorkflow({
+async function installPrepared({
   root = process.cwd(),
   packageRoot = modulePackageRoot,
   hosts = ['codex', 'claude'],
@@ -185,7 +186,7 @@ export async function installWorkflow({
     const file = projectPath(root, hostConfig.instructionFile);
     const current = await readText(file, '');
     if (selectedHosts.includes(host)) {
-      instructionPlans.set(host, { file, current, next: upsertManagedBlock(current, MANAGED_BLOCK) });
+      instructionPlans.set(host, { file, current, next: upsertManagedBlock(current, managedBlockFor(host)) });
     } else if (previousHosts.has(host)) {
       instructionPlans.set(host, { file, current, next: removeManagedBlock(current) });
     }
@@ -258,6 +259,11 @@ export async function installWorkflow({
   return { changed, installed, preserved, hosts: selectedHosts };
 }
 
+export async function installWorkflow(options = {}) {
+  const root = path.resolve(options.root ?? process.cwd());
+  return installTransaction(root, (stage) => installPrepared({ ...options, root: stage }));
+}
+
 async function removeEmptyParents(file, stopAt) {
   let current = path.dirname(file);
   while (current.startsWith(stopAt) && current !== stopAt) {
@@ -273,7 +279,7 @@ async function removeEmptyParents(file, stopAt) {
   }
 }
 
-export async function removeWorkflow({ root = process.cwd() } = {}) {
+async function removePrepared({ root = process.cwd() } = {}) {
   root = path.resolve(root);
   const config = await readConfig(root);
   const preserved = [];
@@ -332,4 +338,8 @@ export async function removeWorkflow({ root = process.cwd() } = {}) {
   }
 
   return { changed, preserved };
+}
+
+export async function removeWorkflow({ root = process.cwd() } = {}) {
+  return installTransaction(path.resolve(root), (stage) => removePrepared({ root: stage }));
 }
