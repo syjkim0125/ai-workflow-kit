@@ -1,20 +1,34 @@
-# AI Workflow Kit v3 Verification
+# AI Workflow Kit 3.1.0 verification
 
-Verified on 2026-08-30 with Node.js v22.16.0.
+Verified 2026-09-08. Release candidate, not published. Human G4 remains pending.
 
 ## Evidence
 
-- `node --check bin/*.mjs src/*.mjs assets/*.mjs test/*.mjs`: PASS
-- `npm test`: 31/31 PASS
-- `npm publish --dry-run --access public --json`: PASS; 20 package entries, 15,800 bytes packed, 45,881 bytes unpacked
-- `npm pack --json`: `pazmo-ai-workflow-kit-3.0.0.tgz`
-- Packed SHA-256: `d2e0cf1cd99e523fa02c9ccf70b09575e3f3ae9c30b819997250c860d325e5fa`
-- Clean-project tarball E2E: PASS
+- npm latest at start: `@pazmo/ai-workflow-kit@3.0.4`.
+- Full `npm test`: **82/82 PASS**, exit 0, Node 24.19.0.
+- Full `node --test --test-reporter=spec test/*.test.mjs`: **82/82 PASS**, exit 0, Node 20.14.0.
+- `git diff --check origin/main`: exit 0.
+- Canonical Story checker and explicit G1 checker: exit 0. This is not G4 evidence.
+- Independent installer/release and Jira reviews: no remaining Critical/Important issues; see [review record](understanding/workflow-kit-3-1-review.md).
+- `npm pack --json`: prepack reruns all 82 tests; 25 entries, 34,119 bytes packed, 100,768 bytes unpacked.
+- Artifact: `pazmo-ai-workflow-kit-3.1.0.tgz`.
+- SHA-256: `e4b0842adb37c8eebdc04cbde265c5ae69476749fb50c546433272250cb5f224`.
+- Inventory includes both plugin manifests, marketplace, executable CLI/checker, canonical skill/templates/references, and optional Jira module. No dependencies, credentials, tests, journals, local approval records or private evidence are packed.
 
-The E2E run installed the packed artifact, repeated `init`, ran `doctor`, checked an Approved and Delivered Story, rejected a 31-line Task, required G4 evidence, preserved modified team files on removal, validated Codex-only installation, and refused a pre-existing skill conflict without partial writes.
+Reproduce the actual-artifact smoke after packing:
+
+```sh
+node test/fixtures/verify-tarball.mjs /absolute/path/pazmo-ai-workflow-kit-3.1.0.tgz
+```
+
+This passed on Node 20.14.0 and 24.19.0. It installs offline into two fresh prefixes, invokes the packaged CLI, verifies Codex-only/Claude-only routing, repeated init, doctor, user-modified template preservation, module imports, removal and journal cleanup. These are filesystem/CLI checks, not native host-session launch tests.
 
 ## Boundaries
 
-- The package was not published to npm because this environment is not authenticated; the scope/name must be confirmed by the publisher.
-- Claude Code/Codex plugin marketplace import and ChatGPT Skill upload were not executed in native clients here. Their package shapes are covered by structural tests.
-- The deterministic checker validates records, mappings, paths, and evidence presence. It cannot prove cognition; the conversational G4 protocol evaluates the human answer before writing `G4: PASS`.
+- No npm publication, merge, repository visibility change or actual Jira creation was performed. PR/push are separately authorized by the requester.
+- Live Jira permissions, credentials, rendered ADF, pagination, timeout enforcement, search consistency and cross-machine create-if-absent remain the trusted host adapter's responsibility. All Jira transport tests are fixtures.
+- Installer recovery handles caught failures and tested process interruption. Corrupt/unknown journals or concurrent user changes stop recovery with backups retained. This is not an instantaneous multi-file transaction or a machine-power-loss guarantee.
+- Actual Codex/Claude session discovery and marketplace import need a new native session. No app or mockup was launched.
+- The checker validates format, mappings and evidence presence; it cannot prove the human authenticity or understanding of approval. G4 must be performed with the owner before merge.
+
+See [execution evidence](understanding/workflow-kit-3-1-evidence.md) for RED→GREEN, original-change preservation and release scope.
