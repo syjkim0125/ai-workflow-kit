@@ -28,6 +28,16 @@ function gateLine(text, gate) {
   return text.match(new RegExp(`^Understanding gate \\(${escaped}\\):\\s*(.+)$`, 'imu'))?.[1]?.trim();
 }
 
+function hasG4Pass(text) {
+  return /^G4:\s*PASS\s*[—-]\s*\S.+$/imu.test(text);
+}
+
+// The publisher must recognize the same gate spelling/spacing as validation.
+export function isGateMetadataLine(line) {
+  return ['G1', 'G3', 'G4'].some((gate) => Boolean(gateLine(line, gate)))
+    || /^Understanding gate \(G[134]\):\s*$/iu.test(line) || hasG4Pass(line);
+}
+
 function parseArtifact(record) {
   return record.split(/\s*[·|]\s*/u)[0].trim();
 }
@@ -126,7 +136,7 @@ export async function checkGate({ root = process.cwd(), file, gate }) {
   const resolved = await evidencePath({ root, artifact, gate });
   if (resolved.error) return { ok: false, errors: [resolved.error] };
 
-  if (gate === 'G4' && !/^G4:\s*PASS\s*[—-]\s*\S.+$/imu.test(text)) {
+  if (gate === 'G4' && !hasG4Pass(text)) {
     return { ok: false, errors: ['G4 evidence exists, but the Story is missing an explicit “G4: PASS — <human restatement evidence>” record.'] };
   }
 
@@ -155,16 +165,16 @@ function sectionBody(text, heading) {
 function idsInSection(text, heading, prefix) {
   const body = sectionBody(text, heading);
   const escaped = escapeRegExp(prefix);
-  const regex = new RegExp(`^[-*]\\s+${escaped}(\\d+)\\b`, 'gimu');
+  const regex = new RegExp(`^[-*]\\s+${escaped}(-?\\d+)\\b`, 'gimu');
   return [...body.matchAll(regex)].map((match) => `${prefix}${match[1]}`.toUpperCase());
 }
 
 function verifyMappings(text) {
   const body = sectionBody(text, 'Verify');
-  const lines = body.split(/\r?\n/u).filter((line) => /^[-*]\s+V\d+\b/iu.test(line));
+  const lines = body.split(/\r?\n/u).filter((line) => /^[-*]\s+V-?\d+\b/iu.test(line));
   const mapped = new Set();
   for (const line of lines) {
-    for (const match of line.matchAll(/\bM(\d+)\b/giu)) mapped.add(`M${match[1]}`.toUpperCase());
+    for (const match of line.matchAll(/\bM(-?\d+)\b/giu)) mapped.add(`M${match[1]}`.toUpperCase());
   }
   return { lines, mapped };
 }
@@ -195,7 +205,7 @@ function checkTask(text) {
   requireOrderedHeadings(text, REQUIRED_TASK_HEADINGS, errors, 'Task');
 
   const covers = sectionBody(text, 'Covers — Story M/V IDs');
-  if (!/\bM\d+\b/iu.test(covers) || !/\bV\d+\b/iu.test(covers)) {
+  if (!/\bM-?\d+\b/iu.test(covers) || !/\bV-?\d+\b/iu.test(covers)) {
     errors.push('Task Covers must reference at least one Story M# and V# ID.');
   }
   return { ok: errors.length === 0, errors };
@@ -225,11 +235,11 @@ function checkStoryShape(text) {
   } else {
     const verifySet = new Set();
     for (const line of verification.lines) {
-      const verifyId = line.match(/^[-*]\s+(V\d+)\b/iu)?.[1]?.toUpperCase();
+      const verifyId = line.match(/^[-*]\s+(V-?\d+)\b/iu)?.[1]?.toUpperCase();
       if (verifyId && verifySet.has(verifyId)) errors.push(`Duplicate Verify ID: ${verifyId}.`);
       if (verifyId) verifySet.add(verifyId);
 
-      const references = [...line.matchAll(/\bM(\d+)\b/giu)].map((match) => `M${match[1]}`.toUpperCase());
+      const references = [...line.matchAll(/\bM(-?\d+)\b/giu)].map((match) => `M${match[1]}`.toUpperCase());
       if (references.length === 0) errors.push(`Verify case is missing its M# mapping: ${line.trim()}`);
       for (const reference of references) {
         if (!mustSet.has(reference)) errors.push(`Verify case references unknown MUST ${reference}: ${line.trim()}`);

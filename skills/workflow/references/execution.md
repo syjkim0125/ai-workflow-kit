@@ -22,6 +22,8 @@ Create Tasks only when the approved Story cannot be reviewed as one PR. Each Tas
 
 ## Execute
 
+For user-authorized optional Jira publication after G1, follow `jira.md`. Without a connector or authorized target, produce a preview only; the Story remains canonical.
+
 1. Read the approved Story, relevant code, tests, repository instructions, and prior learnings.
 2. Make a plan that maps every M/V ID to code and evidence. Do not create a second requirement source.
 3. For new behavior or a bug fix, demonstrate RED before production code, GREEN after the minimum change, then refactor while green.

@@ -7,6 +7,7 @@ import { installWorkflow, removeWorkflow } from '../src/install.mjs';
 import { checkerVisibility, ignoredCheckerAdvice } from '../src/git-visibility.mjs';
 import { END_MARKER, START_MARKER } from '../src/managed-block.mjs';
 import { HOSTS } from '../src/paths.mjs';
+import { publishStory } from '../src/jira.mjs';
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -18,8 +19,13 @@ Usage:
   ai-workflow-kit doctor [--root <dir>]
   ai-workflow-kit check story|task <file> [--root <dir>]
   ai-workflow-kit check gate G1|G4 <story-file> [--root <dir>]
+  ai-workflow-kit jira preview <story-file> [--root <dir>]
   ai-workflow-kit remove [--root <dir>]
-  ai-workflow-kit --version`);
+  ai-workflow-kit --version
+
+After installation, start a new task/session:
+  Codex: $workflow <request> | $workflow status | $workflow finish
+  Claude Code: /workflow <request> | /workflow status | /workflow finish`);
 }
 
 function parse(argv) {
@@ -117,6 +123,17 @@ async function main(argv) {
 
   const command = argv[0];
   const { root, hosts, positional } = parse(argv.slice(1));
+
+  if (command === 'jira') {
+    if (positional.length !== 2 || positional[0] !== 'preview') {
+      throw new Error('Usage: ai-workflow-kit jira preview <story-file>. Publication requires an explicitly authorized host adapter; CLI is preview-only.');
+    }
+    const result = await publishStory({ root, file: positional[1] });
+    console.log('PREVIEW — no issue created. Review content before sharing with Jira.');
+    console.log(result.summary);
+    console.log(result.preview);
+    return 0;
+  }
 
   if (command === 'init') {
     const result = await installWorkflow({ root, packageRoot, hosts });
