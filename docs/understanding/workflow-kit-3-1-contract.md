@@ -1,8 +1,8 @@
 # Story: 안전한 설치와 선택적 Jira 발행
-Status: Approved
+Status: Delivered
 Owner: JongKun Kim
 Understanding gate (G1): docs/understanding/workflow-kit-3-1-approval.md · 2026-09-08 · Check-in: accepted
-Understanding gate (G4): pending
+Understanding gate (G4): docs/understanding/workflow-kit-3-1-diff.md · 2026-09-09 · Check-in: accepted
 
 ## Goal
 사용자가 호스트에 맞는 명령으로 workflow를 시작하고, 설치 실패 후에도 기존 프로젝트를 유지할 수 있게 한다. 승인된 Story는 같은 구조로 Jira에 발행할 수 있으며, 실패나 재시도 때문에 원본이 바뀌거나 이슈가 중복 생성되지 않아야 한다.
@@ -35,3 +35,5 @@ Understanding gate (G4): pending
 - V2 [M3]. 설치 실패 주입 후 이전 상태와 비교하고 기존 보존·재설치 동작을 확인한다.
 - V3 [M4, M5]. 승인 전 거부, 미리보기, 성공, 실패, 중복 재시도, 재조회 불일치를 확인한다.
 - V4 [M6]. 실패→통과 TDD 증거, 독립 리뷰, 전체 테스트, tarball 검사·새 환경 설치 결과를 기록한다.
+
+G4: PASS — 사용자가 설치 실패 시 기존 파일·사용자 수정 보호와 Jira 중복 생성 방지를 위한 확인 후 재시도를 재설명했고, 자동 검증과 실제 환경 통합 검증의 차이를 확인했다.
