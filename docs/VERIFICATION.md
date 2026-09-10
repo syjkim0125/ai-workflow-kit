@@ -1,6 +1,6 @@
 # AI Workflow Kit 3.1.0 verification
 
-Verified 2026-09-08. Release candidate, not published. Human G4 remains pending.
+Implementation verified 2026-09-08. Human G4 accepted 2026-09-09; see [the human answers and evaluation](understanding/workflow-kit-3-1-diff.md). npm publication remains a separate user action; no publication was performed in this session.
 
 ## Evidence
 
