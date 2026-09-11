@@ -24,7 +24,7 @@ Before G1 or G3, explain the problem, intended change, safety rule and verificat
 
 1. **No approved Story:** read `references/intake.md`. Use `assets/STORY.md`; ask only missing behavior questions and obtain G1.
 2. **Approved, not implemented:** read `references/execution.md`. Read `references/domain-risks.md` only for relevant risk domains. Create a Task from `assets/TASK.md` only when one PR is not reviewable.
-3. **Implemented or `finish`:** read `references/understanding-gate.md`; run G4 before completion.
+3. **Implemented or `finish`:** complete pending checks in `references/execution.md`, then follow `references/understanding-gate.md` for G4.
 4. **`status`:** report stage, blocking decision, evidence present, and the single next action.
 
 Use the user's language. Keep each response focused on one decision. Surface assumptions and evidence boundaries. Never say “AI decided”; name the human-owned decision or mark it open.
