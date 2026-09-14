@@ -16,7 +16,7 @@ for (const host of ['codex', 'claude']) {
   execFileSync(process.execPath, [npm, 'install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', '--prefix', install, '--cache', path.join(root, 'cache'), tarball]);
   const pkg = path.join(install, 'node_modules/@pazmo/ai-workflow-kit');
   const cli = (args) => execFileSync(process.execPath, [path.join(pkg, 'bin/ai-workflow-kit.mjs'), ...args, '--root', project], { encoding: 'utf8' });
-  assert.equal(JSON.parse(await fs.readFile(path.join(pkg, 'package.json'))).version, '3.1.0');
+  assert.equal(JSON.parse(await fs.readFile(path.join(pkg, 'package.json'))).version, '3.1.1');
   cli(['init', '--host', host]);
   const instruction = path.join(project, host === 'codex' ? 'AGENTS.md' : 'CLAUDE.md');
   const before = await fs.readFile(instruction, 'utf8');

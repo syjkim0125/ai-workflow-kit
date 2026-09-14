@@ -11,7 +11,7 @@ const read = (file) => readFile(path.join(root, file), 'utf8');
 
 test('release versions agree across package, plugins and marketplace', async () => {
   const pkg = JSON.parse(await read('package.json'));
-  assert.equal(pkg.version, '3.1.0');
+  assert.equal(pkg.version, '3.1.1');
   for (const file of ['.claude-plugin/plugin.json', '.codex-plugin/plugin.json']) {
     assert.equal(JSON.parse(await read(file)).version, pkg.version, file);
   }
