@@ -40,3 +40,14 @@ For user-authorized optional Jira publication after G1, follow `jira.md`. Withou
 - Preserve behavior, result order, side effects, domain boundaries, failure handling and safety checks. A proposal that changes them belongs to the existing design or scope-change process, not a silent simplification.
 - Follow the invoked skill and applicable repository/runtime instructions for execution and agent use; this kit sets no fixed agent count. Do not copy the skill's orchestration into this workflow.
 - Include changes (or no-change outcome), review scope and fresh checks briefly in existing review/verification evidence. Add no separate approval gate, mandatory document or Jira Task.
+
+
+## Graph planning and execution
+
+For work with multiple dependent or independent steps, read `graph-engineering.md` and represent the repository-grounded plan as a dependency graph instead of a prose-only checklist. Do not manufacture a graph for a single small/reversible change.
+
+The planning subgraph is: parallel codebase/test/risk analysis → planner → parallel critic/advocate → mediator → deterministic graph validation. The planner defines **dependencies**, not hand-written execution order. Nodes whose dependencies are satisfied are ready; independent ready nodes may run in parallel when the host supports it.
+
+The execution graph does not replace human gates. G1 still approves scope before planning/implementation, G3 still protects high-risk choices, and G4 still requires prediction-before-reveal. Compound Engineering may provide node behavior (`ce-plan`, `ce-work`, `ce-simplify-code`, `ce-code-review`); the graph owns dependency and retry structure rather than copying those skills.
+
+After each node, evaluate its evidence. A failed node blocks its downstream dependants. Replanning should reset only the failed/replaced node and its descendants, preserving completed independent work unless new evidence invalidates it. Report preserved work and rerun fresh verification for every affected node before G4.
