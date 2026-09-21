@@ -1,15 +1,26 @@
 #!/usr/bin/env node
-import { access, readFile } from 'node:fs/promises';
+import { access, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkArtifact, checkGate } from '../assets/check.mjs';
 import { installWorkflow, removeWorkflow } from '../src/install.mjs';
-import { checkerVisibility, ignoredCheckerAdvice } from '../src/git-visibility.mjs';
+import { checkerVisibility, fileVisibilities, ignoredCheckerAdvice } from '../src/git-visibility.mjs';
 import { END_MARKER, START_MARKER } from '../src/managed-block.mjs';
 import { HOSTS } from '../src/paths.mjs';
 import { publishStory } from '../src/jira.mjs';
+import { runGraphCommand } from '../src/graph/cli.mjs';
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+async function graphFiles() {
+  return ['.ai-workflow/bin/graph.mjs', ...(await readdir(path.join(packageRoot, 'src/graph')))
+    .filter(name => name.endsWith('.mjs')).map(name => `.ai-workflow/graph/${name}`)];
+}
+
+async function ignoredGraphFiles(root) {
+  const results = await fileVisibilities(root, await graphFiles());
+  return results.filter(result => result.status === 'ignored');
+}
 
 function help() {
   console.log(`ai-workflow-kit
@@ -20,6 +31,11 @@ Usage:
   ai-workflow-kit check story|task <file> [--root <dir>]
   ai-workflow-kit check gate G1|G4 <story-file> [--root <dir>]
   ai-workflow-kit jira preview <story-file> [--root <dir>]
+  ai-workflow-kit graph init <plan.json|-> <run.json> <story.md> [--root <dir>]
+  ai-workflow-kit graph status <run.json> [--root <dir>]
+  ai-workflow-kit graph start <run.json> <node-id> <ready-token> [--root <dir>]
+  ai-workflow-kit graph record <run.json> <node-id> <result.json> [--root <dir>]
+  ai-workflow-kit graph reset <run.json> <node-id> <reason> [--root <dir>]
   ai-workflow-kit remove [--root <dir>]
   ai-workflow-kit --version
 
@@ -84,7 +100,11 @@ async function doctor(root) {
     ['Story template', 'templates/ai-workflow/STORY.md'],
     ['Task template', 'templates/ai-workflow/TASK.md'],
     ['Checker', '.ai-workflow/bin/check.mjs'],
+    ['Graph command', '.ai-workflow/bin/graph.mjs'],
   );
+  for (const name of await readdir(path.join(packageRoot, 'src/graph'))) {
+    if (name.endsWith('.mjs')) checks.push([`Graph runtime ${name}`, `.ai-workflow/graph/${name}`]);
+  }
 
   let ok = true;
   for (const [label, relative, routing] of checks) {
@@ -107,6 +127,12 @@ async function doctor(root) {
     console.log('PASS  Checker reaches git: .ai-workflow/bin/check.mjs');
   }
 
+  for (const entry of await ignoredGraphFiles(root)) {
+    console.log(`MISS  Graph reaches git: ${entry.file} (${entry.source})`);
+    console.log('      Fix: unignore this file and its parent directories before sharing the installation.');
+    ok = false;
+  }
+
   return ok;
 }
 
@@ -123,6 +149,11 @@ async function main(argv) {
 
   const command = argv[0];
   const { root, hosts, positional } = parse(argv.slice(1));
+
+  if (command === 'graph') {
+    console.log(JSON.stringify(await runGraphCommand(positional, { root, checkArtifact, checkGate }), null, 2));
+    return 0;
+  }
 
   if (command === 'jira') {
     if (positional.length !== 2 || positional[0] !== 'preview') {
@@ -146,6 +177,9 @@ async function main(argv) {
       console.log('WARNING');
       for (const line of ignoredCheckerAdvice(visibility)) console.log(`  ${line}`);
       console.log('');
+    }
+    for (const entry of await ignoredGraphFiles(root)) {
+      console.log(`WARNING  Graph file hidden from git: ${entry.file} (${entry.source}). Unignore it and its parent directories.`);
     }
     if (result.hosts.includes('claude')) console.log('Next (Claude Code): /workflow <request>');
     if (result.hosts.includes('codex')) console.log('Next (Codex): $workflow <request>');

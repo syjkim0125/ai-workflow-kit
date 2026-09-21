@@ -55,10 +55,11 @@ test('intake limits questions and surfaces assumptions', async () => {
   assert.match(intake, /MUST.*SHOULD.*OUT/is);
 });
 
-test('execution routes to Compound Engineering without duplicating ce-plan', async () => {
+test('execution composes focused Superpowers and CE stages without duplicating ce-plan', async () => {
   const execution = await read('skills/workflow/references/execution.md');
   assert.match(execution, /ce-plan/);
-  assert.match(execution, /ce-work/);
+  assert.match(execution, /superpowers:test-driven-development/);
+  assert.match(execution, /superpowers:verification-before-completion/);
   assert.match(execution, /ce-code-review/);
   assert.match(execution, /Plan source: N\/A/);
   assert.match(execution, /high-risk|high risk/i);
