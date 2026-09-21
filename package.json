@@ -19,6 +19,7 @@
     ".claude-plugin/",
     ".codex-plugin/",
     "README.md",
+    "README.ko.md",
     "LICENSE"
   ],
   "scripts": {

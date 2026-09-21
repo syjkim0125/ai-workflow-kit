@@ -1,345 +1,200 @@
 # AI Workflow Kit
 
-AI와 함께 일할 때 **사람이 이해를 놓치지 않게** 하는 작업 규칙입니다.
-Claude Code · Codex · ChatGPT에서 같은 방식으로 씁니다.
+[한국어](https://github.com/syjkim0125/ai-workflow-kit/blob/main/README.ko.md) · English
 
-```bash
+**Give AI a task. Keep the work ordered, checked, and approved by a person.**
+
+AI Workflow Kit adds a work process to Codex and Claude Code. It defines what to build, tracks each task, checks results, and records useful lessons.
+
+Version 4 includes a graph runner. A graph is a list of tasks and the rules for which task runs next.
+
+## Start
+
+You need **Node.js 20 or later** and Codex or Claude Code. Run these commands in your project folder:
+
+```sh
 npx @pazmo/ai-workflow-kit init
-```
-
----
-
-## 그림 한 장
-
-```text
-   한 줄 요청   "결제 취소 되게 해줘"
-        │
-        ▼
-   사람과 이야기하며 무엇을 만들지 정함
-        │
-        ▼
- ─── G1 ───  "이게 맞아요?"
-        │            사람이 승인해야 다음으로 갑니다
-        ▼
-   에이전트가 구현 → 테스트 통과 → 단순화 검토 → 리뷰 → 재검증
-        │
-        ▼
- ─── G4 ───  "이 변경이 뭘 할 것 같아요?"
-        │            사람이 먼저 답해야 정답이 나옵니다
-        ▼
-   사람이 이해한 채로 머지
-```
-
-## 다섯 문장
-
-에이전트는 코드를 아주 빨리 씁니다.
-사람이 읽는 속도는 그대로입니다.
-그래서 아무도 이해하지 못한 코드가 쌓입니다.
-이 키트는 사람이 승인하기 **직전**마다 짧은 확인을 거치게 합니다.
-확인 없이는 다음 단계로 못 갑니다.
-
----
-
-## 사람이 멈춰 서는 두 곳
-
-### G1 — 만들기 전
-
-무엇을 만들 건지 한 화면짜리 합의서로 정리해서 보여줍니다. 그리고 묻습니다:
-
-> **"이 내용이 이번에 만들 범위와 완료 조건으로 맞나요?"**
-
-여기서 중요한 건 **질문을 아껴 쓴다**는 점입니다. 동작이 달라지는 것만 묻고, 한 번에 세 개까지, 두 번 물어보고 멈춥니다. 안 물어본 것들은 안전한 기본값으로 채우고 **"이건 물어보지 않고 정했습니다"** 라고 표시해둡니다. 끝없는 인터뷰가 되지 않게요.
-
-### G4 — 머지 전
-
-**설명을 먼저 안 보여줍니다.** 이번에 바뀐 코드와 테스트 결과만 보여주고 묻습니다:
-
-> **"이 변경이 무엇을 바꾸나요? 항상 지켜져야 하는 규칙은 무엇이고, 잘못되면 어떻게 되나요? 그걸 어떤 테스트가 증명하고 있나요?"**
-
-답하고 나서야 정답이 나옵니다. 그리고 **맞은 것 / 놓친 것 / 틀린 것** 세 가지로 짚어줍니다.
-
-먼저 맞춰보게 하는 이유는, 설명을 읽는 것과 이해하는 것이 다르기 때문입니다.
-
----
-
-## 전체 흐름
-
-위 그림은 가장 바깥 껍데기입니다. 실제로는 열 단계이고, 사람이 멈춰 서는 곳은 최대 세 곳입니다.
-
-```text
-1  요청
-   "결제 취소 되게 해줘"
-        │
-2  무엇을 만들지 정한다
-   · 동작이 달라지는 것만 묻는다
-   · 한 번에 세 개까지, 두 번 물어보고 멈춘다
-   · 안 물어본 건 안전한 기본값으로 채우고 "가정"이라 표시
-   · 함부로 정하면 위험한 건 "미해결"로 남긴다
-        │
-3  한 장짜리 합의서를 쓴다
-   목표 / 분야 / 꼭 되어야 하는 것 / 되면 좋은 것 /
-   이번엔 안 하는 것 / 결정한 것 / 확인하는 방법
-        │
-4  ━━ G1 ━━ 사람에게 묻는다
-   "이 범위와 완료 조건이 맞나요?"
-   → 사람이 승인해야 다음으로 갑니다
-   → "미해결"이 남아 있으면 승인 자체가 막힙니다
-        │
-5  변경의 크기를 판정한다
-   ├ 작고 되돌릴 수 있다      → 바로 8번으로
-   ├ 보통이다                → 계획 → 작업·테스트 → 단순화 검토 → 리뷰·재검증
-   └ 위험하고 되돌리기 어렵다 → 6번으로
-        │
-6  ━━ G3 ━━ 사람에게 묻는다   (위험할 때만 생깁니다)
-   어떤 방식을 골랐고, 다른 선택지는 무엇이었는지
-   항상 지켜져야 하는 규칙은 무엇인지
-   잘못되면 어떻게 되돌릴 수 있는지
-        │
-7  작업을 쪼갠다   (한 번에 검토하기 너무 클 때만)
-        │
-8  구현한다
-   · 먼저 기존 코드를 읽는다
-   · "꼭 되어야 하는 것"을 실제 코드 위치에 하나씩 연결한다
-   · 실패하는 테스트를 먼저 쓰고 → 관련 테스트를 통과시킨다
-   · 단순화 검토로 중복·불필요한 상태·분기·복잡성을 살핀다 (수정할 것이 없으면 그대로)
-   · 단순화 이후 최종 변경을 리뷰하고, 수정한 부분을 재검증한다
-        │
-9  ━━ G4 ━━ 사람에게 묻는다
-   설명을 감추고, 바뀐 코드와 테스트 결과만 보여줍니다
-   ① 사람이 먼저 답한다
-   ② 그 다음에 정답을 보여준다
-   ③ 맞은 것 / 놓친 것 / 틀린 것을 짚는다
-   ④ 사람이 자기 말로 다시 설명한다
-        │
-10 검사기를 돌린다 → 통과해야만 "완료"로 바뀝니다
-   · 리뷰·검증으로 확인한 교훈은 저장하고 다음 관련 작업에서 조회한다
-        │
-   머지
-```
-
-**5번에서 갈라진다는 점이 중요합니다.** 오타 하나 고치는 데 설계 회의를 열지 않고, 결제 로직을 갈아엎는데 그냥 지나가지도 않습니다. 크기에 따라 사람을 부르는 횟수가 달라집니다.
-
-### 이 문서에서 쓴 말
-
-개발자들끼리 쓰는 단어를 풀어서 적었습니다. 실제 파일에는 오른쪽 단어로 들어갑니다.
-
-| 이 문서의 말 | 파일에 들어가는 말 | 뜻 |
-|---|---|---|
-| 한 장짜리 합의서 | Story | 이번에 무엇을 만들지 적은 한 장짜리 문서 |
-| 꼭 되어야 하는 것 | MUST | 안 되면 실패인 조건 |
-| 되면 좋은 것 | SHOULD | 있으면 좋지만 없어도 되는 것 |
-| 이번엔 안 하는 것 | OUT | 일부러 범위 밖으로 밀어둔 것 |
-| 확인하는 방법 | Verify | 그게 됐는지 무엇으로 증명할지 |
-| 가정 | ASSUMED | 사람에게 안 묻고 기본값으로 정한 것 |
-| 미해결 | OPEN BLOCKING | 못 정한 채 남은 것. 있으면 출발 못 함 |
-| 항상 지켜져야 하는 규칙 | 불변 조건 | 예: 환불은 결제한 수단으로만 돌아간다 |
-| 바뀐 코드 | diff | 이번에 손댄 부분만 모아서 보는 것 |
-| 검토 한 덩어리 | PR | 한 번에 검토받는 변경 묶음 |
-
----
-
-## 지키게 만드는 방법
-
-규칙을 문서에 적어두는 것만으로는 지켜지지 않습니다. 그래서 각 확인 지점은 **파일을 남기고, 그 파일을 기계가 검사합니다.**
-
-```text
-Understanding gate (G4): docs/understanding/cancel-diff.md · 2026-08-31 · Check-in: accepted
-G4: PASS — 환불은 결제수단으로만 돌아간다는 규칙을 담당자가 자기 말로 다시 설명함
-```
-
-```bash
-node .ai-workflow/bin/check.mjs story docs/STORY.md
-node .ai-workflow/bin/check.mjs gate G1 docs/STORY.md
-```
-
-`story`는 합의서의 **모양**을, `gate`는 **사람이 실제로 확인했는지**를 봅니다. 아직 `Draft`인
-파일에 `story`를 돌리면 모양만 맞아도 통과합니다 — 그건 승인이 아니고, 통과 메시지가 어느
-게이트를 건너뛰었는지 `NOTE`로 알려줍니다. 승인을 확인하려면 `gate G1`을, 이해 게이트를
-확인하려면 `gate G4`를 함께 돌리세요.
-
-이 검사기가 잡는 것:
-
-| 검사 | 막는 상황 |
-|---|---|
-| 확인했다는 기록 줄이 있는가 | 사람 확인 없이 그냥 넘어감 |
-| 그 기록이 가리키는 파일이 실제로 있고 **비어 있지 않은가** | 백지를 제출함 |
-| "꼭 되어야 하는 것"이 전부 확인 방법과 연결됐는가 | 됐는지 알 수 없는 요구사항 |
-| "미해결"이 남아 있는데 승인됐는가 | 못 정한 걸 안고 출발함 |
-| 사람이 자기 말로 다시 설명한 내용이 적혀 있는가 | "이해했다"는 주장만 있음 |
-
-작은 변경이라 건너뛰고 싶으면 그것도 적습니다. 다만 **구체적인 이유**를 요구합니다:
-
-```text
-Understanding gate (G4): N/A — 주석만 변경, 실행 동작 변화 없음
-```
-
-건너뛴 것도 기록이라 나중에 눈에 보입니다.
-
----
-
-## 시작하기
-
-```bash
-npx @pazmo/ai-workflow-kit init
-```
-
-레포에 이것만 들어갑니다:
-
-```text
-AGENTS.md · CLAUDE.md      정해진 표시 사이에 짧은 규칙 블록 (바깥은 안 건드림)
-.claude/skills/workflow/   Claude Code용
-.agents/skills/workflow/   Codex용
-.ai-workflow/bin/          검사기 · Graph 명령
-.ai-workflow/graph/        의존성 실행 · 상태 · 증거 검증 런타임
-templates/ai-workflow/     합의서 · 작업 조각 서식
-```
-
-### 설치 후 한 번 확인하세요
-
-```bash
 npx @pazmo/ai-workflow-kit doctor
 ```
 
-자바 계열 저장소에는 `.gitignore`에 `bin/` 규칙이 흔히 들어 있습니다. 이게 **검사기(`.ai-workflow/bin/check.mjs`)를 통째로 삼킵니다.** 파일은 디스크에 멀쩡히 있는데 `git add`가 말없이 건너뛰어서, 저장소를 받는 사람에게는 검사기가 없습니다.
+Open a **new Codex task or Claude Code session** after installation or updates.
 
-`init`과 `doctor`가 이걸 잡아내고 고칠 줄을 알려줍니다:
+| Tool | Start a task | Check progress | Finish |
+|---|---|---|---|
+| Codex | `$workflow Fix the empty search results page` | `$workflow status` | `$workflow finish` |
+| Claude Code | `/workflow Fix the empty search results page` | `/workflow status` | `/workflow finish` |
 
-```text
-MISS  Checker reaches git: .gitignore:21:bin/
-      Fix: add "!.ai-workflow/bin/" to .gitignore, below the rule above.
-```
+The agent follows the installed workflow and uses the graph after you approve the scope. You do not need to run each graph command yourself. Installation does not start an AI agent in the background.
 
-한쪽 도구만 쓴다면:
+Use `init --host codex` or `init --host claude` to install for one tool only.
 
-```bash
-npx @pazmo/ai-workflow-kit init --host claude
-npx @pazmo/ai-workflow-kit init --host codex
-```
+**ChatGPT:** In an environment that supports custom skills, skill selection may happen automatically. The graph also needs Node.js and access to project files. A chat by itself does not provide the full workflow.
 
-### 부르는 법
+## How work moves
 
-| 도구 | 시작 |
+![Request, scope approval, planning, implementation, review, verification, learning, and human confirmation. Failed checks return to implementation.](https://raw.githubusercontent.com/syjkim0125/ai-workflow-kit/22246e74aaf8480d9aa3071b351eea4196cd2c99/assets/readme/workflow-en.png)
+
+1. **Describe the result.** The agent asks only questions that affect the work.
+2. **Approve the scope.** You check what will change and how success will be tested.
+3. **Plan the work.** Small changes use a short plan. Larger changes use linked tasks.
+4. **Build and test.** The agent changes the code, runs tests, and removes needless complexity.
+5. **Review and verify.** Review findings go back for fixes. Changed code gets fresh checks.
+6. **Save useful lessons.** Keep proven lessons for future tasks. Skip notes that add nothing.
+7. **Check the result yourself.** Explain the change, then compare your understanding with the evidence.
+
+High-risk changes need a design check before implementation. The kit does not merge or publish just because tests pass.
+
+## What the graph does
+
+The normal code-change graph is:
+
+**Implement, test, and simplify → review → final verification**
+
+Each task has a name, inputs, dependencies, a result, and evidence. A dependency is a task that must finish first.
+
+The runner:
+
+- Starts only tasks whose dependencies passed.
+- Allows independent read tasks to run together.
+- Allows one code-writing task at a time within a run.
+- Requires a recorded result and evidence for each task.
+- Rejects duplicate results and old task tokens.
+- Resets affected tasks after a failed check. It keeps unrelated completed work.
+- Stops after three attempts at a node. Unresolved decisions go to a person.
+
+The agent does the work. The runner checks the saved state and returns the next action. It does not call an AI model itself.
+
+Plans, results, and progress are saved in the project. This helps a new session continue the work. If a worker stopped mid-task, inspect its changes before retrying.
+
+When all nodes pass, the runner returns `action: g4`. **This means ready for human review, not approved.**
+
+## When you decide
+
+| Check | What you decide | When |
+|---|---|---|
+| **G1: scope** | Is this the right work and success condition? | Before implementation |
+| **G3: design** | Is this approach acceptable? Can we recover if it fails? | For high-risk changes |
+| **G4: understanding** | What changed? Which rules must hold? What do the tests prove? | Before completion |
+
+For G4, you see the changed code and test results before the explanation. You answer first. The agent then points out what you understood, missed, or got wrong. You explain the corrected version in your own words.
+
+A small change may qualify for a documented G4 exception. The reason must be specific.
+
+The checker checks **records and files**. It cannot prove who wrote an approval or whether a test report is true. The person and the host must supply real approval and real evidence.
+
+## Keep one requirements document
+
+The requirements live in one short document called a **Story**.
+
+| Field | Meaning |
 |---|---|
-| Claude Code | `/workflow 결제 취소 되게 해줘` · `/workflow status` · `/workflow finish` |
-| Codex | `$workflow 결제 취소 되게 해줘` · `$workflow status` · `$workflow finish` |
-| ChatGPT | `skills/workflow/` 폴더를 Skill로 올리면 관련 요청에서 **자동으로** 선택됩니다 |
+| Goal | The result you want |
+| Domain | The rules this change must respect |
+| MUST | Required behavior |
+| SHOULD | Optional improvements |
+| OUT | Work excluded from this request |
+| Decisions | Agreed choices and stated assumptions |
+| Verify | How to check each required behavior |
 
-한 번만 부르면 됩니다. 지금 어디까지 왔는지 합의서를 읽고 알아서 다음 단계로 갑니다. 대화가 끊겼다 돌아왔다면 위 표의 호스트별 status 또는 finish 명령으로 다시 들어가면 됩니다. 설치·업데이트 후에는 새 Codex 작업 또는 새 Claude Code 세션을 시작해야 바뀐 스킬을 발견할 수 있습니다.
+The agent asks at most three questions per round, for up to two rounds. It marks safe defaults as `ASSUMED`. A decision that blocks the work stays `OPEN BLOCKING`; it cannot be hidden by approval.
 
----
+Split a Story into Tasks only when it is too large to review in one change. Each Task is at most 30 non-empty lines and points to the Story's requirement and verification IDs. The plan explains how to build it.
 
-## 합의서는 한 장뿐
+## Superpowers and Compound Engineering
 
-요구사항 원본은 **한 장짜리 합의서 하나**입니다.
+The kit controls the overall process. Available skills handle individual steps.
+
+| Step | Preferred skill |
+|---|---|
+| Plan | CE `ce-plan` |
+| Implement with tests | Superpowers `test-driven-development` |
+| Diagnose a failure | Superpowers `systematic-debugging` |
+| Simplify after tests pass | CE `ce-simplify-code` |
+| Review | CE `ce-code-review mode:agent` |
+| Run fresh final checks | Superpowers `verification-before-completion` |
+| Save a proven lesson | CE `ce-compound` |
+
+A Developer performs its assigned task. It does not restart the full Superpowers or CE process. CE `ce-work mode:return-to-caller` is an alternative when explicitly selected, not a second implementation pass.
+
+**These plugins are not bundled.** The agent checks which skills are installed. If a skill is missing, it follows the kit's direct procedure and reports that choice.
+
+Lessons normally go in `docs/solutions/`. Later tasks read relevant lessons. This stores project knowledge; it does not retrain the model.
+
+## Using Agent Office
+
+Office assigns work to PM, team lead, Developer, and Reviewer agents. Each agent uses the kit for its own role.
+
+| Part | Responsibility |
+|---|---|
+| **Kit** | Task rules, dependencies, checks, and correction paths |
+| **Office** | Role assignments, agent execution, messages, saved state, budgets, cancellation, and user approvals |
+| **Agent** | Its assigned work, results, evidence, and questions |
+
+Keep one authoritative task state. Do not let Office and a kit run file independently decide that the same task is complete.
+
+The current kit does **not** include a finished Office adapter, a conversation UI, or model execution. Office must connect these parts. Cross-run isolation, time and cost limits, cancellation, and approval of the exact code revision need host integration.
+
+The standalone CLI has no question/reply/resume command. A `human` result needs a resolved decision and a new run. Role-specific integration must handle questions without treating answers as approvals.
+
+The kit uses graph design concepts. It does not require Google ADK, Google Cloud, or a new server.
+
+## Installed files
 
 ```text
-목표 · 분야 · 꼭 되어야 하는 것 · 되면 좋은 것 ·
-이번엔 안 하는 것 · 결정한 것 · 확인하는 방법
+AGENTS.md / CLAUDE.md       Workflow instructions inside a marked block
+.agents/skills/workflow/   Codex skill
+.claude/skills/workflow/   Claude Code skill
+.ai-workflow/bin/          Checker and graph commands
+.ai-workflow/graph/        Graph runtime
+.ai-workflow/runs/         Saved runs, created during work
+templates/ai-workflow/     Story and Task templates
 ```
 
-별도의 "AI용 요구사항 문서"를 따로 만들지 않습니다. AI에게 필요한 코드·테스트·계획은 실행할 때 붙이면 됩니다. 원본이 둘이 되는 순간 둘은 어긋나기 시작합니다.
+`init` also updates an existing installation. It preserves user-edited managed files and reports them. `remove` removes owned files and instruction blocks. It keeps user changes, run files, and evidence.
 
-**작업을 쪼개는 건 한 번에 검토하기 너무 클 때만** 합니다. 30줄 이하로, 합의서의 항목 번호만 가리킵니다. 어떻게 만들지는 쪼갠 조각이 아니라 계획이 담당합니다.
+Run `doctor` after installation. It finds missing files and Git ignore rules that hide the checker or graph runtime. Follow its suggested fixes before sharing the project.
 
----
+## Commands
 
-## 명령어
+Run these in the project folder:
 
-```bash
-ai-workflow-kit init            # 설치 · 업데이트
-ai-workflow-kit doctor          # 설치 상태 점검
-ai-workflow-kit check story  <file>
-ai-workflow-kit check task   <file>
-ai-workflow-kit check gate G4 <story-file>
-ai-workflow-kit jira preview <story-file> # 로컬 미리보기만 출력
-ai-workflow-kit remove          # 제거
-```
+```sh
+npx @pazmo/ai-workflow-kit init
+npx @pazmo/ai-workflow-kit doctor
+npx @pazmo/ai-workflow-kit remove
 
-`init`은 여러 번 돌려도 안전합니다. `remove`는 표시 **사이만** 지우고, 사용자가 고친 서식과 확인 기록은 남깁니다.
+node .ai-workflow/bin/check.mjs story docs/STORY.md
+node .ai-workflow/bin/check.mjs gate G1 docs/STORY.md
+node .ai-workflow/bin/check.mjs gate G4 docs/STORY.md
 
-설치는 `.ai-workflow-install/`에 먼저 준비한 뒤 기존 파일을 백업하고 적용합니다. 처리 가능한 실패는 이전 파일·권한·디렉터리를 복구합니다. 프로세스가 강제 종료되면 다음 `init`이 같은 장비의 종료된 프로세스 기록을 확인하고 복구한 뒤 시작합니다. 여러 파일이 한순간에 동시에 바뀌는 것은 아니므로 설치 중에는 대상 파일을 편집하거나 다른 설치·제거를 실행하지 마세요. 복구까지 실패하면 백업과 기록을 보존하고 오류를 알립니다. 기록이 불완전하거나 소유 프로세스를 확인할 수 없으면 자동 삭제하지 않습니다. 영구 디스크 손상·전원 장애의 내구성을 보장하는 파일시스템 트랜잭션은 아닙니다.
-
-## 설치하면 Graph도 함께 사용합니다
-
-`init`은 Graph 런타임과 명령을 함께 설치하고, Codex·Claude의 workflow 지침에 자동 사용 규칙을 연결합니다. 새 작업/세션에서 평소처럼 `$workflow` 또는 `/workflow`를 부르면 G1 이후 에이전트가 Graph를 초기화하고 실행합니다. 별도 npm 의존성·API 키·실행 어댑터는 필요 없습니다. 설치만으로 백그라운드 에이전트가 시작되는 것은 아니며, 실제 작업은 사용 중인 호스트가 수행합니다.
-
-작은 변경은 `구현·관련 테스트·단순화 → 리뷰 → 최종 검증` 기본 계획을 씁니다. 큰 변경은 필요한 작업과 의존성을 정의하고, 도구가 최종 리뷰·검증을 붙입니다. 고정된 8개 역할의 계획 회의는 요구하지 않습니다.
-
-```bash
-# 아래 명령은 workflow를 수행하는 에이전트가 실행합니다.
-node .ai-workflow/bin/graph.mjs init - .ai-workflow/runs/change.json docs/STORY.md
 node .ai-workflow/bin/graph.mjs status .ai-workflow/runs/change.json
-node .ai-workflow/bin/graph.mjs start .ai-workflow/runs/change.json implement <ready-token>
-node .ai-workflow/bin/graph.mjs record .ai-workflow/runs/change.json implement result.json
-node .ai-workflow/bin/graph.mjs reset .ai-workflow/runs/change.json implement "실패한 동작 수정"
 ```
 
-준비된 작업만 실행하고, 결과·명시적인 평가·비어 있지 않은 증거 파일을 기록합니다. 실패는 수정·재계획·사람 결정으로 나뉘며, 수정 시 해당 작업과 후속 작업만 초기화합니다. 읽기 작업은 호스트 한도 안에서 병렬로, 코드 변경은 단독으로 실행합니다. 노드별 3회 시도 후에는 멈춥니다.
+Use your actual Story and run paths. `check story` checks the document; a valid Draft is not an approval. Use the gate commands to check approval records.
 
-상태는 `.ai-workflow/runs/`에 남아 대화를 재개할 때 읽을 수 있습니다. 계획·요구사항 변경이나 증거 파일 변경을 감지하며, Graph 완료는 `G4 진행 가능`만 뜻합니다. 기존 사람 승인 게이트는 그대로 적용됩니다. 도구는 증거 파일과 기록을 검사하며, 관찰 내용의 진실성은 실제 작업·테스트·리뷰로 확인해야 합니다.
+The agent uses `init`, `start`, `record`, `status`, and `reset` for graph work. Full inputs and examples are in the [graph guide](https://github.com/syjkim0125/ai-workflow-kit/blob/main/skills/workflow/references/graph-engineering.md).
 
-### Agent Office와 함께 쓸 때
+**Jira is optional.** `npx @pazmo/ai-workflow-kit jira preview docs/STORY.md` prints a local preview. Publishing needs an authorized host adapter. The kit includes no Jira credentials or client.
 
-**kit은 작업 그래프를 구성·실행하고, Office는 이를 사용하는 에이전트들을 조직합니다.** Office가 역할을 배정하고 에이전트를 실행하며 대화와 업무 인계를 연결합니다. 준비된 작업, 의존관계, 합류, 실패 후 수정 경로는 kit 그래프를 따릅니다.
+## Verify before release
 
-```text
-Office: 역할 배정 · 에이전트 실행 · 대화/업무 인계 · 진행 상황 표시
-                     ↕ 작업 지시와 결과
-kit: 계획·검증 → 준비된 노드 실행 → 결과 합류 → 수정 / 사람 결정 / G4
-                     ↕ 역할별 작업
-에이전트: PM · 팀장 · Developer · Reviewer
+Run these in the kit repository:
+
+```sh
+npm pack
+# Replace <version> with the version printed by npm pack.
+node test/fixtures/verify-tarball.mjs ./pazmo-ai-workflow-kit-<version>.tgz
 ```
 
-각 에이전트는 맡은 kit 노드의 절차와 증거 계약을 수행합니다. Reviewer가 구현부터 전체 delivery 흐름을 다시 시작하지 않습니다. 별도 역할 목표에는 작은 역할 그래프를 구성할 수 있으며, 역할 수와 노드 수를 일치시킬 필요는 없습니다. 전체 결과의 사람 승인과 역할별 작업 완료는 구분합니다.
+`npm pack` runs the full test suite. The tarball check installs the package offline for both Codex and Claude, runs the graph, and checks update and removal behavior.
 
-현재 패키지는 Office의 모델 연결·대화 UI·프로세스 취소를 구현하지 않습니다. 여러 실행이 같은 저장소를 수정할 때의 격리와 전체 시간·비용 한도는 Office 연결 계층에서 관리해야 합니다. kit의 잠금·시도 제한은 한 실행에 적용됩니다. Office 연동의 실제 모델 E2E는 별도 검증 대상입니다.
+These checks do not prove that a live agent follows every step. Also run a small real task and inspect its graph commands, test logs, review fixes, and human confirmation.
 
-이 기능은 이 소스 변경에 포함되어 있으며 npm 배포는 별도입니다. 로컬 tarball의 설치·업데이트 방법은 아래 개발 안내를 따르세요. 자세한 결과 JSON과 복구 방법은 [Graph 실행 안내](skills/workflow/references/graph-engineering.md)에 있습니다.
+## More detail
 
----
-
-## Jira 발행 (선택)
-
-`ai-workflow-kit jira preview <story-file>`은 Goal, Domain, MUST, SHOULD, OUT, Decisions, Verify 순서의 읽기 쉬운 미리보기만 출력합니다. 실제 발행은 G1 승인, 별도의 명시적 발행 승인과 대상, 호스트가 제공하는 어댑터가 필요합니다. 자격증명이나 Jira 클라이언트는 패키지에 포함하지 않습니다.
-
-새 `publishStory` 모듈은 안정적인 발행 ID, 생성 전 로컬 기록, 중복 조회, 생성 결과 재조회·내용 검증을 지원합니다. 생성 결과가 불명확하면 새 이슈를 다시 만들지 않고 확인을 요구합니다. 원본 Story는 수정하지 않습니다. ADF 설명과 어댑터 계약, 실패 복구 및 검증 한계는 [Jira 안내](skills/workflow/references/jira.md)를 확인하세요. 이 릴리스의 Jira 검증은 fixture 기반이며 실제 Jira 이슈 생성은 수행하지 않았습니다.
-
----
-
-## 기본 단계 도구: Superpowers + Compound Engineering
-
-kit이 업무 그래프와 승인 규칙을 정의하고, host가 실행과 권위 있는 상태를 관리합니다. **구현 규율은 Superpowers 집중 스킬, 계획·단순화·리뷰·학습은 CE**로 조합합니다. 계획은 호출자에게 반환하는 `ce-plan`, 구현은 Superpowers의 TDD와 필요한 원인 분석, 단순화는 `ce-simplify-code`, 리뷰는 `ce-code-review mode:agent`, 최신 변경 검증은 Superpowers의 `verification-before-completion`을 사용합니다. 마지막으로 유용한 교훈만 비대화형 `ce-compound`로 남깁니다.
-
-각 Developer는 승인된 자기 작업만 수행합니다. Superpowers의 전체 설계·계획·실행·리뷰·브랜치 마무리 절차를 다시 시작하지 않습니다. `ce-work mode:return-to-caller`는 사용자가 선택한 대안 실행 경로로 지원하며 기본 구현 단계와 중복 실행하지 않습니다. 이 구성은 스킬의 역할 분담이며 어느 도구가 더 높은 품질을 낸다는 실측 결론은 아닙니다.
-
-기본 흐름은 **구현 → 관련 테스트 통과 → 단순화 검토 → 코드 리뷰 → 수정한 부분 재검증 → 유용한 교훈 기록 → 기존 G4**입니다. AI는 선택한 스킬의 실제 지침을 읽고 수행합니다. 호환되는 스킬이 없으면 해당 단계만 직접 수행하고 이를 밝힙니다. 이미 시작한 스킬이 실패·차단되면 변경 상태를 보존하고 원인을 반환합니다.
-
-검토는 기본이지만 수정은 명확한 이득이 있을 때만 합니다. 줄 수 감소나 `for`를 stream으로 바꾸는 것 자체가 성과는 아니며, 체이닝과 실제 반복 횟수 감소도 다릅니다. 현재 변경과 필요한 연관 부분만 다루고, 동작·결과 순서·부수 효과·도메인 경계·실패 처리·안전 검증을 보존합니다. 이를 바꾸려면 기존 설계·범위 변경 절차를 따릅니다.
-
-리뷰 수정 후에는 영향받은 범위만 다시 확인합니다. 새 승인 단계·필수 문서·Jira Task는 생기지 않으며, 에이전트 사용 방식은 해당 스킬과 저장소·런타임 지침에 맡깁니다. 역할별 호출·결과 판정·예산·중복 설치본 처리 기준은 [스킬 연동 규약](skills/workflow/references/skill-integration.md)에 있습니다. `init`은 이 규약을 두 host에 설치하지만 CE나 Superpowers 플러그인 자체는 포함하거나 설치하지 않습니다. Office worker에서도 별도로 스킬 사용 가능 여부를 확인해야 합니다.
-
----
-
-## 개발
-
-```bash
-npm test        # 전체 테스트
-npm pack        # 로컬 tarball
-```
-
-로컬 tarball로 시험 설치:
-
-```bash
-# npm pack 출력에 나온 실제 파일명으로 <version>을 바꾸세요.
-npx --package './pazmo-ai-workflow-kit-<version>.tgz' ai-workflow-kit init
-```
-
-배포는 scope 소유자 인증 후:
-
-```bash
-npm publish --access public
-```
-
----
+- [Graph verification](https://github.com/syjkim0125/ai-workflow-kit/blob/main/docs/graph-verification.md)
+- [Office handoff](https://github.com/syjkim0125/ai-workflow-kit/blob/main/docs/agent-office-handoff.md)
+- [Skill integration](https://github.com/syjkim0125/ai-workflow-kit/blob/main/skills/workflow/references/skill-integration.md)
+- [Changes in 4.0.0](https://github.com/syjkim0125/ai-workflow-kit/blob/main/CHANGELOG.md)
 
 MIT · [JongKun Kim](https://github.com/syjkim0125)
