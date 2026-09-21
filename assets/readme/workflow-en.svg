@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="1190" viewBox="0 0 960 1190" role="img" aria-labelledby="title desc">
+<title id="title">From request to checked result</title><desc id="desc">Failed review or verification returns to implementation. High-risk changes need G3 approval.</desc>
+<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#64748b" stroke-width="1.5"/></marker><marker id="fix" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#b45309" stroke-width="1.5"/></marker></defs>
+<rect width="960" height="1190" rx="20" fill="#f8fafc"/>
+<style>text{font-family:Arial,'Apple SD Gothic Neo','Noto Sans KR',sans-serif}.heading{font-size:30px;font-weight:700;fill:#0f172a}.label{font-size:23px;font-weight:700;fill:#0f172a}.detail{font-size:18px;fill:#475569}.note{font-size:18px;fill:#92400e}.line{fill:none;stroke:#64748b;stroke-width:2;marker-end:url(#arrow)}</style>
+<text x="42" y="57" class="heading">From request to checked result</text>
+
+<rect x="158" y="102" width="570" height="90" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="183" y="137" class="label">Request</text><text x="183" y="167" class="detail">Describe the result you want.</text>
+<path d="M443 192 V217" class="line"/>
+<rect x="158" y="224" width="570" height="90" rx="12" fill="#ecfdf5" stroke="#6ee7b7"/>
+<text x="183" y="259" class="label">Approve scope · G1</text><text x="183" y="289" class="detail">A person approves what to build.</text>
+<path d="M443 314 V339" class="line"/>
+<rect x="158" y="346" width="570" height="90" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="183" y="381" class="label">Plan</text><text x="183" y="411" class="detail">Set the task order and checks.</text>
+<path d="M443 436 V461" class="line"/>
+<rect x="158" y="468" width="570" height="90" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="183" y="503" class="label">Build · test · simplify</text><text x="183" y="533" class="detail">Change the code and pass the related tests.</text>
+<path d="M443 558 V583" class="line"/>
+<rect x="158" y="590" width="570" height="90" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="183" y="625" class="label">Review</text><text x="183" y="655" class="detail">Check the changes and missing requirements.</text>
+<path d="M443 680 V705" class="line"/>
+<rect x="158" y="712" width="570" height="90" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="183" y="747" class="label">Verify again</text><text x="183" y="777" class="detail">Run fresh checks on the final code.</text>
+<path d="M443 802 V827" class="line"/>
+<rect x="158" y="834" width="570" height="90" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="183" y="869" class="label">Save a lesson</text><text x="183" y="899" class="detail">Keep only what will help future work.</text>
+<path d="M443 924 V949" class="line"/>
+<rect x="158" y="956" width="570" height="90" rx="12" fill="#ecfdf5" stroke="#6ee7b7"/>
+<text x="183" y="991" class="label">Check understanding · G4</text><text x="183" y="1021" class="detail">A person explains and checks the result.</text>
+<path d="M728 390 H740" fill="none" stroke="#93c5fd" stroke-width="2"/>
+<rect x="740" y="341" width="194" height="85" rx="10" fill="#eff6ff" stroke="#93c5fd"/>
+<text x="837" y="372" text-anchor="middle" style="font-size:16px;fill:#1e40af;font-weight:600">High-risk only</text>
+<text x="837" y="399" text-anchor="middle" style="font-size:16px;fill:#1e40af;font-weight:600">G3 · approve design</text>
+<path d="M158 635 H72 V513 H150" fill="none" stroke="#b45309" stroke-width="2.5" marker-end="url(#fix)"/>
+<path d="M158 757 H72 V635" fill="none" stroke="#b45309" stroke-width="2.5"/>
+<text x="67" y="805" text-anchor="middle" class="note" style="font-size:16px">If checks fail</text>
+<text x="67" y="831" text-anchor="middle" class="note" style="font-size:16px">fix the code</text>
+<text x="42" y="1100" class="detail">Each node gets up to 3 attempts. Stop when the limit is reached.</text>
+<text x="42" y="1132" class="detail">Ask a person about unresolved decisions. AI cannot approve for them.</text>
+</svg>
