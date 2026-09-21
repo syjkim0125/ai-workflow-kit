@@ -8,6 +8,7 @@ const PATHS = Object.freeze([
   'AGENTS.md', 'CLAUDE.md', '.agents/skills/workflow', '.claude/skills/workflow',
   'templates/ai-workflow/STORY.md', 'templates/ai-workflow/TASK.md',
   '.ai-workflow/bin/check.mjs', '.ai-workflow/config.json',
+  '.ai-workflow/bin/graph.mjs', '.ai-workflow/graph',
 ]);
 const JOURNAL = '.ai-workflow-install';
 

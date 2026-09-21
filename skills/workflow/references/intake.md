@@ -1,5 +1,7 @@
 # Intake and Contract
 
+For a PM assignment, perform only intake and return the Story proposal or question to the host. Use `skill-integration.md` for optional CE exploration; do not start another design approval workflow over an already settled scope. G1 still requires the actual user's decision.
+
 ## Internal Domain Frame
 
 Derive before asking: actor, desired outcome, terms/entities, state change, invariant/forbidden outcome, failure, external side effect, and observable evidence.

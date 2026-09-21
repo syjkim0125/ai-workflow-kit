@@ -34,19 +34,26 @@ function git(args, cwd) {
  *   { status: 'ignored', source }  source is "<file>:<line>:<pattern>"
  *   { status: 'no-git' }    no git, or not a work tree — nothing to say
  */
-export async function checkerVisibility(root) {
+export async function checkerVisibility(root, relative = CHECKER_PATH) {
+  const { file, ...visibility } = (await fileVisibilities(root, [relative]))[0];
+  return visibility;
+}
+
+export async function fileVisibilities(root, files) {
   const inside = await git(['rev-parse', '--is-inside-work-tree'], root);
-  if (inside.code !== 0 || inside.stdout.trim() !== 'true') return { status: 'no-git' };
-
-  const tracked = await git(['ls-files', '--error-unmatch', '--', CHECKER_PATH], root);
-  if (tracked.code === 0) return { status: 'tracked' };
-
-  const ignored = await git(['check-ignore', '-v', '--', CHECKER_PATH], root);
-  if (ignored.code !== 0) return { status: 'visible' };
-
-  const first = ignored.stdout.split('\n')[0] ?? '';
-  const source = first.split('\t')[0].trim();
-  return { status: 'ignored', source: source || 'a .gitignore rule' };
+  if (inside.code !== 0 || inside.stdout.trim() !== 'true') return files.map(file => ({ file, status: 'no-git' }));
+  const [tracked, ignored] = await Promise.all([
+    git(['ls-files', '--', ...files], root), git(['check-ignore', '-v', '--', ...files], root),
+  ]);
+  const trackedFiles = new Set(tracked.stdout.trim().split('\n'));
+  const sources = new Map();
+  for (const line of ignored.stdout.trim().split('\n')) {
+    const [source, file] = line.split('\t');
+    if (file && !source.split(':').slice(2).join(':').startsWith('!')) sources.set(file, source);
+  }
+  return files.map(file => trackedFiles.has(file) ? { file, status: 'tracked' }
+    : sources.has(file) ? { file, status: 'ignored', source: sources.get(file) }
+      : { file, status: 'visible' });
 }
 
 export function ignoredCheckerAdvice({ source }) {

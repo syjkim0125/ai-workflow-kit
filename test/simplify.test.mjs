@@ -8,7 +8,7 @@ import { installWorkflow } from '../src/install.mjs';
 const packageRoot = path.resolve(import.meta.dirname, '..');
 const read = (file) => fs.readFile(path.join(packageRoot, file), 'utf8');
 const hosts = [['.agents', 'AGENTS.md'], ['.claude', 'CLAUDE.md']];
-const references = ['SKILL.md', 'references/execution.md', 'EVALS.md'];
+const references = ['SKILL.md', 'references/execution.md', 'references/skill-integration.md', 'EVALS.md'];
 
 test('execution puts a bounded simplification pass before final-diff review and revalidation', async () => {
   const execution = await read('skills/workflow/references/execution.md');
@@ -52,7 +52,7 @@ test('update replaces owned legacy instructions and references, preserves prose,
     await fs.rm(root, { recursive: true, force: true });
     await fs.rm(legacy, { recursive: true, force: true });
   });
-  for (const file of ['skills', 'assets', 'package.json']) {
+  for (const file of ['skills', 'assets', 'src', 'package.json']) {
     await fs.cp(path.join(packageRoot, file), path.join(legacy, file), { recursive: true });
   }
   await fs.writeFile(path.join(legacy, 'skills/workflow/references/execution.md'), '# Legacy execution\nRefactor while green.\n');

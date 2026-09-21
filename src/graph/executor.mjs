@@ -1,95 +1,92 @@
-import { dependencyIds } from './task-graph.mjs';
-import { assertRunState, blockedNodeIds, createRunState, getReadyNodes } from './scheduler.mjs';
+import { createTaskGraph, dependencyIds } from './task-graph.mjs';
+import { assertRunState, blockedNodeIds, createRunState, selectReadyNodes } from './scheduler.mjs';
 
-function toErrorMessage(error) {
-  if (error instanceof Error) return error.message;
-  return String(error);
-}
-
-function normalizeEvaluation(result) {
-  if (result === undefined || result === true) return { passed: true };
-  if (result === false) return { passed: false };
+export function normalizeEvaluation(result) {
+  if (typeof result === 'boolean') return { passed: result };
   if (!result || typeof result !== 'object' || typeof result.passed !== 'boolean') {
-    throw new Error('evaluateNode must return boolean, { passed, ... }, or undefined.');
+    throw new Error('evaluateNode must return an explicit boolean or { passed, ... }.');
+  }
+  if (result.action !== undefined && !['fix', 'replan', 'human'].includes(result.action)) {
+    throw new Error('Evaluation action must be fix, replan or human.');
   }
   return result;
 }
 
+function validateOutput(node, output) {
+  if (node.outputContract === 'task-graph') {
+    if (!output || typeof output !== 'object') throw new Error('Node must return a task graph.');
+    return createTaskGraph(output);
+  }
+  return output;
+}
+
 export async function executeTaskGraph({
-  graph,
-  runNode,
-  evaluateNode,
-  context = {},
-  runState = createRunState(graph),
-  maxConcurrency = Number.POSITIVE_INFINITY,
+  graph, runNode, evaluateNode, context = {},
+  runState = createRunState(graph), maxConcurrency = 1,
 } = {}) {
   if (typeof runNode !== 'function') throw new Error('runNode must be a function.');
-  if (evaluateNode !== undefined && typeof evaluateNode !== 'function') {
-    throw new Error('evaluateNode must be a function when provided.');
+  if (evaluateNode !== undefined && typeof evaluateNode !== 'function') throw new Error('evaluateNode must be a function.');
+  if (!(Number.isSafeInteger(maxConcurrency) && maxConcurrency >= 1) && maxConcurrency !== Infinity) {
+    throw new Error('maxConcurrency must be a positive integer or Infinity.');
   }
-  if (!(maxConcurrency >= 1)) throw new Error('maxConcurrency must be at least 1.');
-
   assertRunState(graph, runState);
+  if (Object.values(runState.nodes).some(node => node.status === 'running')) {
+    throw new Error('Interrupted running nodes require an explicit reset before resuming.');
+  }
   const state = structuredClone(runState);
   const waves = [];
+  const inFlight = new Map();
+
+  const execute = async node => {
+    const current = state.nodes[node.id];
+    try {
+      const dependencies = structuredClone(Object.fromEntries(
+        dependencyIds(graph, node.id).map(id => [id, state.nodes[id].output]),
+      ));
+      const input = { context: structuredClone(context), dependencies };
+      let output;
+      let evaluation;
+      if (node.operation === 'validate-graph') {
+        const values = Object.values(dependencies);
+        if (values.length !== 1 || !values[0] || typeof values[0] !== 'object') {
+          throw new Error('Graph validation requires one task graph input.');
+        }
+        output = createTaskGraph(values[0]);
+        evaluation = { passed: true };
+      } else {
+        output = validateOutput(node, await runNode(node, input));
+        evaluation = normalizeEvaluation(evaluateNode ? await evaluateNode(node, output, input) : undefined);
+      }
+      current.output = structuredClone(output);
+      current.evaluation = structuredClone(evaluation);
+      current.status = evaluation.passed ? 'completed' : 'failed';
+      if (!evaluation.passed) current.error = evaluation.feedback || 'Node evaluation failed.';
+      else delete current.error;
+    } catch (error) {
+      current.status = 'failed';
+      current.error = (error instanceof Error ? error.message : String(error)) || 'Node execution failed.';
+      current.evaluation = { passed: false, action: 'fix', feedback: current.error };
+    }
+  };
 
   while (true) {
-    const ready = getReadyNodes(graph, state);
-    if (ready.length === 0) break;
-
-    const wave = ready.slice(0, Number.isFinite(maxConcurrency) ? maxConcurrency : ready.length);
-    waves.push(wave.map((node) => node.id));
-    for (const node of wave) {
-      const current = state.nodes[node.id];
-      current.status = 'running';
-      current.attempts = (current.attempts ?? 0) + 1;
+    const ready = selectReadyNodes(graph, state, maxConcurrency);
+    if (ready.length) waves.push(ready.map(node => node.id));
+    for (const node of ready) {
+      state.nodes[node.id].status = 'running';
+      state.nodes[node.id].attempts += 1;
+      // Register the entire selection before any node can complete.
+      const promise = Promise.resolve().then(() => execute(node)).finally(() => inFlight.delete(node.id));
+      inFlight.set(node.id, promise);
     }
-
-    const results = await Promise.all(wave.map(async (node) => {
-      const dependencies = Object.fromEntries(
-        dependencyIds(graph, node.id).map((dependencyId) => [dependencyId, state.nodes[dependencyId].output]),
-      );
-      try {
-        const output = await runNode(node, { context, dependencies, runState: structuredClone(state) });
-        const evaluation = normalizeEvaluation(
-          evaluateNode ? await evaluateNode(node, output, { context, dependencies }) : true,
-        );
-        return { nodeId: node.id, output, evaluation };
-      } catch (error) {
-        return { nodeId: node.id, error: toErrorMessage(error) };
-      }
-    }));
-
-    for (const result of results) {
-      const current = state.nodes[result.nodeId];
-      if (result.error) {
-        current.status = 'failed';
-        current.error = result.error;
-        continue;
-      }
-      current.output = result.output;
-      current.evaluation = result.evaluation;
-      if (!result.evaluation.passed) {
-        current.status = 'failed';
-        current.error = result.evaluation.feedback ?? 'Node evaluation failed.';
-      } else {
-        current.status = 'completed';
-        delete current.error;
-      }
-    }
+    if (inFlight.size === 0) break;
+    await Promise.race(inFlight.values());
   }
 
-  const failed = graph.nodes.filter((node) => state.nodes[node.id].status === 'failed').map((node) => node.id);
-  const blocked = blockedNodeIds(graph, state);
-  const pending = graph.nodes.filter((node) => state.nodes[node.id].status === 'pending').map((node) => node.id);
-  const completed = graph.nodes.filter((node) => state.nodes[node.id].status === 'completed').map((node) => node.id);
-
+  const idsWith = status => graph.nodes.filter(node => state.nodes[node.id].status === status).map(node => node.id);
+  const completed = idsWith('completed');
   return {
-    status: failed.length || pending.length ? 'failed' : 'completed',
-    runState: state,
-    waves,
-    completed,
-    failed,
-    blocked,
+    status: completed.length === graph.nodes.length ? 'completed' : 'failed',
+    runState: state, waves, completed, failed: idsWith('failed'), blocked: blockedNodeIds(graph, state),
   };
 }

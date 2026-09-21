@@ -83,7 +83,7 @@ test('init warns at install time when the checker is ignored', async () => {
 test('a tracked checker is never reported as hidden', async () => {
   const root = await gitRepo('bin/\n');
   spawnSync(process.execPath, [cli, 'init', '--root', root], { encoding: 'utf8' });
-  spawnSync('git', ['add', '-f', '--', '.ai-workflow/bin/check.mjs'], { cwd: root });
+  spawnSync('git', ['add', '-f', '--', '.ai-workflow/bin/check.mjs', '.ai-workflow/bin/graph.mjs'], { cwd: root });
   const doctor = spawnSync(process.execPath, [cli, 'doctor', '--root', root], { encoding: 'utf8' });
   assert.equal(doctor.status, 0, doctor.stdout + doctor.stderr);
   assert.match(doctor.stdout, /PASS\s+Checker reaches git/);

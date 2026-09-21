@@ -112,6 +112,7 @@ npx @pazmo/ai-workflow-kit init
    ④ 사람이 자기 말로 다시 설명한다
         │
 10 검사기를 돌린다 → 통과해야만 "완료"로 바뀝니다
+   · 리뷰·검증으로 확인한 교훈은 저장하고 다음 관련 작업에서 조회한다
         │
    머지
 ```
@@ -188,7 +189,8 @@ npx @pazmo/ai-workflow-kit init
 AGENTS.md · CLAUDE.md      정해진 표시 사이에 짧은 규칙 블록 (바깥은 안 건드림)
 .claude/skills/workflow/   Claude Code용
 .agents/skills/workflow/   Codex용
-.ai-workflow/bin/          검사기
+.ai-workflow/bin/          검사기 · Graph 명령
+.ai-workflow/graph/        의존성 실행 · 상태 · 증거 검증 런타임
 templates/ai-workflow/     합의서 · 작업 조각 서식
 ```
 
@@ -257,6 +259,45 @@ ai-workflow-kit remove          # 제거
 
 설치는 `.ai-workflow-install/`에 먼저 준비한 뒤 기존 파일을 백업하고 적용합니다. 처리 가능한 실패는 이전 파일·권한·디렉터리를 복구합니다. 프로세스가 강제 종료되면 다음 `init`이 같은 장비의 종료된 프로세스 기록을 확인하고 복구한 뒤 시작합니다. 여러 파일이 한순간에 동시에 바뀌는 것은 아니므로 설치 중에는 대상 파일을 편집하거나 다른 설치·제거를 실행하지 마세요. 복구까지 실패하면 백업과 기록을 보존하고 오류를 알립니다. 기록이 불완전하거나 소유 프로세스를 확인할 수 없으면 자동 삭제하지 않습니다. 영구 디스크 손상·전원 장애의 내구성을 보장하는 파일시스템 트랜잭션은 아닙니다.
 
+## 설치하면 Graph도 함께 사용합니다
+
+`init`은 Graph 런타임과 명령을 함께 설치하고, Codex·Claude의 workflow 지침에 자동 사용 규칙을 연결합니다. 새 작업/세션에서 평소처럼 `$workflow` 또는 `/workflow`를 부르면 G1 이후 에이전트가 Graph를 초기화하고 실행합니다. 별도 npm 의존성·API 키·실행 어댑터는 필요 없습니다. 설치만으로 백그라운드 에이전트가 시작되는 것은 아니며, 실제 작업은 사용 중인 호스트가 수행합니다.
+
+작은 변경은 `구현·관련 테스트·단순화 → 리뷰 → 최종 검증` 기본 계획을 씁니다. 큰 변경은 필요한 작업과 의존성을 정의하고, 도구가 최종 리뷰·검증을 붙입니다. 고정된 8개 역할의 계획 회의는 요구하지 않습니다.
+
+```bash
+# 아래 명령은 workflow를 수행하는 에이전트가 실행합니다.
+node .ai-workflow/bin/graph.mjs init - .ai-workflow/runs/change.json docs/STORY.md
+node .ai-workflow/bin/graph.mjs status .ai-workflow/runs/change.json
+node .ai-workflow/bin/graph.mjs start .ai-workflow/runs/change.json implement <ready-token>
+node .ai-workflow/bin/graph.mjs record .ai-workflow/runs/change.json implement result.json
+node .ai-workflow/bin/graph.mjs reset .ai-workflow/runs/change.json implement "실패한 동작 수정"
+```
+
+준비된 작업만 실행하고, 결과·명시적인 평가·비어 있지 않은 증거 파일을 기록합니다. 실패는 수정·재계획·사람 결정으로 나뉘며, 수정 시 해당 작업과 후속 작업만 초기화합니다. 읽기 작업은 호스트 한도 안에서 병렬로, 코드 변경은 단독으로 실행합니다. 노드별 3회 시도 후에는 멈춥니다.
+
+상태는 `.ai-workflow/runs/`에 남아 대화를 재개할 때 읽을 수 있습니다. 계획·요구사항 변경이나 증거 파일 변경을 감지하며, Graph 완료는 `G4 진행 가능`만 뜻합니다. 기존 사람 승인 게이트는 그대로 적용됩니다. 도구는 증거 파일과 기록을 검사하며, 관찰 내용의 진실성은 실제 작업·테스트·리뷰로 확인해야 합니다.
+
+### Agent Office와 함께 쓸 때
+
+**kit은 작업 그래프를 구성·실행하고, Office는 이를 사용하는 에이전트들을 조직합니다.** Office가 역할을 배정하고 에이전트를 실행하며 대화와 업무 인계를 연결합니다. 준비된 작업, 의존관계, 합류, 실패 후 수정 경로는 kit 그래프를 따릅니다.
+
+```text
+Office: 역할 배정 · 에이전트 실행 · 대화/업무 인계 · 진행 상황 표시
+                     ↕ 작업 지시와 결과
+kit: 계획·검증 → 준비된 노드 실행 → 결과 합류 → 수정 / 사람 결정 / G4
+                     ↕ 역할별 작업
+에이전트: PM · 팀장 · Developer · Reviewer
+```
+
+각 에이전트는 맡은 kit 노드의 절차와 증거 계약을 수행합니다. Reviewer가 구현부터 전체 delivery 흐름을 다시 시작하지 않습니다. 별도 역할 목표에는 작은 역할 그래프를 구성할 수 있으며, 역할 수와 노드 수를 일치시킬 필요는 없습니다. 전체 결과의 사람 승인과 역할별 작업 완료는 구분합니다.
+
+현재 패키지는 Office의 모델 연결·대화 UI·프로세스 취소를 구현하지 않습니다. 여러 실행이 같은 저장소를 수정할 때의 격리와 전체 시간·비용 한도는 Office 연결 계층에서 관리해야 합니다. kit의 잠금·시도 제한은 한 실행에 적용됩니다. Office 연동의 실제 모델 E2E는 별도 검증 대상입니다.
+
+이 기능은 이 소스 변경에 포함되어 있으며 npm 배포는 별도입니다. 로컬 tarball의 설치·업데이트 방법은 아래 개발 안내를 따르세요. 자세한 결과 JSON과 복구 방법은 [Graph 실행 안내](skills/workflow/references/graph-engineering.md)에 있습니다.
+
+---
+
 ## Jira 발행 (선택)
 
 `ai-workflow-kit jira preview <story-file>`은 Goal, Domain, MUST, SHOULD, OUT, Decisions, Verify 순서의 읽기 쉬운 미리보기만 출력합니다. 실제 발행은 G1 승인, 별도의 명시적 발행 승인과 대상, 호스트가 제공하는 어댑터가 필요합니다. 자격증명이나 Jira 클라이언트는 패키지에 포함하지 않습니다.
@@ -265,13 +306,17 @@ ai-workflow-kit remove          # 제거
 
 ---
 
-## Compound Engineering 연동 (선택)
+## 기본 단계 도구: Superpowers + Compound Engineering
 
-기본 흐름은 **구현 → 관련 테스트 통과 → 단순화 검토 → 코드 리뷰 → 수정한 부분 재검증 → 기존 G4**입니다. Compound Engineering이 있으면 `ce-plan → ce-work → ce-simplify-code → ce-code-review`를 활용합니다. AI는 사용 가능한 `ce-simplify-code`의 실제 지침을 읽고 실행하며, 없으면 같은 기준으로 직접 검토합니다. 설치를 요구하거나 작업을 멈추지 않습니다.
+kit이 업무 그래프와 승인 규칙을 정의하고, host가 실행과 권위 있는 상태를 관리합니다. **구현 규율은 Superpowers 집중 스킬, 계획·단순화·리뷰·학습은 CE**로 조합합니다. 계획은 호출자에게 반환하는 `ce-plan`, 구현은 Superpowers의 TDD와 필요한 원인 분석, 단순화는 `ce-simplify-code`, 리뷰는 `ce-code-review mode:agent`, 최신 변경 검증은 Superpowers의 `verification-before-completion`을 사용합니다. 마지막으로 유용한 교훈만 비대화형 `ce-compound`로 남깁니다.
+
+각 Developer는 승인된 자기 작업만 수행합니다. Superpowers의 전체 설계·계획·실행·리뷰·브랜치 마무리 절차를 다시 시작하지 않습니다. `ce-work mode:return-to-caller`는 사용자가 선택한 대안 실행 경로로 지원하며 기본 구현 단계와 중복 실행하지 않습니다. 이 구성은 스킬의 역할 분담이며 어느 도구가 더 높은 품질을 낸다는 실측 결론은 아닙니다.
+
+기본 흐름은 **구현 → 관련 테스트 통과 → 단순화 검토 → 코드 리뷰 → 수정한 부분 재검증 → 유용한 교훈 기록 → 기존 G4**입니다. AI는 선택한 스킬의 실제 지침을 읽고 수행합니다. 호환되는 스킬이 없으면 해당 단계만 직접 수행하고 이를 밝힙니다. 이미 시작한 스킬이 실패·차단되면 변경 상태를 보존하고 원인을 반환합니다.
 
 검토는 기본이지만 수정은 명확한 이득이 있을 때만 합니다. 줄 수 감소나 `for`를 stream으로 바꾸는 것 자체가 성과는 아니며, 체이닝과 실제 반복 횟수 감소도 다릅니다. 현재 변경과 필요한 연관 부분만 다루고, 동작·결과 순서·부수 효과·도메인 경계·실패 처리·안전 검증을 보존합니다. 이를 바꾸려면 기존 설계·범위 변경 절차를 따릅니다.
 
-리뷰 수정 후에는 영향받은 범위만 다시 확인합니다. 새 승인 단계·필수 문서·Jira Task는 생기지 않으며, 에이전트 사용 방식은 해당 스킬과 저장소·런타임 지침에 맡깁니다. 상세 기준은 [실행 안내](skills/workflow/references/execution.md)에 있습니다. 이 패키지는 Compound Engineering을 포함하지 않습니다.
+리뷰 수정 후에는 영향받은 범위만 다시 확인합니다. 새 승인 단계·필수 문서·Jira Task는 생기지 않으며, 에이전트 사용 방식은 해당 스킬과 저장소·런타임 지침에 맡깁니다. 역할별 호출·결과 판정·예산·중복 설치본 처리 기준은 [스킬 연동 규약](skills/workflow/references/skill-integration.md)에 있습니다. `init`은 이 규약을 두 host에 설치하지만 CE나 Superpowers 플러그인 자체는 포함하거나 설치하지 않습니다. Office worker에서도 별도로 스킬 사용 가능 여부를 확인해야 합니다.
 
 ---
 

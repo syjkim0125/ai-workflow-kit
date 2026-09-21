@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 export class GraphValidationError extends Error {
   constructor(message) {
     super(message);
@@ -27,6 +29,12 @@ export function createTaskGraph({ id = 'task-graph', nodes = [], edges = [] } = 
       throw new GraphValidationError(`graph.nodes[${index}] must be an object.`);
     }
     const nodeId = requireNonEmptyString(node.id, `graph.nodes[${index}].id`);
+    if (['__proto__', 'constructor', 'prototype'].includes(nodeId)) {
+      throw new GraphValidationError(`reserved node id: ${nodeId}`);
+    }
+    if (node.access !== undefined && !['read', 'write'].includes(node.access)) {
+      throw new GraphValidationError(`invalid access for node: ${nodeId}`);
+    }
     if (nodeIds.has(nodeId)) {
       throw new GraphValidationError(`duplicate node id: ${nodeId}`);
     }
@@ -44,7 +52,7 @@ export function createTaskGraph({ id = 'task-graph', nodes = [], edges = [] } = 
     if (!nodeIds.has(from)) throw new GraphValidationError(`edge references missing node: ${from}`);
     if (!nodeIds.has(to)) throw new GraphValidationError(`edge references missing node: ${to}`);
     if (from === to) throw new GraphValidationError(`self edge is not allowed: ${from}`);
-    const key = `${from}\u0000${to}`;
+    const key = JSON.stringify([from, to]);
     if (edgeKeys.has(key)) throw new GraphValidationError(`duplicate edge: ${from} -> ${to}`);
     edgeKeys.add(key);
     return Object.freeze({ from, to });
@@ -63,6 +71,10 @@ export function nodeById(graph, nodeId) {
   const node = graph.nodes.find((candidate) => candidate.id === nodeId);
   if (!node) throw new GraphValidationError(`unknown node: ${nodeId}`);
   return node;
+}
+
+export function graphFingerprint(graph) {
+  return createHash('sha256').update(JSON.stringify(graph)).digest('hex');
 }
 
 export function dependencyIds(graph, nodeId) {

@@ -17,9 +17,11 @@ import { installTransaction } from './install-transaction.mjs';
 const modulePackageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CONFIG_PATH = '.ai-workflow/config.json';
 const CHECKER_PATH = '.ai-workflow/bin/check.mjs';
+const GRAPH_PATH = '.ai-workflow/graph';
 const TEMPLATE_PATHS = Object.freeze([
   ['skills/workflow/assets/STORY.md', 'templates/ai-workflow/STORY.md'],
   ['skills/workflow/assets/TASK.md', 'templates/ai-workflow/TASK.md'],
+  ['assets/graph.mjs', '.ai-workflow/bin/graph.mjs'],
 ]);
 
 async function exists(file) {
@@ -181,6 +183,11 @@ async function installPrepared({
     }));
   }
 
+  const graphPlan = await inspectManagedTree({
+    source: path.join(packageRoot, 'src/graph'), target: projectPath(root, GRAPH_PATH),
+    previousHash: previous?.managedTrees?.[GRAPH_PATH], relative: GRAPH_PATH,
+  });
+
   const instructionPlans = new Map();
   for (const [host, hostConfig] of Object.entries(HOSTS)) {
     const file = projectPath(root, hostConfig.instructionFile);
@@ -212,6 +219,11 @@ async function installPrepared({
   }
 
   const managedTrees = {};
+  const graphResult = await applyManagedTree(graphPlan);
+  managedTrees[GRAPH_PATH] = graphResult.hash;
+  changed = graphResult.changed || changed;
+  if (graphResult.changed) installed.push(GRAPH_PATH);
+  if (graphResult.preserved) preserved.push(GRAPH_PATH);
   for (const host of selectedHosts) {
     const relative = HOSTS[host].skillDir;
     const result = await applyManagedTree(treePlans.get(host));
@@ -312,6 +324,10 @@ async function removePrepared({ root = process.cwd() } = {}) {
     changed = removed || changed;
     if (removed) await removeEmptyParents(projectPath(root, relative), root);
   }
+
+  const graphRemoved = await removeTreeIfUnchanged(root, GRAPH_PATH, config?.managedTrees?.[GRAPH_PATH], preserved);
+  changed = graphRemoved || changed;
+  if (graphRemoved) await removeEmptyParents(projectPath(root, GRAPH_PATH), root);
 
   for (const [, targetRelative] of TEMPLATE_PATHS) {
     const expectedHash = config?.managedFiles?.[targetRelative]
