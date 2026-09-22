@@ -124,6 +124,8 @@ Lessons normally go in `docs/solutions/`. Later tasks read relevant lessons. Thi
 
 Office assigns work to PM, team lead, Developer, and Reviewer agents. Each agent uses the kit for its own role.
 
+An agent runs its assigned kit flow. Office connects the kit's results to task execution and completion. A role's flow may be part of a shared graph or a separate small graph. Finishing that role does not finish the whole project. Each agent must not restart the full workflow.
+
 | Part | Responsibility |
 |---|---|
 | **Kit** | Task rules, dependencies, checks, and correction paths |

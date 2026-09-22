@@ -57,6 +57,8 @@ node .ai-workflow/bin/graph.mjs reset .ai-workflow/runs/example.json implement '
 
 프로그램 API는 `.ai-workflow/graph/index.mjs`에서 `createTaskGraph`, `createRunState`, `getReadyNodes`, `assertRunState`, `resetAffectedSubgraph`, `executeTaskGraph`, `createPlanningGraph`를 제공한다. `executeTaskGraph({graph, runNode, evaluateNode, context, runState, maxConcurrency})`의 callback 실행과 저장 연결은 host가 담당한다. ready 조회 자체는 원자적 예약이 아니다. Office가 기존 저장소에 실행을 연결하기 전에 durable claim/결과 적용의 경계를 확인해야 한다.
 
+이 범용 API는 delivery CLI와 보장 범위가 다르다. 시도를 세지만 3회 상한을 적용하지 않고, `human`/`replan` 실패 뒤에도 독립 작업을 실행할 수 있다. 증거 파일 검사와 상태 저장도 제공하지 않는다. [API별 보장 비교](../skills/workflow/references/graph-engineering.md#programmatic-api-optional)를 먼저 확인한다. Office의 실제 호출·저장·취소 계약을 확인한 뒤 필요한 delivery 전이만 CLI에서 공유하도록 추출한다. 소비자가 없는 공개 API나 kit 자체 작업 공간 관리자를 먼저 만들지 않는다.
+
 ## 상태 소유권
 
 standalone에서는 CLI run 파일이 그래프 상태를 보존한다. Office에서는 **Office가 권위 있는 상태와 승인 기록을 보존하고 kit의 전이 규칙을 재사용**하는 것이 목표다. Office DB와 CLI 파일에서 같은 상태를 독립적으로 확정하면 안 된다.
@@ -64,6 +66,14 @@ standalone에서는 CLI run 파일이 그래프 상태를 보존한다. Office�
 Office 세션은 기존 저장·예약·승인 구조를 먼저 확인하고, kit API를 호출할 최소 어댑터와 부족한 kit seam을 구분한다. 현재 API로 durable 전이/중단/재개를 구현할 수 없다면 필요한 입력·출력·실패 사례를 kit 세션에 전달한다. Office에서 kit 전이 규칙을 별도로 재작성하거나 CLI 상태를 성공으로 보정하지 않는다. 어댑터가 준비될 때까지 standalone CLI 검증을 Office 통합 완료로 간주하지 않는다.
 
 공유 상태에는 산출물 참조와 단계 결과를 저장하고, worker 문맥에는 자기 작업·제약·직접 의존 결과만 전달한다. 모든 대화 이력을 매번 모든 agent에게 복제하지 않는다.
+
+## 역할별 그래프와 Office의 실행 통제
+
+각 agent는 kit로 자기 역할의 흐름을 수행한다. 이는 Office가 실행을 통제하는 것과 함께 성립한다. kit는 해당 흐름의 준비 상태와 결과를 판단하는 규칙을 제공하고, Office는 이를 실제 작업 배정·실행·결과 반영에 연결한다. Office 자체의 권한·취소·전역 예산 조건도 적용하지만, kit의 업무 규칙을 다시 구현하지 않는다.
+
+역할 흐름은 배정받은 업무 그래프의 노드일 수도 있고, 별도 목표를 위한 작은 역할 그래프일 수도 있다. 별도 그래프라면 run을 Office 작업과 대상 변경본에 연결하고, 역할 완료를 전체 업무 완료로 처리하지 않는다. 예를 들어 Developer가 구현과 자체 검사를 끝내면 그 결과를 Reviewer에게 전달한다. Developer마다 전체 delivery CLI를 새로 시작해 계획·리뷰·사용자 승인까지 반복하지 않는다.
+
+에이전트의 “완료했다”는 메시지만 받아들이는 연결은 그래프 강제가 아니다. 실제 kit 결과와 작업·시도·변경본을 확인한 뒤 반영해야 한다. 그래프 밖의 파일 수정을 차단하는 것은 호스트 권한·격리의 별도 책임이다. 현재 kit에는 이 Office 연결을 완성한 어댑터가 없다.
 
 ## 역할 호출 예시
 
