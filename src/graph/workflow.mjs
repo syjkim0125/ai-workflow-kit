@@ -2,8 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { createTaskGraph, dependencyIds, descendantIds, nodeById } from './task-graph.mjs';
 import { assertRunState, blockedNodeIds, createRunState, selectReadyNodes } from './scheduler.mjs';
 import { digest, readProjectFile } from './storage.mjs';
+import { assertRoleOutput, assertRoleRun } from './roles.mjs';
 
 export const MAX_ATTEMPTS = 3;
+export const MAX_QUESTIONS = 3;
 const REVIEW = 'workflow-review';
 const VERIFY = 'workflow-verify';
 
@@ -47,10 +49,18 @@ export function newWorkflowRun(graph, story, contract) {
 }
 
 export function assertWorkflowRun(run) {
-  if (run?.version !== 1 || typeof run.runId !== 'string' || !run.runId.trim()
+  if (![1, 2].includes(run?.version) || typeof run.runId !== 'string' || !run.runId.trim()
     || !run.graph || !run.story?.path || !Array.isArray(run.history)) throw new Error('Invalid workflow run.');
   const graph = createTaskGraph(run.graph);
   assertRunState(graph, run.state);
+  if (run.question && (run.state.nodes[run.question.nodeId]?.status !== 'running'
+    || typeof run.question.id !== 'string' || !run.question.id
+    || typeof run.question.text !== 'string' || !run.question.text.trim()
+    || run.question.token !== taskToken(run, run.question.nodeId))) throw new Error('Invalid pending question.');
+  if (run.version === 2) {
+    assertRoleRun(run);
+    return graph;
+  }
   if (!graph.nodes.some(node => node.id === REVIEW) || !graph.nodes.some(node => node.id === VERIFY)) throw new Error('Workflow review/verification nodes are missing.');
   if (!dependencyIds(graph, VERIFY).includes(REVIEW)
     || graph.nodes.some(node => node.id !== VERIFY && !descendantIds(graph, [node.id]).has(VERIFY))) {
@@ -62,7 +72,12 @@ export function assertWorkflowRun(run) {
 export function taskToken(run, nodeId) {
   return digest(JSON.stringify([run.runId, run.state.fingerprint, run.story.fingerprint, nodeId,
     run.state.nodes[nodeId].attempts, run.state.nodes[nodeId].revision,
-    dependencyIds(run.graph, nodeId).map(id => run.state.nodes[id]) ]));
+    dependencyIds(run.graph, nodeId).map(id => run.state.nodes[id]),
+    ...(run.version === 2 ? [run.assignment.fingerprint] : []) ]));
+}
+
+export function revisionToken(run) {
+  return digest(JSON.stringify([run.runId, run.story, run.assignment, run.state]));
 }
 
 export async function evidenceHashes(root, evidence) {
@@ -77,10 +92,15 @@ export async function evidenceHashes(root, evidence) {
 }
 
 export async function checkRunEvidence(root, run) {
+  for (const event of run.history.filter(entry => ['answer', 'feedback'].includes(entry.event))) {
+    const actual = await evidenceHashes(root, event.evidence);
+    if (JSON.stringify(actual) !== JSON.stringify(event.evidenceHashes)) throw new Error('Conversation evidence changed; preserve the original answer/feedback.');
+  }
   for (const node of run.graph.nodes) {
     const state = run.state.nodes[node.id];
     if (!['completed', 'failed'].includes(state.status)) continue;
     if (typeof state.output?.summary !== 'string' || !state.output.summary.trim()) throw new Error(`Missing output summary: ${node.id}`);
+    if (state.status === 'completed') assertRoleOutput(run, node.id, state.output);
     const actual = await evidenceHashes(root, state.output.evidence);
     if (JSON.stringify(actual) !== JSON.stringify(state.evidenceHashes)) throw new Error(`Node evidence changed: ${node.id}; reset affected work.`);
   }
@@ -96,19 +116,32 @@ export function workflowStatus(run) {
   if (exhausted) action = 'stop';
   else if (failed.some(node => node.action === 'human')) action = 'human';
   else if (failed.some(node => node.action === 'replan')) action = 'replan';
+  else if (run.question) action = 'question';
   else if (failed.length) action = 'fix';
-  else if (nodes.every(([, state]) => state.status === 'completed')) action = 'g4';
+  else if (nodes.every(([, state]) => state.status === 'completed')) action = run.version === 2 ? 'role-complete' : 'g4';
   else action = 'execute';
   const ready = ['execute', 'fix'].includes(action) ? selectReadyNodes(graph, run.state, 4).map(node => taskInput(run, node.id)) : [];
   if (action === 'execute' && ready.length === 0 && running.length) action = 'wait';
-  return { runId: run.runId, action, ready, running, failed, blocked: blockedNodeIds(graph, run.state),
+  return { runId: run.runId, revisionToken: revisionToken(run), action, ready, running, failed, blocked: blockedNodeIds(graph, run.state),
+    ...(run.version === 2 ? { assignment: run.assignment.value } : {}),
+    ...(run.question ? { question: run.question } : {}),
+    ...(action === 'role-complete' ? { submission: { nodeId: graph.nodes.at(-1).id, output: run.state.nodes[graph.nodes.at(-1).id].output } } : {}),
     completed: nodes.filter(([, state]) => state.status === 'completed').map(([id]) => id),
-    gate: 'Graph evidence never approves G3/G4. G4 remains human-owned.', maxAttempts: MAX_ATTEMPTS };
+    gate: 'Graph evidence never approves G3/G4. G4 remains human-owned.', maxAttempts: MAX_ATTEMPTS, maxQuestionsPerNode: MAX_QUESTIONS };
 }
 
 export function taskInput(run, nodeId) {
+  const affected = descendantIds(run.graph, [nodeId]);
   return { ...nodeById(run.graph, nodeId), token: taskToken(run, nodeId), input: {
     story: run.story.path,
+    ...(run.version === 2 ? { assignment: run.assignment.value } : {}),
+    messages: run.history.flatMap(entry => {
+      if (entry.event === 'record' && affected.has(entry.nodeId) && entry.result.evaluation?.passed === false) {
+        return [{ event: 'failure', nodeId: entry.nodeId, feedback: entry.result.evaluation.feedback, output: entry.result.output }];
+      }
+      return (['question', 'answer'].includes(entry.event) && entry.nodeId === nodeId)
+        || (entry.event === 'feedback' && entry.affected.includes(nodeId)) ? [entry] : [];
+    }),
     dependencies: Object.fromEntries(dependencyIds(run.graph, nodeId).map(id => [id, run.state.nodes[id].output])),
   } };
 }

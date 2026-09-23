@@ -61,6 +61,7 @@ The runner:
 - Rejects duplicate results and old task tokens.
 - Resets affected tasks after a failed check. It keeps unrelated completed work.
 - Stops after three attempts at a node. Unresolved decisions go to a person.
+- Pauses for questions, resumes on matching answers, and applies review feedback to affected work.
 
 The agent does the work. The runner checks the saved state and returns the next action. It does not call an AI model itself.
 
@@ -122,21 +123,25 @@ Lessons normally go in `docs/solutions/`. Later tasks read relevant lessons. Thi
 
 ## Using Agent Office
 
-Office assigns work to PM, team lead, Developer, and Reviewer agents. Each agent uses the kit for its own role.
+**The kit manages how an assigned job gets finished. Office manages how several jobs achieve one goal.**
+
+Office assigns work to PM, team lead, Developer, and Reviewer agents. Each agent uses the kit for its own role. The same role flows also work without Office.
 
 An agent runs its assigned kit flow. Office connects the kit's results to task execution and completion. A role's flow may be part of a shared graph or a separate small graph. Finishing that role does not finish the whole project. Each agent must not restart the full workflow.
 
 | Part | Responsibility |
 |---|---|
 | **Kit** | Task rules, dependencies, checks, and correction paths |
-| **Office** | Role assignments, agent execution, messages, saved state, budgets, cancellation, and user approvals |
+| **Office** | Shared acceptance criteria, assignments, agent execution, messages, combined results, budgets, cancellation, and user approvals |
 | **Agent** | Its assigned work, results, evidence, and questions |
 
-Keep one authoritative task state. Do not let Office and a kit run file independently decide that the same task is complete.
+The kit run file owns local progress. Office owns the shared goal and coordination. It may display kit progress, but must not independently advance the same local state. When PM and Developer disagree about completion, Office resolves the shared criteria; agents cannot replace them with their own rules.
 
 The current kit does **not** include a finished Office adapter, a conversation UI, or model execution. Office must connect these parts. Cross-run isolation, time and cost limits, cancellation, and approval of the exact code revision need host integration.
 
-The standalone CLI has no question/reply/resume command. A `human` result needs a resolved decision and a new run. Role-specific integration must handle questions without treating answers as approvals.
+Use `init-role` for a separate role assignment. PM clarifies and proposes; the team lead investigates and plans; Developer implements and checks; Reviewer returns a verdict. A role ends with `role-complete`, which does not finish the project.
+
+`question` pauses work. `answer` resumes the same attempt with a new token. `feedback` reopens affected work for correction. Answers are not approvals. See the [role guide and JSON examples](https://github.com/syjkim0125/ai-workflow-kit/blob/main/skills/workflow/references/role-graphs.md).
 
 The kit uses graph design concepts. It does not require Google ADK, Google Cloud, or a new server.
 
