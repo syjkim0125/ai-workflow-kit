@@ -50,7 +50,7 @@ Every Story M/V ID must be covered and unknown IDs are rejected. `description`, 
 
 ## Execute ready work
 
-1. Read the JSON status and its `action`. Give each worker only its task, Story constraints, relevant files and `input.dependencies`; do not send the whole run/history. Read evidence files by reference as needed.
+1. Read the JSON status and its `action`. Apply [model-selection.md](model-selection.md) before dispatch using the cached host catalog. Give each worker only its task, Story constraints, relevant files and `input.dependencies`; do not send the whole run/history. Read evidence files by reference as needed.
 2. Reserve each ready task before starting work:
 
    `node .ai-workflow/bin/graph.mjs start <run.json> <node-id> <ready-token>`

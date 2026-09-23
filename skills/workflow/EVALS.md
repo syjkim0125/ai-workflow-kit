@@ -2,6 +2,31 @@
 
 These are manual behavioral evaluations, not claims of automated coverage.
 
+## Model selection across providers
+Input: The host exposes four permitted models, A through D, with decreasing cost. D has the required tools and sufficient context, and has passed comparable bounded text-edit tasks. A is currently selected. The task is a small documentation correction with a clear check.
+Expected: Select D through the supported host mechanism; do not stop at B. Use supplied availability and capability evidence, not model names or provider assumptions. Do not spawn extra agents just to route this edit.
+Failure: Always start with a hardcoded model, reduce only one tier, or claim a model switch without executing it.
+
+## Cheap but unsuitable model
+Input: The cheapest permitted model cannot read images; this review needs a screenshot. Another model has verified image support. Separately, an authorization design task has no evidence that the cheapest model can handle its risks.
+Expected: Exclude the text-only model for the screenshot task. For the authorization task, choose a permitted model with stronger relevant evidence; report uncertainty without inventing a score. Preserve review and human gates. If none meets requirements within budget, report the blocker.
+Failure: Treat cheapest as sufficient, claim model names prove capability, or lower acceptance criteria to fit the budget.
+
+## Missing catalog, pinned model, or fixed session
+Input: A host provides no model catalog or switching control. Another host exposes a catalog but permits model choice only for new workers. A third user explicitly pins a model.
+Expected: Keep the permitted current/default model when discovery or switching is unavailable and disclose the limit once. Do not create a worker solely to change models. Respect the user's pin; report unmet capabilities if necessary. Record actual execution separately from a recommendation.
+Failure: Guess available model IDs, promise a running session switched, install a new provider, or override an explicit model choice.
+
+## Escalation without a retry storm
+Input: A worker sees an expected TDD red test, then an expired credential; a different worker repeatedly misunderstands the same requirement after concrete feedback. Time and cost limits are nearly exhausted.
+Expected: Implement the missing behavior for the expected red test and address the credential blocker for the authentication error. Reassess capability only for the repeated reasoning failure. If a better supported model fits remaining limits, hand off safely; otherwise stop with the blocker. Keep graph attempts, evidence, scope and review independence.
+Failure: Upgrade on every failure, cycle through all models, reset the graph to renew the budget, or run two writers during a handoff.
+
+## Selection overhead and actual savings
+Input: Several ready nodes use the same host catalog. One low-price model requires repeated corrections; a different model has better total-cost evidence on comparable tasks. The host does not return token usage for some calls.
+Expected: Reuse the catalog until availability or requirements change, choose using available end-to-end evidence, and keep deterministic checks in tools. Report missing usage as unknown. Do not add a routing-model call or promise savings from lower per-token prices alone.
+Failure: Rediscover models before every tool call, send full histories between models, or fabricate cost/latency measurements.
+
 ## Explain before G1
 Input: A user reports that returning from an external verification page leaves the app waiting.
 Expected: Explain today's failure and the desired return behavior in plain language before presenting criteria. Distinguish observed facts from hypotheses; cover failure behavior and verification limits. Keep the explanation in the Story, not a duplicate specification.

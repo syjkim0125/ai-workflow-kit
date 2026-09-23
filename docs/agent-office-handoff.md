@@ -16,6 +16,14 @@ kit 파일은 개별 실행 상태의 원본이다. Office는 프로젝트와 �
 
 PM과 Developer의 완료 기준이 다르면 Office가 공통 요구사항과 증거를 기준으로 조율한다. 에이전트는 수행 방법을 선택할 수 있지만 요구사항을 임의로 바꾸지 않는다. 요구사항이 바뀌면 새 assignment/run으로 연결하고 이전 기록을 보존한다.
 
+## Model selection policy
+
+공통 규칙은 [model-selection.md](../skills/workflow/references/model-selection.md)에 있다. Office는 실제 worker에 이 규칙과 허용된 모델 목록을 전달하고, 선택한 모델로 실행한다. 역할마다 모델 이름을 고정하지 않는다. 필요한 능력·도구·입력 크기·실패 영향을 확인한 뒤 전체 후보에서 적절한 저비용 모델을 고른다. 여러 단계 아래 모델도 선택할 수 있다. 사용자 지정 모델, 전역 예산과 실행 권한을 지킨다.
+
+모델 목록은 현재 계정과 실행 경로에서 확인하고 재사용한다. 모델 변경을 지원하지 않으면 허용된 현재/기본 모델을 유지하고 한계를 표시한다. 선택 추천과 실제 실행 모델을 구분해 기존 작업 증거에 남긴다. 교체 전에 이전 worker를 중단하고 변경 내용을 확인한다. 재시도와 비용은 기존 한도에 포함한다. 검증·독립 리뷰·사람 승인을 생략하지 않는다.
+
+이 변경은 설치되는 지침이다. assignment v1, role run v2, CLI/API는 그대로다. 별도 모델 라우터, Jev, SDK를 추가하거나 Office에서 규칙을 복사할 필요가 없다. 기존 worker의 kit 스킬을 업데이트하고 dispatch에 적용해야 한다. 정책 설치만으로 실제 모델 호출이나 비용 절감이 검증되지는 않는다.
+
 ## Shipped CLI contract
 
 설치된 `.ai-workflow/bin/graph.mjs`와 패키지의 `ai-workflow-kit graph`가 같은 명령을 제공한다. 정확한 JSON 필드·역할별 예시는 [role-graphs.md](../skills/workflow/references/role-graphs.md), 기존 delivery 사용법은 [graph-engineering.md](../skills/workflow/references/graph-engineering.md)를 따른다.

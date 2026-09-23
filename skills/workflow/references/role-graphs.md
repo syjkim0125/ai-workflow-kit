@@ -12,6 +12,8 @@ Use this guide when assigned a role objective. If the dispatcher supplied an exi
 
 Standalone use has the same local rules. Codex/Claude runs the CLI and tools. No Office server is needed. The CLI cannot intercept tools or authenticate people: host permissions and real approvals remain separate.
 
+Every role follows [model-selection.md](model-selection.md) before model dispatch. The host discovers and invokes permitted models; the role name does not fix a model tier. Model selection adds no assignment fields or CLI flags and cannot bypass local graph checks.
+
 If PM and Developer disagree about completion, return the exact requirement and evidence to Office. Resolve the shared criteria there. A changed requirement or assignment starts a new run; do not silently edit the bound source or reuse old completion evidence.
 
 ## Assignment schema and initialization
