@@ -12,11 +12,13 @@ A role is not necessarily one node. A Developer may perform several implementati
 
 For a delegated node, the dispatch must identify the kit run, node, started token, role, task description, approved Story constraints, allowed access and direct dependency outputs. The assigned agent applies the relevant procedure and returns summary, evidence and explicit evaluation to that same run. It must not initialize a new delivery graph, repeat G1/G4, spawn an unbounded team or implement changes inside a read-only review assignment. Missing scope or inputs must be reported to the dispatcher rather than invented. The kit graph is already active: executing its assigned node is graph use.
 
-For a genuinely separate role objective, a host can construct a bounded role graph with the installed `createTaskGraph`/`executeTaskGraph` API. For example, Reviewer: inspect diff → assess findings → return evidence. Do not force the delivery CLI's implementation/review/verification envelope onto each role. The in-process API needs host-owned checkpoint/transport integration; this package does not include an Office adapter. PM intake before G1 remains non-implementation work and cannot authorize production edits.
+For a separate role objective, use the durable `init-role` entrypoint in [role-graphs.md](role-graphs.md). It supplies PM, team-lead, developer and reviewer flows without appending the whole delivery envelope. PM intake before G1 remains non-implementation work and cannot authorize production edits. The optional generic API is still available for custom graphs, with the different guarantees listed below.
+
+Role-local execution and host enforcement are compatible. An agent performs its assigned kit flow; Office uses that flow's identity and results to dispatch work and accept its outcome. Office also applies host-owned permissions, cancellation and global budgets. It must not reimplement the role's workflow rules or treat a worker's "done" message as proof of graph completion. If a role uses a separate graph, link its run to the Office assignment and target revision; its completion is only that role's outcome, not completion of the whole delivery. This describes the integration contract, not an adapter already shipped by the kit.
 
 Link messages to run/node/attempt and the requirement, question, decision, artifact or finding they concern. A review failure goes back through the kit's corrective route to the responsible implementation node. Only the overall delivery owner presents G4 after final evidence, using the actual user's response. Role completion is not project completion.
 
-In standalone CLI use, one controller owns each persisted kit run. For Office integration, the host must persist one authoritative state using kit transition rules; the current CLI file store is not a ready-made Office adapter. Do not independently advance both an Office state machine and a CLI run. Locking and write exclusion apply within that run, not across separate runs or processes editing the same repository. Office must isolate independent writers or serialize them and enforce any overall time/cost/cancellation limits. The kit's three-attempt bound does not implement an Office-wide budget or process cancellation.
+One controller owns each persisted kit run through the CLI. Its file is authoritative for local transitions; Office owns the shared goal, acceptance criteria, assignments, collaboration and integration. Office may index local progress but must not independently advance a copy. The CLI file store is not a finished Office adapter. Locking and write exclusion apply within that run, not across separate runs or processes editing the same repository. Office must isolate independent writers or serialize them and enforce any overall time/cost/cancellation limits. The kit's three-attempt bound does not implement an Office-wide budget or process cancellation.
 
 ## Initialize or resume
 
@@ -81,6 +83,8 @@ A failed result uses `"evaluation": { "passed": false, "action": "fix", "feedbac
 | `replan` | Correct the plan; validate it into a new run and retain the old run as evidence. Scope changes use the existing human gate. |
 | `human` | Surface the unresolved decision and wait. After resolution, use a new run reflecting it. |
 | `stop` | Report exhausted attempts and evidence. Do not restart under a new filename without an explicit decision to continue. |
+| `question` | Transport the pending question; submit the matching answer and continue with `resumed.token`. See `role-graphs.md`. An answer is not approval. |
+| `role-complete` | Return the role's native outcome and evidence to the caller. This does not finish delivery. |
 | `g4` | Follow `understanding-gate.md`; this is readiness, not approval or delivery. |
 
 ```bash
@@ -98,5 +102,19 @@ After init, import from `./.ai-workflow/graph/index.mjs`. Consumers who install 
 `executeTaskGraph({ graph, runNode, evaluateNode, context, runState, maxConcurrency })` requires explicit evaluation results. Default concurrency is 1; a higher positive integer allows overlapping nodes marked `access: 'read'`. Writers and undeclared-access nodes run exclusively. A newly ready node starts as soon as a slot becomes available; joins wait only for their dependencies. `waves` records dispatch batches, not global barriers.
 
 Node input is `{ context, dependencies }`, copied to avoid shared mutation. Persisted states carry a graph fingerprint; changed plans and unknown/unevaluated statuses are rejected. Interrupted `running` nodes require an explicit `resetAffectedSubgraph` after checking external side effects. This in-process API does not persist checkpoints or approve gates; use the installed CLI for the durable host workflow.
+
+The generic API is not the delivery CLI's policy API. Choose the interface by its actual guarantees:
+
+| Responsibility | Generic API | Delivery CLI | Host |
+|---|---|---|---|
+| Dependency readiness, read concurrency, exclusive writers | Within one execution | Within one run | Isolate or serialize work across runs |
+| Attempts | Counts starts; no built-in cap | Maximum three starts per node | Enforce global time, cost and attempt budgets |
+| `human` / `replan` evaluation | Records the action; independent work can continue | Routes to the decision; no further start until resolved in a new run | Stop affected processes and obtain the decision |
+| Evidence and persistence | Returns state and explicit evaluation; no evidence-file checks or checkpoint store | Checks evidence files/hashes and persists run changes | Verify observations and bind them to the actual code revision |
+| User approval and tool permissions | Not provided | Checks approval records, not identity; does not intercept tools | Own actual approval events and execution permissions |
+
+Do not assume `executeTaskGraph` or `resetAffectedSubgraph` enforces the delivery CLI's retry or human-decision rules. Office integration must first identify its actual dispatch, storage, cancellation and result-application boundary. If it needs shared delivery transitions, extract only the necessary rules from the CLI when connecting that consumer; do not duplicate the rules in Office or invent an unused public API in advance.
+
+`access: 'read'` describes product-code access, not a filesystem sandbox. Review evidence and test-generated files may still require designated output paths. Host enforcement must distinguish these from product edits. Multiple developer processes alone do not provide safe parallel implementation: the host must manage workspace isolation, integration and verification of the combined result.
 
 `createPlanningGraph()` supplies `planner → review → validate-graph`. Planner/review callbacks return task graphs; the last node executes built-in deterministic validation rather than an LLM callback. Research and extra review roles are chosen for the work, not required by the graph.

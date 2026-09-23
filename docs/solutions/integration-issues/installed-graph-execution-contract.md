@@ -1,6 +1,7 @@
 ---
 title: Installed graph execution needs durable task identity and dispatch state
 date: 2026-09-21
+last_updated: 2026-09-23
 category: integration-issues
 module: Graph runtime and installer
 problem_type: integration_issue
@@ -13,7 +14,7 @@ symptoms:
 root_cause: missing_validation
 resolution_type: code_fix
 severity: high
-tags: [graph, installation, task-identity, concurrency, evidence, recovery]
+tags: [graph, installation, task-identity, concurrency, evidence, recovery, role-graphs]
 ---
 
 # Installed graph execution needs durable task identity and dispatch state
@@ -67,7 +68,34 @@ These are workflow checks, not a security boundary against a host that can rewri
 - Keep deterministic validation separate from agent opinion. Require explicit evaluation and nonempty evidence, but do not claim file checks prove the observations true.
 - Keep one controller for each run. Office integration must additionally verify real model execution, cancellation, cross-run isolation and actual human approval.
 
-## Related Issues
+## Review follow-up: distinguish API policy from host enforcement
+
+A two-agent critical/mediating review on 2026-09-22 found that the generic API and delivery CLI were easy to conflate. With the generic `executeTaskGraph`, a node already at three attempts can start a fourth time, and a `human` failure can leave independent work executable. These are generic semantics, not delivery-policy guarantees. The CLI separately enforces its three-start cap and human/replan routing. Keep these contracts explicit rather than changing the generic API to impose delivery rules on every consumer.
+
+The review also found that intake instructions claimed G1 checks proved actual human approval. Corrected them to approval-record and artifact validation; the host must obtain the actual user's decision. Clarified the API guarantees in the shipped graph reference and Office handoff. Related graph and structure tests passed: 44/44. This verifies documentation compatibility and existing behavior, not live host enforcement.
+
+Before committing, clarified role-local graph execution versus Office dispatch/result acceptance in both READMEs and the handoff. A separate role graph must stay linked to its assignment and target revision; its completion does not complete the delivery. Final verification passed all 120 tests, and a package dry run included both READMEs and the corrected shipped references.
+
+Do not implement a worktree manager, tool-permission broker or parallel developer engine inside the kit merely to support Office workers. Office owns workspace isolation, cancellation, authoritative state and integration of changes. Before extracting a new public transition API from the CLI, require an actual consumer's dispatch, persistence and result-application contract; there is no current internal duplication that makes this extraction necessary by itself. The earlier broad enforcement proposal was narrowed accordingly. No runtime behavior changed in this follow-up.
+
+## Role completion and conversation recovery
+
+On 2026-09-23, the durable CLI gained bounded role runs without a second executor. The local run file owns kit transitions; Office owns the shared goal, assignments, collaboration, integration and real approvals. The earlier reference to Office owning authoritative state means these Office-level facts, not an independently advancing copy of each kit node.
+
+Role completion must be distinct from delivery acceptance. A Reviewer can complete its work and return `needs_changes`; requiring every role to reach delivery G4 would recursively repeat planning, review and approval. Built-in role v2 runs return `role-complete` with the native submission instead. Assignment and source fingerprints bind that result to the agreed scope.
+
+Questions preserve the current attempt but rotate the token when asked and again when answered. Otherwise, a pre-question worker result could finish work without considering the answer. Match question identity and token, record actual answer evidence, and reject duplicate replies. Bound question exchanges separately from failed implementation attempts.
+
+Two regressions were reproduced during implementation and fixed before delivery:
+
+- Resetting implementation after a failed downstream self-check initially omitted that check's feedback from the next input. Collect relevant failed descendant results, so the corrective attempt knows what failed.
+- Status initially accepted a persisted Reviewer submission after its verdict was removed. Validate terminal role output during reads as well as writes; do not announce completion from a malformed saved result.
+
+External feedback uses a current run token and evidence, resets only the affected subgraph and preserves attempt counts. Keep conversation evidence immutable across resets. Test a waiting reader alongside an independently finishing reader so conversation support does not break dependency joins.
+
+The complete suite passed **139/139** after these fixes. This proves local installed CLI behavior for both hosts, not live Office collaboration or actual user acceptance. See [role contract](../../../skills/workflow/references/role-graphs.md) and [verification](../../understanding/role-graph-verification.md).
+
+## Related Issues and Evidence
 
 - [Implementation and verification evidence](../../understanding/installed-graph-evidence.md)
 - [Graph execution protocol](../../../skills/workflow/references/graph-engineering.md)

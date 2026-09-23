@@ -1,173 +1,83 @@
-# Agent Office 인계: kit 그래프와 단계별 스킬 조합
+# Agent Office 인계: 역할별 kit 실행
 
-2026-09-21. Office의 `docs/ai-workflow-kit-adk-handoff.md` 정정본을 기준으로 작성했다. 이 문서는 kit 작업 결과와 Office 연동 제안이며, Office 구현 완료나 사용자 승인 기록이 아니다.
+2026-09-23. 현재 소스 계약이다. Office 구현 완료나 실제 사용자 승인 기록이 아니다.
 
-## 결정
+**kit는 맡은 일을 끝내는 절차를 관리하고, Office는 여러 사람의 일이 하나의 목표로 이어지도록 관리한다.**
 
-- kit: 업무 그래프의 노드·의존관계·전이·검증·제한된 수정 규칙과 역할별 작업 절차.
-- Office: 역할 배정, 모델/프로세스 실행, 협업 메시지, 저장, 전역 예산·취소, 사용자 접점과 실제 승인 기록.
-- Superpowers: Developer의 집중 TDD, 필요한 systematic-debugging, verification-before-completion.
-- CE: 팀장의 caller-owned ce-plan, ce-simplify-code, 독립 Reviewer의 ce-code-review mode:agent, 최종 검증 후 ce-compound.
-- 각 agent는 맡은 단계만 수행한다. Developer가 전체 Superpowers workflow를 다시 시작하거나 CE 구현까지 중복 실행하지 않는다. ce-work return-to-caller는 명시적으로 선택한 대안이다.
-- Google ADK SDK/런타임, 새 서버·DB·브로커·모델 provider를 추가하지 않는다. Jira는 생략한다.
+## Responsibilities
 
-정확한 스킬 선택·모드·fallback은 [skill-integration.md](../skills/workflow/references/skill-integration.md)가 기준이다. kit 설치는 해당 지침과 그래프 CLI를 배포한다. CE/Superpowers 플러그인을 설치하거나 모델을 자동 기동하지 않는다. 각 실제 worker에서 사용 가능 여부를 확인해야 한다.
+| 담당 | 소유하는 것 |
+|---|---|
+| kit | 역할별 노드, 의존관계, 진행 상태, 질문 대기와 재개, 증거 검사, 제한된 수정 |
+| Office | 공통 요구사항과 완료 기준, 역할 배정, 실행 자원, 메시지, 결과 통합, 전역 예산과 취소, 사용자 접점과 승인 |
+| Agent | 배정된 범위의 실제 작업, 검사, 산출물, 질문과 피드백 |
 
-## 현재 구현과 남은 차이
+kit 파일은 개별 실행 상태의 원본이다. Office는 프로젝트와 협업 상태의 원본이다. Office DB에 kit 진행 상태를 표시하거나 색인할 수 있지만, 같은 노드의 상태를 독립적으로 확정하면 안 된다. Office에서 kit 전이 규칙을 다시 만들지 않는다.
 
-| 영역 | kit에 있는 것 | 추가 연동/검증이 필요한 것 |
-|---|---|---|
-| 설치 | 두 host에 그래프 runtime/CLI와 workflow 지침 설치·업데이트 | Office 실제 agent 환경에서 경로·스킬 발견 확인 |
-| 실행 | DAG 검증, 의존성 준비 판정, explicit read 노드 병렬화, writer 배타 실행, 명시적 평가 | Office 모델 실행/저장과 연결; 서로 다른 run의 writer 격리 |
-| delivery CLI | 승인된 Story로 init, start 예약, record, status, reset | PM 사전 질문용 진입점과 완성된 역할별 product adapter는 없음 |
-| 복구 | run/시도/의존 상태 토큰, 영향받은 후속 노드 무효화, 노드당 최대 3회 | Office 전역 시간/비용/횟수 한도 및 프로세스 취소; 더 엄격한 host 한도 적용 |
-| 질문 | human 분기와 host 전달 지침 | CLI question/reply/resume 명령 없음. 현재 human 처리 후에는 결정 반영 새 run 필요 |
-| 변경본 | graph/Story fingerprint, 증거 파일 hash | 실제 코드 변경본을 리뷰·검증·승인에 묶는 Office 검사가 필요. dirty tree에는 commit ID만으로 부족 |
-| 사람 승인 | G1/G4 기록 checker, G3 절차 지침 | checker가 사용자 신원을 인증하지 않음. Office가 실제 사용자의 승인 이벤트를 보존 |
-| 학습 | 검증 후 유용한 교훈 기록, 다음 작업 전 조회 지침 | 실제 후속 작업에서 조회·사용했는지 확인; 모델 재학습 아님 |
+PM과 Developer의 완료 기준이 다르면 Office가 공통 요구사항과 증거를 기준으로 조율한다. 에이전트는 수행 방법을 선택할 수 있지만 요구사항을 임의로 바꾸지 않는다. 요구사항이 바뀌면 새 assignment/run으로 연결하고 이전 기록을 보존한다.
 
-현재 프로그램 API는 역할 그래프를 표현할 수 있지만 완성된 Office 상태 어댑터가 아니다. 문서상의 규약을 코드로 강제한다고 보고하지 않는다.
+## Shipped CLI contract
 
-## 실행 가능한 기존 API
-
-전체 사용법·result JSON은 [graph-engineering.md](../skills/workflow/references/graph-engineering.md)를 따른다. 아래 명령은 설치한 프로젝트 루트에서 실행한다.
+설치된 `.ai-workflow/bin/graph.mjs`와 패키지의 `ai-workflow-kit graph`가 같은 명령을 제공한다. 정확한 JSON 필드·역할별 예시는 [role-graphs.md](../skills/workflow/references/role-graphs.md), 기존 delivery 사용법은 [graph-engineering.md](../skills/workflow/references/graph-engineering.md)를 따른다.
 
 ```sh
-node .ai-workflow/bin/graph.mjs init - .ai-workflow/runs/example.json docs/example-story.md
-node .ai-workflow/bin/graph.mjs status .ai-workflow/runs/example.json
-node .ai-workflow/bin/graph.mjs start .ai-workflow/runs/example.json implement '<ready-token>'
-node .ai-workflow/bin/graph.mjs record .ai-workflow/runs/example.json implement result.json
-node .ai-workflow/bin/graph.mjs reset .ai-workflow/runs/example.json implement '리뷰에서 확인한 동작 수정'
+node .ai-workflow/bin/graph.mjs init-role <assignment.json> <run.json>
+node .ai-workflow/bin/graph.mjs status <run.json>
+node .ai-workflow/bin/graph.mjs start <run.json> <node-id> <ready-token>
+node .ai-workflow/bin/graph.mjs record <run.json> <node-id> <result.json>
+node .ai-workflow/bin/graph.mjs question <run.json> <node-id> <question.json>
+node .ai-workflow/bin/graph.mjs answer <run.json> <node-id> <answer.json>
+node .ai-workflow/bin/graph.mjs feedback <run.json> <node-id> <feedback.json>
+node .ai-workflow/bin/graph.mjs reset <run.json> <node-id> <reason>
 ```
 
-`example-story.md`는 실제 G1을 통과한 canonical Story여야 한다. `ready-token`은 status에서, 결과에 쓸 token은 start의 `started.token`에서 얻는다. `-`는 implement → workflow-review → workflow-verify 최소 그래프다. PM마다 이 명령으로 전체 delivery run을 생성하면 안 된다.
-
-```json
-{
-  "token": "<started.token>",
-  "output": {
-    "summary": "실제로 수행한 단계와 결과",
-    "evidence": ["docs/understanding/example-attempt-1.md"]
-  },
-  "evaluation": { "passed": false, "action": "fix", "feedback": "어떤 기대 동작이 실패했고 어느 작업을 수정해야 하는지" }
-}
-```
-
-성공은 `evaluation: {"passed": true}`다. CLI 종료 코드 0은 실패 결과도 정상 기록했다는 뜻일 수 있다. `action: g4`는 사용자 승인 대기 준비이며 승인/인도가 아니다.
-
-프로그램 API는 `.ai-workflow/graph/index.mjs`에서 `createTaskGraph`, `createRunState`, `getReadyNodes`, `assertRunState`, `resetAffectedSubgraph`, `executeTaskGraph`, `createPlanningGraph`를 제공한다. `executeTaskGraph({graph, runNode, evaluateNode, context, runState, maxConcurrency})`의 callback 실행과 저장 연결은 host가 담당한다. ready 조회 자체는 원자적 예약이 아니다. Office가 기존 저장소에 실행을 연결하기 전에 durable claim/결과 적용의 경계를 확인해야 한다.
-
-## 상태 소유권
-
-standalone에서는 CLI run 파일이 그래프 상태를 보존한다. Office에서는 **Office가 권위 있는 상태와 승인 기록을 보존하고 kit의 전이 규칙을 재사용**하는 것이 목표다. Office DB와 CLI 파일에서 같은 상태를 독립적으로 확정하면 안 된다.
-
-Office 세션은 기존 저장·예약·승인 구조를 먼저 확인하고, kit API를 호출할 최소 어댑터와 부족한 kit seam을 구분한다. 현재 API로 durable 전이/중단/재개를 구현할 수 없다면 필요한 입력·출력·실패 사례를 kit 세션에 전달한다. Office에서 kit 전이 규칙을 별도로 재작성하거나 CLI 상태를 성공으로 보정하지 않는다. 어댑터가 준비될 때까지 standalone CLI 검증을 Office 통합 완료로 간주하지 않는다.
-
-공유 상태에는 산출물 참조와 단계 결과를 저장하고, worker 문맥에는 자기 작업·제약·직접 의존 결과만 전달한다. 모든 대화 이력을 매번 모든 agent에게 복제하지 않는다.
-
-## 역할 호출 예시
-
-다음은 agent에게 넘길 문맥 예시이며 새 CLI flag가 아니다. 하나의 canonical Story/plan을 참조한다.
-
-| 역할 | 예시 지시 | 반환 |
+| 역할 | 흐름 | Office가 받는 결과 |
 |---|---|---|
-| PM | “요청과 기존 질문/답변을 읽고 kit intake로 Story 제안을 정리해라. 결정에 필요한 질문만 반환해라. 승인이나 구현을 대신하지 마라.” | Story proposal 또는 연결 가능한 질문 |
-| 팀장 | “승인된 Story와 저장소를 근거로 ce-plan을 수행해라. caller가 실행·승인·다음 단계를 소유한다. 기존 유효한 계획은 재사용해라.” | M/V 연결 계획, 의존관계, 담당 역할 제안, 미해결 사항 |
-| Developer | “이 task와 revision에 대해 kit 절차와 Superpowers 집중 TDD/필요한 diagnosis를 사용해라. 다른 task나 전체 workflow를 시작하지 마라. GREEN 후 범위 내 simplify를 수행해라.” | 변경본, 실제 검사 근거, 한계, 질문/차단 사유 |
-| Reviewer | “제출된 정확한 변경본을 ce-code-review mode:agent로 검토해라. 제품 파일은 수정하지 말고 구체적인 finding을 반환해라.” | native review 결과와 근거; complete만으로 통과 판정 금지 |
-| 검증/인도 담당 | “리뷰 수정이 반영된 변경본을 새로 검증하고 유용한 교훈만 ce-compound로 남겨라. 실제 G4 응답을 Office에 요청해라.” | 검증 근거, 학습 또는 생략 이유, 승인 대기 |
+| PM | clarify → propose | 승인 전 요청의 Story 제안. G1을 대신하지 않음 |
+| 팀장 | investigate → plan | 승인된 Story에 연결한 계획과 역할 배정 제안 |
+| Developer | implement → self-check | 변경본, 검증 증거, producedRevision |
+| Reviewer | review | reviewedRevision, pass/needs_changes, 근거 |
 
-스킬이 없으면 해당 단계의 직접 절차로 대체하고 이를 기록한다. 실행 중 실패한 스킬 위에 다른 전체 workflow를 덮어 실행하지 않는다. 내부 worker/재시도도 Office의 전역 예산을 소비한다.
+assignment v1은 `taskId`, `role`, `source`, `scope`, `targetRevision`을 포함한다. PM의 source는 변경하지 않는 요청 파일이고 scope는 빈 배열이다. 나머지 역할의 source는 승인된 canonical Story이고 scope는 배정된 M/V ID다. 별도 역할 목표면 `init-role`, 이미 run/node/token을 받았다면 같은 노드에서 계속한다.
 
-## Office 메시지 envelope 제안 — 아직 구현된 kit schema가 아님
+`start`가 반환한 `started.token`으로 결과를 기록한다. 질문은 `question.id`와 `question.token`으로 답변을 연결하고, 답변 후에는 `resumed.token`으로 계속한다. 질문은 구현 시도 횟수를 늘리지 않는다. 질문은 노드당 최대 3회, 실행은 노드당 최대 3회다.
 
-기존 Office schema에 대응시킬 최소 예시다. 새 저장소/이벤트 체계를 별도로 만들라는 지시가 아니다. 구체적인 타입, 필수 필드, 검증은 기존 Office 계약을 확인한 뒤 확정한다.
+외부 리뷰 피드백은 현재 `status.revisionToken`과 증거를 넣어 `feedback`으로 전달한다. 대상과 후속 노드를 다시 열고 기존 시도 횟수를 유지한다. 오래된 피드백, 중복 답변, 이전 worker 결과는 거부한다. 수정된 결과는 새 변경본에 연결한 Reviewer assignment로 검토한다.
 
-```json
-{
-  "contractVersion": "office-kit-draft-1",
-  "runId": "run-1",
-  "taskId": "task-1",
-  "nodeId": "implement",
-  "attemptId": "attempt-1",
-  "expectedStateVersion": 4,
-  "role": "developer",
-  "stage": "implementation",
-  "targetRevision": "<immutable snapshot identifier covering uncommitted changes>",
-  "storyRef": "docs/example-story.md",
-  "planRef": "<existing plan or null>",
-  "feedbackRefs": [],
-  "constraints": { "workspace": "<assigned isolated workspace>", "allowChildAgents": false }
-}
-```
+`role-complete`는 맡은 역할이 끝났다는 뜻이다. `submission.output`의 실제 판정을 읽어야 한다. Reviewer가 작업을 끝냈어도 verdict가 needs_changes면 Developer에게 돌려보낸다. Developer 자체 검사를 독립 리뷰로 대체하지 않는다. 전체 결과 검증·유용한 Compound 학습·실제 사용자 확인은 인도 담당이 조율한다.
 
-반환은 위 identity/revision과 `outcome`(completed/needs_changes/question/blocked), `artifactRefs`, `evidenceRefs`, `findingRefs`, `nextAction`, `reason`을 포함하도록 기존 Office 타입에 매핑한다. 질문은 `questionId`, 응답은 `replyToQuestionId`로 연결한다. 이 outcome은 CLI evaluation으로 자동 변환되지 않는다. 질문을 테스트 실패로 기록하거나 답변을 승인으로 변환하지 않는다.
+## Office integration boundary
 
-결과 적용 시 Office는 현재 run/task/attempt/revision/stateVersion 및 취소 여부를 대조하고 원자적으로 한 번만 반영한다. 오래된 응답을 버려도 worker가 이미 쓴 파일은 복구되지 않는다. 격리 workspace와 프로세스 정지까지 검증해야 한다. 승인 이벤트는 승인 주체·대상·변경본과 결정을 보존하고 일반 메시지와 구분한다.
+kit는 모델을 실행하거나 메시지를 전송하지 않는다. Office는 CLI 준비 결과를 실제 agent 실행에 연결하고, 작업 identity와 실제 변경본이 맞는지 확인한 뒤 역할 결과를 받아들인다. 이 패키지는 완성된 Office 어댑터가 아니다.
 
-## 전달 버전과 마이그레이션
+- Office는 작업과 로컬 kit run을 일대일로 연결하고 재시작 시 같은 run을 조회한다.
+- 질문·답변·리뷰 피드백은 실제 요청, 요구사항, 산출물, 변경본과 연결한다. 일반 대화나 답변을 승인 이벤트로 바꾸지 않는다.
+- 취소된 작업이나 오래된 변경본의 결과를 반영하지 않는다. kit가 결과를 거부해도 이미 발생한 파일 변경이나 외부 부작용이 취소되지는 않는다.
+- 별도 run의 Developer는 Office가 작업 공간을 분리하거나 직렬 실행한다. kit의 writer 배타 제어는 한 run 안에서만 적용된다.
+- snapshot ID는 Office가 실제 코드와 연결한다. kit는 입력된 ID 비교와 증거 파일 hash를 검사하며, 실제 diff의 진실성이나 승인자의 신원을 인증하지 않는다.
+- 비용·시간·전체 반복 한도, worker 종료와 재시작은 기존 Office 실행 환경에서 처리한다.
 
-- package.json: **4.0.0**, 이 기능 변경을 포함하며 아직 공개 배포하지 않았다.
-- 기반 HEAD: `f21f21d2b06c3a9619bb3d42ef316adbe75df3ab`. 이 SHA는 변경 전 기반이다. 전달 기능 브랜치 `feat/graph-engineering-runtime`의 최신 커밋을 사용하고 실제 SHA를 기록한다.
-- 전달용 패키지는 현재 소스에서 새로 pack한 tarball과 SHA-256을 함께 사용한다. 이전 설치본 3.1.1 또는 `@latest`라는 이름을 최신 기능의 증거로 쓰지 않는다.
-- `docs/`는 현재 npm package files 목록에 포함되지 않으므로 이 문서는 별도로 읽거나 전달한다. 배포된 workflow references는 패키지에 포함된다.
-- Office의 기존 설치/업데이트 경로를 사용하고, 기존 run·사용자 문서·증거는 보존한다. 이전 schema/fingerprint run을 억지로 새 상태로 고치지 않는다. 진행 작업을 정리하고 필요한 새 run과 기존 증거를 연결한다.
-- Office 세션은 Office만 수정한다. kit의 결함/추가 API는 재현 사례와 필요한 계약을 kit 세션에 돌려준다. kit publish나 main merge는 이 문서가 허가하지 않는다.
+서로 피드백을 주고받는 대화 자체를 그래프라고 부르지 않는다. 검토 결과에 따라 수정하고 다시 검사하는 조건과 순서를 kit가 관리한다. Office는 그 결과를 다음 담당자와 공통 목표에 연결한다.
 
-## Office에서 이어 할 순서와 완료 증거
+## Skills
 
-1. 기존 Office 구현과 이 계약을 비교하여 구현/부분 구현/미구현을 짧게 보고한다. 특히 상태 권위·예약·revision·승인을 먼저 확인한다.
-2. 실제 agent 환경의 kit artifact와 스킬 가용성을 확인한다. 이미 승인된 목표·설계를 반복 승인하지 않는다.
-3. 작은 실제 프로젝트 하나에서 요청 → PM → 계획 → Developer → Reviewer → 최신 검증 → 실제 사용자 승인까지 연결한다. kit seam이 막히면 구체적인 요청을 반환하며 독립 작업은 계속한다.
-4. 리뷰/테스트의 실제 피드백 → 수정 → 재검증을 확인한다. 비용/횟수 한도, 취소·재시작·중복·늦은 결과도 검증한다.
-5. 기존 학습을 조회하고 검증된 새 교훈만 저장한다. 실행 방법, evidence, 남은 한계를 기록한다.
+[skill-integration.md](../skills/workflow/references/skill-integration.md)가 기준이다. 팀장 계획에는 CE, Developer 구현에는 Superpowers 집중 TDD와 필요한 diagnosis, 단순화·독립 리뷰·학습에는 CE를 연결한다. 스킬이 없으면 해당 단계의 직접 절차로 수행하고 알린다. kit 설치가 CE/Superpowers 설치까지 보장하지 않는다.
 
-kit 테스트/오프라인 tarball fixture는 모델 협업이나 실제 사용자의 승인을 검증하지 않는다. Office의 기존 기능은 인계 문서의 설명에 근거하며 이 세션에서 Office 코드를 감사하거나 수정하지 않았다. 테스트 데이터의 승인 이벤트로 실제 완료를 선언하지 않는다.
+각 역할에서 전체 Superpowers/CE workflow를 중첩하지 않는다. 학습은 검증 후 재사용할 교훈만 저장하며 모델 자동 재학습이 아니다. Jira는 생략한다.
 
-## Office 세션에 붙여넣을 프롬프트
+## Migration
 
-```text
-아래 kit 인계 문서를 먼저 읽고 Agent Office 작업을 이어가줘.
-/Users/jongkkim/Documents/ai-workflow-kit/docs/agent-office-handoff.md
+- 기존 delivery v1 파일은 그대로 사용할 수 있다. 역할별 run은 v2, assignment는 v1이다. 이전 runtime은 역할 run을 읽을 수 없으므로 먼저 설치를 업데이트하고 doctor를 실행한다.
+- 현재 package.json의 버전 표기만 보고 기능을 추정하지 않는다. 이 변경이 포함된 실제 커밋/패키지 해시를 확인한다. 기존 tarball과 이 기능을 포함한 tarball을 혼동하지 않는다.
+- 진행 중인 delivery를 역할 run으로 강제 변환하지 않는다. 기존 작업은 그대로 마무리하고, 새 역할 배정에서 새 형식을 사용한다. 오래된 파일의 version/fingerprint를 고쳐 통과시키지 않는다.
+- kit가 소유하는 로컬 상태를 Office가 별도로 확정하던 연결은 제거한다. 프로젝트 상태와 로컬 노드 상태를 구분하고, CLI 결과에서 Office 화면과 다음 배정을 갱신한다.
+- 현재 CLI 파일 저장 방식이 Office 배포 구조와 맞지 않으면 필요한 호출·저장·실패 사례를 kit 세션에 반환한다. Office에서 규칙을 복사한 대체 실행기를 먼저 만들지 않는다.
+- docs는 npm 패키지에 포함되지 않는다. 설치되는 역할 가이드는 workflow references에 있다.
 
-기존 Office 코드와 진행 중인 변경을 보존하고, 인계 문서와 비교해 구현/부분 구현/미구현을 짧게 보고해줘. 이 세션은 Office만 수정하고 kit 저장소는 읽기만 해줘. Jira는 생략해줘.
+## Verification boundary
 
-kit이 업무 그래프와 검증 규칙을 제공하고, Office가 역할 배정·실행·메시지·권위 있는 상태·전역 예산·취소·사용자 승인을 관리해. ADK SDK/런타임이나 새 범용 그래프 엔진을 도입하지 마.
+kit 테스트는 설치된 두 host용 CLI의 역할 완료, 질문/답변, 피드백/수정, 입력 변경과 오래된 결과 거부를 검사한다. 실제 Office 모델 협업, 전역 취소, 통합 변경본 승인까지 증명하지 않는다. 최신 검증은 [이번 구현 기록](understanding/role-graph-verification.md)을 참고한다.
 
-각 agent는 자기 역할/작업만 수행해. Developer에는 Superpowers 집중 TDD/필요한 diagnosis, 계획·단순화·독립 리뷰·학습에는 CE를 연결해. 전체 workflow를 중첩하거나 승인된 계획을 다시 만들지 마. 실제 worker의 스킬 가용성을 확인하고 부재 시 해당 단계의 직접 수행을 명시해.
+Office에서는 작은 실제 프로젝트 하나로 요청 → PM → 계획 → Developer → Reviewer → 수정 → 통합 검증 → 실제 사용자 승인까지 확인한다. 재시작·취소·중복 응답·늦은 결과도 기존 실행 환경에서 확인한다. 모의 응답이나 커밋·푸시만으로 실제 사용 완료를 선언하지 않는다.
 
-문서의 기존 API와 제안 schema를 구분해. Office의 기존 저장 구조에 kit 규칙을 연결하고 같은 상태를 두 곳에서 독립 확정하지 마. kit에 부족한 API는 구체적 입력·기대 출력·실패 사례를 정리해 kit 세션에 전달하고, 독립적으로 가능한 Office 작업은 계속해줘.
-
-가장 작은 실제 프로젝트 흐름부터 연결해: 요청 → PM 요구사항/필요 질문 → 팀장 계획 → Developer 구현 → Reviewer 피드백 → 수정/최신 검증 → 실제 사용자 승인. 질문은 승인이 아니며, 같은 변경본의 증거만 인정해. 재시작·취소·중복·늦은 결과·반복 한도를 검증해줘.
-
-이미 승인된 목표와 설계를 유지하며 되돌릴 수 있는 일반 작업은 진행해. 검증 후 유용한 교훈만 Compound에 저장해. 모의 응답·단위 테스트·패키지 설치만으로 실제 모델 협업이나 사람 승인까지 완료했다고 선언하지 마. 실행 방법, 실제 검증 증거, 남은 한계와 kit 측 요청사항을 보고해줘.
-```
-
-## 이번 인계 검증 기록
-
-- 전체 테스트: `npm pack`의 prepack `npm test`, **120/120 통과**.
-- 새 tarball 오프라인 설치: Codex·Claude 각각 init/update/doctor, graph의 G4 준비 도달, 증거 보존, remove 확인.
-- 지침 변경 관련 14개 테스트 통과, `git diff --check`와 이 문서의 로컬 링크 확인 통과.
-- 최초 검증의 3개 실패는 설치 지침에서 빠진 명시적 simplify 스킬명과 이전 CE 구현 경로를 기대하던 테스트였다. 지침의 스킬명을 복구하고 변경된 정책에 맞게 기존 테스트를 갱신한 뒤 위 전체 검증을 수행했다.
-- 이번 추가 변경은 지침/문서와 그 기존 구조 테스트에 한정한다. 코드 단순화 추가 변경은 필요 없었다. 새 판단의 이유와 예방 규칙이 이 문서와 skill-integration에 이미 있어 중복 Compound 문서는 만들지 않았다.
-- 실제 Office 모델 E2E·사용자 승인·취소/재시작 통합 검증은 미수행. 이 기록 작성 당시 변경은 로컬 미커밋이었다. 이후 커밋/푸시 상태는 Git에서 확인한다. npm publish/main merge는 사용자 담당이다.
-
-이전 인계 시점의 3.1.1 tarball (아래 값은 과거 검증 기록이다. 현재 배포 대상은 4.0.0이며 아래 패키지로 대체하지 않는다):
-
-```text
-/tmp/pazmo-ai-workflow-kit-3.1.1-office-handoff-20260921.tgz
-SHA-256 c226999336659a68187ec07cbe15e509c04b771d8ce957fdb9a1deda718f7264
-```
-
-로그: `/tmp/office-handoff-pack-final.log`, `/tmp/office-handoff-smoke.log`, `/tmp/office-handoff-focused.log`. npm 패키지에 이 인계 문서는 포함되지 않는다.
-
-## 4.0.0 릴리스 준비 검증 (이전 tarball 대체)
-
-사용자 요청으로 package, 두 plugin manifest, marketplace를 **4.0.0**으로 맞췄다. 전체 120개 테스트와 Codex·Claude 오프라인 tarball 설치/실행 검증이 모두 통과했다. [그래프 검증 안내](graph-verification.md)에 재현 명령과 실제 host/Office 검증 절차를 정리했다.
-
-```text
-/tmp/pazmo-ai-workflow-kit-4.0.0.tgz
-SHA-256 2f9adc22db9a70dad2e58fa6d8cf4a4b5b62777fa3ca75651caec5afe850c712
-```
-
-검증 로그: `/tmp/graph-v4-pack.log`, `/tmp/graph-v4-smoke.log`. npm 공개 배포와 main merge는 사용자가 수행한다. 위 SHA-256은 이번 로컬 패키지 식별자이며, 다른 환경에서 재생성한 패키지는 실제 해시를 별도로 기록한다.
+Office 세션에 전달할 [프롬프트](office-role-graphs-prompt.md)를 별도로 제공한다. Office 저장소는 이 kit 세션에서 수정하지 않는다. npm 배포와 main 머지는 사용자가 수행한다.

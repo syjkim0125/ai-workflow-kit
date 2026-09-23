@@ -8,7 +8,7 @@ argument-hint: "[request | status | finish]"
 
 Invoke in Codex with `$workflow`; in Claude Code with `/workflow`. After installation or updates, start a new task/session.
 
-Turn `$ARGUMENTS` into an approved change. For assigned graph work, follow `references/graph-engineering.md` and `references/skill-integration.md` within that role; do not restart delivery.
+Turn `$ARGUMENTS` into an approved change. For assigned roles, follow `references/role-graphs.md` and `references/skill-integration.md`: reuse the supplied run/node/token or automatically initialize `init-role`. Do not restart delivery.
 
 ## Non-negotiable gates
 
