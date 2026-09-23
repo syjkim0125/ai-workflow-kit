@@ -6,15 +6,17 @@ argument-hint: "[request | status | finish]"
 
 # Workflow
 
-Invoke in Codex with `$workflow`; in Claude Code with `/workflow`. After installation or updates, start a new task/session.
+Invoke in Codex with `$workflow`; in Claude Code with `/workflow`. Start a new session after installation/updates.
 
 Turn `$ARGUMENTS` into an approved change. For assigned roles, follow `references/role-graphs.md` and `references/skill-integration.md`: reuse the supplied run/node/token or automatically initialize `init-role`. Do not restart delivery.
+
+Before model dispatch, apply `references/model-selection.md` using the host's available models.
 
 ## Non-negotiable gates
 
 - Do not plan implementation or edit production code before the Story is `Approved` and G1 is recorded.
 - Do not declare delivery complete or merge a non-trivial change before G4 passes.
-- Requirements have one source of truth. AI context may be richer; copied requirements may not diverge.
+- Requirements have one source of truth; copies must not diverge.
 
 ## Explain before asking
 

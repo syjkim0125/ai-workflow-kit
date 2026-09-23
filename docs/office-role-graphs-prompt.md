@@ -9,6 +9,7 @@
 - `/Users/jongkkim/Documents/ai-workflow-kit/docs/agent-office-handoff.md`
 - `/Users/jongkkim/Documents/ai-workflow-kit/skills/workflow/references/role-graphs.md`
 - `/Users/jongkkim/Documents/ai-workflow-kit/skills/workflow/references/skill-integration.md`
+- `/Users/jongkkim/Documents/ai-workflow-kit/skills/workflow/references/model-selection.md`
 
 ## 사용자가 원하는 구조
 
@@ -33,6 +34,8 @@ kit의 `status → start → record`를 기존 Office worker 실행에 연결해
 assignment의 taskId, scope, targetRevision과 실제 코드 변경본을 연결해줘. Developer가 만든 producedRevision을 Reviewer의 targetRevision으로 넘겨야 한다. commit ID만으로 미커밋 변경까지 식별된다고 가정하지 마. kit는 ID와 증거 hash를 검사하지만 실제 코드와 ID의 연결은 Office/host가 확인해야 한다.
 
 여러 Developer를 돌릴 때 작업 공간 분리나 직렬 실행은 Office가 담당한다. kit는 한 run 안에서만 writer를 배타 실행한다. 전역 비용·시간·반복 제한, 프로세스 종료, 취소된 작업의 결과 거부도 Office 책임이다.
+
+모델 선택은 kit의 `model-selection.md`를 적용해줘. Office는 현재 실행 환경에서 실제로 쓸 수 있는 모델과 능력·비용 정보를 제공하고 선택을 실행해줘. 특정 모델이나 역할별 등급을 고정하지 마. 필요한 능력을 갖췄다면 여러 단계 아래 모델도 선택할 수 있어야 한다. 사용자 지정 모델과 전역 예산을 지키고, 변경을 지원하지 않는 환경에서는 그 한계를 표시해줘. 추천 모델과 실제 실행 모델을 구분해서 기록하고, 재시도·검증까지 포함한 비용으로 효과를 확인해줘. 이 선택을 위해 별도 판단 모델을 호출하거나 worker 수를 늘리지 마.
 
 ## 진행 방식
 

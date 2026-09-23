@@ -4,6 +4,8 @@ The kit owns work-graph rules and human gates. Prefer compatible Superpowers foc
 
 ## Select once for the assigned stage
 
+Apply [model-selection.md](model-selection.md) before dispatch. Select from the host's permitted models for this task, including much smaller models when sufficient. Skill-internal workers inherit the same policy and limits; skill selection does not authorize a new provider or extra delegation.
+
 Read the actual installed skill and required references before invoking it. Resolve its full name/path through the host's skill catalog; prefer the namespaced `compound-engineering:ce-*` entry when duplicates exist, unless the user selected another installation. Record the selected skill, mode and artifact path in existing task evidence, not a new registry. Similar names do not guarantee matching arguments.
 
 Check that its mode and required tools fit the host's allowed workspace, delegation, model route, remaining budget and commit/publish permissions. A mode controls output/flow, not authorization. Return-to-caller does not automatically disable internal workers or implementation commits.

@@ -121,6 +121,14 @@ A Developer performs its assigned task. It does not restart the full Superpowers
 
 Lessons normally go in `docs/solutions/`. Later tasks read relevant lessons. This stores project knowledge; it does not retrain the model.
 
+## Choosing a model
+
+The agent checks which models its host can actually use. It chooses a suitable low-cost model for each task. It can choose a much smaller model, not just the next one down. Required tools, input size, difficulty and failure impact guide the choice. Your explicit model choice takes priority.
+
+Simple checks use existing tools. A failed test does not automatically trigger a larger model. Repeated reasoning failures can justify a switch within the remaining budget. Review and approval requirements stay the same.
+
+These are [model selection rules](https://github.com/syjkim0125/ai-workflow-kit/blob/main/skills/workflow/references/model-selection.md). Actual switching requires host support. Without it, the agent keeps the permitted current/default model and reports the limit. The kit adds no model service or Jev. Lower total cost must be measured, not assumed.
+
 ## Using Agent Office
 
 **The kit manages how an assigned job gets finished. Office manages how several jobs achieve one goal.**
