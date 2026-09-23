@@ -1,9 +1,14 @@
 {
   "name": "@pazmo/ai-workflow-kit",
-  "version": "4.0.0",
-  "repository": { "type": "git", "url": "git+https://github.com/syjkim0125/ai-workflow-kit.git" },
+  "version": "4.1.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/syjkim0125/ai-workflow-kit.git"
+  },
   "homepage": "https://github.com/syjkim0125/ai-workflow-kit#readme",
-  "bugs": { "url": "https://github.com/syjkim0125/ai-workflow-kit/issues" },
+  "bugs": {
+    "url": "https://github.com/syjkim0125/ai-workflow-kit/issues"
+  },
   "description": "Portable DDD-inspired AI engineering workflow with concise contracts and a human understanding gate.",
   "type": "module",
   "bin": {
