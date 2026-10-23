@@ -1,5 +1,21 @@
 # Changelog
 
+## 5.0.0 — 2026-10-23
+
+### Breaking changes
+
+- New delivery and role runs use persisted format v3. Existing v1/v2 runs remain read-only with `upgrade-required`; stop old workers, preserve evidence and attempt history, and run fresh review/verification in v3.
+- New execution runs require a repository-owned `.ai-workflow/verification.json` profile and G1 JSON bound to the canonical Story. Declared G3 additionally binds the design decision; G4 delivery approval binds the final code snapshot and run.
+
+### Verification
+
+- Collect real argv execution results, stdout/stderr hashes, exits, signals and timeouts. Every configured check intersecting the assigned V scope must pass; submitted `passed: true` cannot override missing or failed executions.
+- Bind review and verification to actual code snapshots; changed inputs produce read-only `stale` status. Reset and question/answer recovery invalidate old receipts and fence late results while retaining attempt counts.
+- Add `graph verify` and `graph delivery`; document checks explicitly cover shape/gate presence rather than executable delivery.
+- Bundle pinned Pstack verification principles, recipe guidance, feature-map references, provenance hashes and MIT notices. Superpowers remains the default verification procedure; the kit owns execution/evidence enforcement.
+- Preserve host model-selection metadata with unknown actual models and usage kept unknown. Host dispatch, permissions, isolation and global budgets remain external responsibilities.
+
+
 ## 4.0.0 — 2026-09-21
 
 - Compose focused Superpowers implementation/verification skills with CE planning, simplification, report-only review and verified learning capture. Install role-scoped instructions for both hosts, with capability fallback and host-budget boundaries; do not nest full workflows.

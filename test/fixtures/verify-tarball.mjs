@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 
 const tarball = path.resolve(process.argv[2]);
@@ -27,10 +28,17 @@ for (const host of ['codex', 'claude']) {
   cli(['doctor']);
   const skill = path.join(project, host === 'codex' ? '.agents' : '.claude', 'skills/workflow/SKILL.md');
   await fs.access(skill);
+  const pstack = path.join(path.dirname(skill), 'references/pstack');
+  const provenance = JSON.parse(await fs.readFile(path.join(pstack, 'provenance.json')));
+  assert.equal(provenance.commit, '0c3333f09655d7933919795fbf4f9946d62b6f77');
+  for (const file of provenance.files) {
+    assert.equal(createHash('sha256').update(await fs.readFile(path.join(pstack, file.file))).digest('hex'), file.sha256);
+  }
   const graphCli = (args) => JSON.parse(execFileSync(process.execPath,
     [path.join(project, '.ai-workflow/bin/graph.mjs'), ...args], { cwd: project, encoding: 'utf8' }));
   // Synthetic approval is confined to this disposable release fixture.
-  await fs.writeFile(path.join(project, 'approval.md'), 'Fixture approval evidence.');
+  const { storyContract } = await import(pathToFileURL(path.join(pkg, 'src/graph/workflow.mjs')));
+  await fs.cp(path.join(pkg, 'examples/verification'), path.join(project, 'examples/verification'), {recursive:true});
   await fs.writeFile(path.join(project, 'story.md'), `# Story: tarball smoke check
 Status: Approved
 Owner: fixture owner
@@ -50,6 +58,15 @@ Exercise the installed graph.
 ## Verify
 - V1 [M1]. All nodes have recorded fixture evidence.
 `);
+  const storyText = await fs.readFile(path.join(project, 'story.md'), 'utf8');
+  await fs.writeFile(path.join(project, 'approval.md'), JSON.stringify({gate:'G1', storyHash:storyContract(storyText).fingerprint, responseRef:'fixture:approved'}));
+  const profile = JSON.parse(await fs.readFile(path.join(project, 'examples/verification/verification.json')));
+  profile.checks[0].argv[0] = process.execPath;
+  await fs.writeFile(path.join(project, '.ai-workflow/verification.json'), JSON.stringify(profile));
+  const appFile = path.join(project, 'examples/verification/app.mjs');
+  const goodApp = await fs.readFile(appFile, 'utf8');
+  await fs.writeFile(appFile, goodApp.replace('Number(values[0]) + Number(values[1])', '0'));
+  let observedFailure = false;
   let graphStatus = graphCli(['init', '-', '.ai-workflow/runs/smoke.json', 'story.md']);
   while (graphStatus.action === 'execute') {
     const ready = graphStatus.ready[0];
@@ -57,9 +74,28 @@ Exercise the installed graph.
     await fs.writeFile(path.join(project, `${node.id}.txt`), `Fixture observation: ${node.id}`);
     await fs.writeFile(path.join(project, 'result.json'), JSON.stringify({ token: node.token,
       output: { summary: `Fixture ${node.id}`, evidence: [`${node.id}.txt`] }, evaluation: { passed: true } }));
+    if (node.id === 'workflow-verify') {
+      const execution = graphCli(['verify', '.ai-workflow/runs/smoke.json', node.id, node.token, 'addition']);
+      if (!observedFailure) {
+        assert.equal(execution.verification.passed, false);
+        assert.throws(() => graphCli(['record', '.ai-workflow/runs/smoke.json', node.id, 'result.json']));
+        await fs.writeFile(path.join(project, 'result.json'), JSON.stringify({ token: node.token,
+          output: { summary: 'Observed failing addition', evidence: [`${node.id}.txt`] },
+          evaluation: { passed: false, action: 'fix', feedback: 'Addition returned zero; correct the implementation.' } }));
+        assert.equal(graphCli(['record', '.ai-workflow/runs/smoke.json', node.id, 'result.json']).action, 'fix');
+        observedFailure = true;
+        graphStatus = graphCli(['reset', '.ai-workflow/runs/smoke.json', 'implement', 'Fix failed addition']);
+        await fs.writeFile(appFile, goodApp);
+        continue;
+      }
+      assert.equal(execution.verification.passed, true);
+    }
     graphStatus = graphCli(['record', '.ai-workflow/runs/smoke.json', node.id, 'result.json']);
   }
   assert.equal(graphStatus.action, 'g4');
+  assert.equal(observedFailure, true);
+  await fs.appendFile(appFile, '\n// changed after verification\n');
+  assert.equal(graphCli(['status', '.ai-workflow/runs/smoke.json']).action, 'stale');
   assert.doesNotMatch(await fs.readFile(path.join(project, 'story.md'), 'utf8'), /G4: PASS|Status: Delivered/);
   const other = path.join(project, host === 'codex' ? '.claude' : '.agents');
   await assert.rejects(fs.access(other));
@@ -77,6 +113,6 @@ Exercise the installed graph.
   await assert.rejects(fs.access(path.join(project, '.ai-workflow-install')));
   await fs.access(path.join(project, '.ai-workflow/runs/smoke.json'));
   await assert.rejects(fs.access(path.join(project, '.ai-workflow/graph')));
-  console.log(`PASS ${host}: offline tarball, init/update/doctor, graph execution through G4 readiness, preserved evidence, remove`);
+  console.log(`PASS ${host}: offline tarball, init/update/doctor, real failure/fix/pass/stale verification, preserved evidence, remove`);
 }
 console.log(`Fixtures retained: ${root}`);

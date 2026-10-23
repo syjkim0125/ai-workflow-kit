@@ -90,3 +90,5 @@ that is not approval, and the output says which gate it skipped. Do not start im
 unless both exit 0, and never claim the gate passed without that output.
 
 No approval means no implementation.
+
+For new v3 Graph runs, the G1 artifact must be JSON with `gate: "G1"`, canonical `storyHash`, and `responseRef` to the actual user decision. Store it under `.ai-workflow/approvals/`; `verification.md` gives the binding format. Document shape checks alone do not prove approval binding or delivery.

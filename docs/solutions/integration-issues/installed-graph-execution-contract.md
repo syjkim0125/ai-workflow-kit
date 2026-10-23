@@ -1,7 +1,7 @@
 ---
 title: Installed graph execution needs durable task identity and dispatch state
 date: 2026-09-21
-last_updated: 2026-09-23
+last_updated: 2026-10-21
 category: integration-issues
 module: Graph runtime and installer
 problem_type: integration_issue
@@ -18,6 +18,8 @@ tags: [graph, installation, task-identity, concurrency, evidence, recovery, role
 ---
 
 # Installed graph execution needs durable task identity and dispatch state
+
+Current working-tree contract: new delivery/role runs use v3. The dated v1/v2 descriptions below are historical; those runs are now read-only with `upgrade-required` (`src/graph/workflow.mjs:120`). The v3 changes are verified locally and remain unmerged/unpublished as of 2026-10-21.
 
 ## Problem
 
@@ -100,3 +102,22 @@ The complete suite passed **139/139** after these fixes. This proves local insta
 - [Implementation and verification evidence](../../understanding/installed-graph-evidence.md)
 - [Graph execution protocol](../../../skills/workflow/references/graph-engineering.md)
 - No prior `docs/solutions/` entry existed. GitHub issue lookup was attempted but unavailable because `api.github.com` could not be reached; no issue association is claimed.
+
+## Execution proof must survive the workflow protocol
+
+The October audit reproduced a misleading success: a real failing test log plus agent-supplied `passed: true` reached G4 readiness, and changing product code afterward did not invalidate it. Adding more prose asking the same agent to inspect its work would preserve that trust gap. Evidence-file integrity establishes which observation was submitted, not whether a product behaved correctly.
+
+The locally verified v3 fix collects process results itself and binds receipts to the run, current task token, Story and actual code snapshot. Required V coverage and successful receipts are checked during both record and later reads (`src/graph/verification.mjs:62`, `src/graph/cli.mjs:68`). Snapshot changes produce a read-only `stale` result (`src/graph/cli.mjs:99`). G1 is bound to canonical Story content; conditional G3 binds the design; delivery additionally binds actual G4 response records to the final snapshot and run. These records prevent accidental reuse, not forgery by a host controlling the repository.
+
+Two integration attempts exposed why proof must follow the existing recovery protocol:
+
+- Keeping a receipt after a question rotated its token made the subsequent answer fail validation. Questioning now invalidates the current execution bindings while retaining files, so the answer resumes the same counted attempt but requires fresh checks (`src/graph/cli.mjs:202`). Token changes fence executable evidence as well as agent results.
+- The first offline smoke fixture tried to reset implementation while final verification was still running. The scheduler correctly refused. A failed checker does not automatically finish the workflow node: record the failed evaluation first, then reset affected work. Weakening the running-descendant guard would have hidden a fixture error and allowed overlap.
+
+An initial cleanup test also timed out before its child process wrote a PID under full-suite load. Increasing that test's startup allowance preserved the assertion that the owned child actually terminates; it did not relax product verification. A separate reproduced failure showed that collecting an invalid post-run snapshot could lose buffered logs. Logs are now saved before snapshot collection and a failed receipt retains the snapshot error. These failure observations matter more than another happy-path fixture.
+
+The final cross-check also reproduced a coverage shortcut: two configured journeys shared V1, and running only the convenient passing one initially allowed completion. V coverage alone was insufficient. Every configured check intersecting the assigned V scope is now required, even when another successful check names the same V (`src/graph/verification.mjs:82`).
+
+Prevention: when attaching a runner to an existing state machine, exercise failure → explicit failure record → reset → rerun, and question/answer token rotation, through the installed interface. Do not add a parallel completion/retry controller. Assertions still require review: a no-op checker can exit zero, non-Git input omissions evade freshness detection, and external environment changes are outside a file snapshot. Model metadata fixtures likewise prove preservation, not live dispatch or lower cost.
+
+Fresh local verification passed 166 tests and the package dry run. The [project recipe](../../../skills/workflow/references/verification.md), [runner regressions](../../../test/verification.test.mjs) and [offline fixture](../../../test/fixtures/verify-tarball.mjs) define the reproducible boundary. Actual Office/provider dispatch and human identity authentication remain host responsibilities.

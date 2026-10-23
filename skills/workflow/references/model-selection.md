@@ -28,3 +28,13 @@ An expected red test, missing input, expired credential or tool outage is not ev
 Before a handoff, stop the previous worker and inspect its changes. Carry the task constraints, revision, relevant artifacts, failed checks and unresolved issues, not the whole conversation. Preserve the run and attempt history; use existing recovery/token rules when an attempt restarts. Never overlap writers or reset a run to renew its budget. Review independence and human approval remain unchanged.
 
 Record the selected model/configuration, short reason and any actual switch or limitation in existing task evidence. Keep observed tokens, cost, elapsed time and correction counts when the host provides them; unknown usage stays unknown. Judge savings per accepted task. Do not promise fewer tokens or lower cost merely because a smaller model was selected. Selection itself uses this rule and existing metadata, not a separate routing-model call.
+
+## Record host execution, not a prediction
+
+Use `output.execution` on the existing Graph result, not another workflow or routing agent:
+
+```json
+{"selection":"delegated","requestedModel":"<exact eligible host ID>","actualModel":null,"confirmation":"unknown","effort":"low","reason":"bounded task with runnable acceptance checks","usage":null}
+```
+
+`selection` is `inline`, `delegated`, `pinned`, `unsupported`, or `unknown` when the host supplies no selection record. Set `confirmation: confirmed` and `actualModel` only with a host execution `metadataRef`. Otherwise actual model and unknown usage remain null. Observed usage has `inputTokens`, `outputTokens`, `cost` (each nullable), and `source`; include currency when known. A validated metadata object preserves host claims; it does not independently authenticate the provider or prove savings. See `examples/host-routing/README.md` in the package for host acceptance cases.
