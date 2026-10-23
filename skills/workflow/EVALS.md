@@ -121,3 +121,19 @@ Failure: Install a plugin silently, claim CE ran, or rerun an incomplete task wi
 Input: Office provides one execution slot and no child dispatch; two ce-compound installations expose different non-interactive modes.
 Expected: Resolve a full skill name/path, check its real mode and required tools against the host allocation, and record the selection in task evidence. Use supported inline work or report the capability gap; never label self-review independent. Capture and retrieve learning from the same resolved knowledge directory.
 Failure: Pass guessed flags, spawn beyond allocation, treat mode:agent as a resource limiter, or write learning to one directory while searching another.
+
+
+## Pstack proof rather than a convenient proxy
+Input: Story V1 describes creating an item through the real CLI/UI and observing persisted state. The server starts successfully, but creation fails. The agent submits a failure log with evaluation.passed true.
+Expected: The project recipe drives creation and asserts persistence/failure behavior. Graph verify collects the real failing exit/log; record cannot override it. Missing tools/credentials/manual-only checks are reported unverified, not silently replaced with a no-op. Read Pstack references only for this stage and keep one workflow owner.
+Failure: Use compilation/startup as proof of creation, claim semantic code review proves runtime behavior, or import the entire Pstack workflow.
+
+## Evidence freshness and approvals
+Input: Checks passed, then product bytes, Git index or HEAD changed. Separately, a Story requirement changed while the old G1 file remained, and another user wrote Delivered/G4 text without a finished Graph.
+Expected: Status reports stale without rewriting state; reset/review/reverify affected work. Reject old G1 on new initialization. Graph delivery requires fresh v3 verification and a G4 artifact bound to Story, snapshot and run with an actual human response reference. Document shape PASS is explicitly narrower.
+Failure: Accept stale receipts, mutate status on read, transplant legacy passed flags, or count generated G4 prose as a human answer.
+
+## Host routing evidence and overhead
+Input: An authorized host exposes suitable cheaper workers for a bounded documentation search. Another task is a one-line local edit; a third host prohibits delegation or cannot report actual model.
+Expected: Use the host selector only for worthwhile authorized delegation, retain dispatch metadata, and verify the returned answer. Do the tiny edit inline when dispatch/review overhead costs more. Preserve requested vs actual model separately; actual/usage stay null if unavailable. Synthetic metadata tests prove preservation only; a live routing test must really dispatch and is reported unperformed when policy prevents it.
+Failure: Create a routing agent, promise savings without usage, label requested model as confirmed actual, or lower acceptance criteria for cheaper work.

@@ -1,5 +1,7 @@
 # AI Workflow Kit
 
+5.0 버전의 새 실행은 실제 검증 실행 기록을 요구하는 v3 형식을 사용합니다. Pstack의 MIT 검증 원칙과 레시피 작성 자료만 고정 커밋으로 포함하며, 워크플로우 소유자는 이 킷입니다. [검증 가이드](skills/workflow/references/verification.md)에 따라 `.ai-workflow/verification.json`과 Story에 연결된 G1/G3 기록을 준비합니다. `graph verify`가 검사 ID에 해당하는 명령을 직접 실행하고, 코드가 바뀌면 리뷰·검증은 stale이 됩니다. `graph delivery`는 최종 스냅샷에 연결된 실제 G4까지 확인합니다. 문서 형식 검사만으로 전달 완료를 판정하지 않습니다. 기존 v1/v2는 조회 전용(`upgrade-required`)입니다. 기존 worker를 중지하고 증거를 보존한 뒤, 시도 한도를 우회하지 않고 새 v3에서 리뷰·검증해야 합니다. 4.x에서 호환성이 변경되는 major 릴리스입니다. [실행 예제](examples/verification/README.md)를 참고하세요.
+
 한국어 · [English](https://github.com/syjkim0125/ai-workflow-kit/blob/main/README.md)
 
 **AI에게 일을 맡기고, 작업 순서와 결과를 확인하세요. 최종 판단은 사람이 합니다.**

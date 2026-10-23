@@ -33,13 +33,13 @@ Create Tasks only when the approved Story cannot be reviewed as one PR. Each Tas
 For user-authorized optional Jira publication after G1, follow `jira.md`. Without a connector or authorized target, produce a preview only; the Story remains canonical.
 
 1. Read the approved Story, relevant code, tests, repository instructions, and prior learnings.
-2. Make a plan that maps every M/V ID to code and evidence. Do not create a second requirement source.
+2. Make a plan that maps every M/V ID to code and evidence. Use `verification.md` for a runnable project recipe; assert the actual user path and failure cases, rather than treating exit 0 from a no-op as behavioral proof. Do not create a second requirement source.
    Automatically initialize/resume the installed graph as described in `graph-engineering.md`. Use `-` for small work; otherwise supply the reviewed task DAG. The CLI adds final review and fresh verification. Complete any required G3 before implementation nodes run.
 3. Use compatible `superpowers:test-driven-development` for implementation and `superpowers:systematic-debugging` for unexplained failures. For new behavior or a bug fix, demonstrate RED before production code, then GREEN after the minimum change. Proceed when related tests pass.
 4. Refactor while green: perform the simplification pass below. If `ce-simplify-code` is available, read its `SKILL.md` and execute it; naming the skill is not execution. If unavailable, apply the same criteria below directly; do not require installation or stop the workflow.
 5. Review the final diff after simplification against the Story, including failure paths and what tests do not prove. Use `ce-code-review mode:agent` when available; let its risk-based scope choose depth and resolve material findings. Do not apply fixes from a read-only review assignment.
-6. Apply compatible `superpowers:verification-before-completion`. Revalidate affected behavior after simplify/review edits before G4. If review edits affect previously simplified code, recheck only the affected scope; do not restart the whole pipeline automatically. Broaden tests when impact warrants it; never claim old results cover new edits.
-7. Record the evidence in the graph, run its `status` command, and require `action: g4` before continuing to `understanding-gate.md`; passing tests alone are not completion.
+6. Apply compatible `superpowers:verification-before-completion`, using Graph `verify` on the current started token to execute the configured checks. Pstack recipe material defines the user journeys; SP governs fresh execution and evidence inspection. Read receipts and raw logs from that same execution; do not run a second verification pass solely to satisfy both names. Revalidate affected behavior after simplify/review edits before G4. If review edits affect previously simplified code, recheck only the affected scope; do not restart the whole pipeline automatically. Broaden tests when impact warrants it; never claim old results cover new edits.
+7. Record the verified evidence in the graph, run its `status` command, and require `action: g4` before continuing to `understanding-gate.md`; passing tests alone are not completion.
 
 ## Simplification pass
 

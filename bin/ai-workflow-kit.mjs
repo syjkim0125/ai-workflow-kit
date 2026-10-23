@@ -29,13 +29,15 @@ Usage:
   ai-workflow-kit init [--root <dir>] [--host all|codex|claude]
   ai-workflow-kit doctor [--root <dir>]
   ai-workflow-kit check story|task <file> [--root <dir>]
-  ai-workflow-kit check gate G1|G4 <story-file> [--root <dir>]
+  ai-workflow-kit check gate G1|G3|G4 <story-file> [--root <dir>]
   ai-workflow-kit jira preview <story-file> [--root <dir>]
   ai-workflow-kit graph init <plan.json|-> <run.json> <story.md> [--root <dir>]
   ai-workflow-kit graph init-role <assignment.json> <run.json> [--root <dir>]
   ai-workflow-kit graph status <run.json> [--root <dir>]
   ai-workflow-kit graph start <run.json> <node-id> <ready-token> [--root <dir>]
   ai-workflow-kit graph record <run.json> <node-id> <result.json> [--root <dir>]
+  ai-workflow-kit graph verify <run.json> <node-id> <task-token> <check-id> [--root <dir>]
+  ai-workflow-kit graph delivery <run.json> [--root <dir>]
   ai-workflow-kit graph reset <run.json> <node-id> <reason> [--root <dir>]
   ai-workflow-kit graph question|answer|feedback <run.json> <node-id> <input.json> [--root <dir>]
   ai-workflow-kit remove [--root <dir>]
@@ -206,6 +208,7 @@ async function main(argv) {
     }
     if (result.ok) {
       console.log('PASS');
+      console.log('NOTE  Document shape/gate presence only; this does not validate executable delivery.');
       for (const note of result.notes ?? []) console.log(`NOTE  ${note}`);
       return 0;
     }

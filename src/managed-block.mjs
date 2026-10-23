@@ -12,7 +12,8 @@ export const MANAGED_BLOCK = `${START_MARKER}
 - Within an assigned kit graph node, apply only its role/task procedure and return evidence to that run. Office assigns roles and launches agents; the kit graph still controls readiness, joins and failure routing. Do not recursively start full delivery workflows.
 - Use compatible Superpowers focused TDD, diagnosis and fresh-verification skills with CE caller-owned planning, \`ce-simplify-code\`, report-only review and verified learning capture. Read the workflow skill-integration reference for exact modes, direct fallback and host limits. Do not nest end-to-end workflows or repeat approved plans. High-risk work retains G3.
 - Do not merge non-trivial changes until the workflow's G4 question gate records that a human understands behavior, an invariant/failure path, and the evidence boundary.
-- Gates are satisfied by evidence, not by assertion. Verify with \`node .ai-workflow/bin/check.mjs story <story-file>\` and report the exit code; exit 0 is the only pass.
+- Configure the project verification profile using the workflow verification reference. Run required checks through Graph \`verify\`; inspect actual exit results/logs. Code changes make review/checks stale. Host model selection follows the workflow model policy; unknown actual model/cost stay unknown.
+- \`node .ai-workflow/bin/check.mjs story <story-file>\` checks document shape/gate presence only. Report its exit code, and require \`node .ai-workflow/bin/graph.mjs delivery <run.json>\` after real G4 for bound execution/approval validation.
 ${END_MARKER}`;
 
 export function managedBlockFor(host) {

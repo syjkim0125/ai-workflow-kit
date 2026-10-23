@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
+import { storyContract } from '../src/graph/workflow.mjs';
 import { installWorkflow } from '../src/install.mjs';
 
 const story = `# Story: assigned edit
@@ -32,11 +33,13 @@ async function fixture(t, role = 'developer', host = 'codex') {
   const put = (file, value) => fs.writeFile(path.join(root, file), typeof value === 'string' ? value : JSON.stringify(value));
   await put('story.md', story);
   await put('request.md', 'Please clarify the requested edit.');
-  await put('approval.md', 'Synthetic fixture approval; not real acceptance.');
+  await put('approval.md', { gate: 'G1', storyHash: storyContract(story).fingerprint, responseRef: 'fixture:approved' });
   const assignment = { version: 1, taskId: 'task-1', role, source: role === 'pm' ? 'request.md' : 'story.md',
     scope: role === 'pm' ? [] : ['M1', 'V1'], targetRevision: 'snapshot-1' };
   await put('assignment.json', assignment);
   await installWorkflow({ root, hosts: [host] });
+  await fs.writeFile(path.join(root, 'check.mjs'), "import assert from 'node:assert/strict'; assert.equal(2+2,4);\n");
+  await fs.writeFile(path.join(root, '.ai-workflow/verification.json'), JSON.stringify({version:1, inputs:['check.mjs'], checks:[{id:'fixture', covers:['V1'], argv:[process.execPath,'check.mjs']}]}));
   const cli = (...args) => spawnSync(process.execPath, [path.join(root, '.ai-workflow/bin/graph.mjs'), ...args], { cwd: root, encoding: 'utf8' });
   const ok = (...args) => {
     const result = cli(...args);
@@ -56,6 +59,7 @@ async function fixture(t, role = 'developer', host = 'codex') {
   };
   const record = async (extra, evaluation) => {
     const task = start();
+    if (task.id === 'self-check' && evaluation?.passed !== false) ok('verify', 'run.json', task.id, task.token, 'fixture');
     await resultFor(task, extra, evaluation);
     return ok('record', 'run.json', task.id, 'result.json');
   };
@@ -130,6 +134,7 @@ test('reviewer must report a verdict for the assigned snapshot, developer must i
     f.ok('init-role', 'assignment.json', 'run.json');
     if (role === 'developer') await f.record();
     const task = f.start();
+    if (role === 'developer') f.ok('verify', 'run.json', task.id, task.token, 'fixture');
     const before = await f.getRun();
     for (const extra of [{}, { verdict: 'pass', reviewedRevision: 'wrong' }]) {
       await f.resultFor(task, extra);

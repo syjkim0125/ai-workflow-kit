@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
+import { storyContract } from '../src/graph/workflow.mjs';
 import { installWorkflow, removeWorkflow } from '../src/install.mjs';
 
 const packageRoot = path.resolve(import.meta.dirname, '..');
@@ -31,8 +32,10 @@ Make the requested edit.
 async function fixture(host = 'codex') {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'workflow-graph-cli-'));
   await fs.writeFile(path.join(root, 'story.md'), story);
-  await fs.writeFile(path.join(root, 'approval.md'), 'User approved this scope.');
+  await fs.writeFile(path.join(root, 'approval.md'), JSON.stringify({ gate: 'G1', storyHash: storyContract(story).fingerprint, responseRef: 'fixture:approved' }));
   await installWorkflow({ root, hosts: [host] });
+  await fs.writeFile(path.join(root, 'check.mjs'), "import assert from 'node:assert/strict'; assert.equal(2+2,4);\n");
+  await fs.writeFile(path.join(root, '.ai-workflow/verification.json'), JSON.stringify({version:1, inputs:['check.mjs'], checks:[{id:'fixture', covers:['V1'], argv:[process.execPath,'check.mjs']}]}));
   const cli = (...args) => spawnSync(process.execPath, [path.join(root, '.ai-workflow/bin/graph.mjs'), ...args], { cwd: root, encoding: 'utf8' });
   const ok = (...args) => {
     const result = cli(...args);
@@ -45,6 +48,7 @@ async function fixture(host = 'codex') {
     const ready = state.ready.find(entry => entry.id === node);
     assert.ok(ready, `${node} should be ready`);
     const task = ok('start', 'run.json', node, ready.token).started;
+    if (node === 'workflow-verify' && passed) ok('verify', 'run.json', node, task.token, 'fixture');
     const evidence = `${node}-${task.token}.txt`;
     await put(evidence, passed ? 'Observed expected behavior.' : 'Observed test failure.');
     await put('result.json', { token: task.token, output: { summary: 'Observed result', evidence: [evidence] },
