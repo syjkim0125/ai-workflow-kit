@@ -18,20 +18,21 @@ function relativePath(value) {
   return path.posix.normalize(value).replace(/\/$/, '');
 }
 
-export async function createSnapshot({ root, inputs, story, exclude = [] } = {}) {
+export async function createSnapshot({ root, inputs, additionalInputs = [], story, exclude = [] } = {}) {
   root = await fs.realpath(root);
   if (inputs !== undefined && (!Array.isArray(inputs) || inputs.some(file => typeof file !== 'string'))) throw new Error('Snapshot inputs must be a path array.');
   const omitted = exclude.map(relativePath);
   const ignored = file => outputPaths.some(dir => inside(dir, file)) || omitted.includes(file) || file === story;
   const explicit = (inputs ?? []).map(relativePath);
-  if (explicit.some(file => ignored(file) || inside('.git', file))) throw new Error('Snapshot input overlaps an evidence/output or excluded path.');
+  const required = additionalInputs.map(relativePath);
+  if ([...explicit, ...required].some(file => ignored(file) || inside('.git', file))) throw new Error('Snapshot input overlaps an evidence/output or excluded path.');
   const git = async args => (await execute('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 })).stdout;
   let repository = false;
   try { repository = (await git(['rev-parse', '--is-inside-work-tree'])).trim() === 'true'; } catch { /* A non-Git project must declare its inputs. */ }
   if (!repository && explicit.length === 0) throw new Error('Explicit snapshot inputs are required for a non-Git project.');
   let head = null;
   let index = [];
-  let files = explicit;
+  let files = [...explicit, ...required];
   if (repository) {
     const discovered = (await git(['ls-files', '-z', '--cached', '--others', '--exclude-standard'])).split('\0').filter(Boolean);
     files = [...files, ...discovered];

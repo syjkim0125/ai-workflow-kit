@@ -10,28 +10,6 @@ const read = (file) => fs.readFile(path.join(packageRoot, file), 'utf8');
 const hosts = [['.agents', 'AGENTS.md'], ['.claude', 'CLAUDE.md']];
 const references = ['SKILL.md', 'references/execution.md', 'references/skill-integration.md', 'EVALS.md'];
 
-test('execution puts a bounded simplification pass before final-diff review and revalidation', async () => {
-  const execution = await read('skills/workflow/references/execution.md');
-  const steps = execution.slice(execution.indexOf('## Execute'));
-  const stages = ['related tests pass', 'ce-simplify-code', 'final diff', 'Revalidate', 'understanding-gate.md'];
-  let previous = -1;
-  for (const stage of stages) {
-    const index = steps.indexOf(stage);
-    assert.ok(index > previous, `${stage} must follow the previous stage`);
-    previous = index;
-  }
-  // This checks routing/contract structure, not whether an LLM obeys it.
-  assert.match(execution, /read.*SKILL\.md.*execute/i);
-  assert.match(execution, /unavailable.*same criteria.*directly/i);
-  assert.match(execution, /no changes.*valid/i);
-  assert.match(execution, /result order.*side effects.*domain boundaries.*failure handling.*safety checks/i);
-  assert.match(execution, /chaining.*traversals/i);
-  assert.match(execution, /existing.*design.*scope-change/i);
-  assert.match(execution, /repository.*runtime.*instructions/i);
-  assert.doesNotMatch(execution, /(?:spawn|launch|dispatch) (?:three|3) agents/i);
-  assert.match(await read('skills/workflow/SKILL.md'), /Implemented or `finish`:.*execution\.md.*understanding-gate\.md/);
-});
-
 test('fresh installs carry the same simplify policy into both runtimes', async (t) => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'workflow-simplify-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));

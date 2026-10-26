@@ -1,7 +1,7 @@
 ---
 title: Installed graph execution needs durable task identity and dispatch state
 date: 2026-09-21
-last_updated: 2026-10-21
+last_updated: 2026-10-26
 category: integration-issues
 module: Graph runtime and installer
 problem_type: integration_issue
@@ -19,7 +19,7 @@ tags: [graph, installation, task-identity, concurrency, evidence, recovery, role
 
 # Installed graph execution needs durable task identity and dispatch state
 
-Current working-tree contract: new delivery/role runs use v3. The dated v1/v2 descriptions below are historical; those runs are now read-only with `upgrade-required` (`src/graph/workflow.mjs:120`). The v3 changes are verified locally and remain unmerged/unpublished as of 2026-10-21.
+Current contract: new delivery/role runs use v3. The dated v1/v2 descriptions below are historical; those runs are read-only with `upgrade-required`. The initial v3 implementation merged in [PR #11](https://github.com/syjkim0125/ai-workflow-kit/pull/11). The October 26 recipe/deadline/review-allocation follow-up below is locally verified and pending integration; npm publication is not established by these checks.
 
 ## Problem
 
@@ -121,3 +121,15 @@ The final cross-check also reproduced a coverage shortcut: two configured journe
 Prevention: when attaching a runner to an existing state machine, exercise failure → explicit failure record → reset → rerun, and question/answer token rotation, through the installed interface. Do not add a parallel completion/retry controller. Assertions still require review: a no-op checker can exit zero, non-Git input omissions evade freshness detection, and external environment changes are outside a file snapshot. Model metadata fixtures likewise prove preservation, not live dispatch or lower cost.
 
 Fresh local verification passed 166 tests and the package dry run. The [project recipe](../../../skills/workflow/references/verification.md), [runner regressions](../../../test/verification.test.mjs) and [offline fixture](../../../test/fixtures/verify-tarball.mjs) define the reproducible boundary. Actual Office/provider dispatch and human identity authentication remain host responsibilities.
+
+## Project procedures need binding, not another workflow
+
+The October 26 review found that importing Pstack's prose did not connect a project's verification skill to Graph work. Pstack's useful contract is the project-specific procedure: Launch, Doctor, Drive, Evidence and Cleanup, with relevant feature entries. Reuse an adequate existing skill or guide rather than create another orchestrator. Profile `recipe` now supplies its path and byte hash to task inputs and receipts. Snapshot additional inputs include the profile, recipe and required design even when Git-ignored; helpers/features still require declared inputs. Internal required inputs must not satisfy the explicit product-input requirement for non-Git projects.
+
+This boundary avoids two misleading fixes: injecting the complete recipe/map/log history into every prompt, or claiming a file hash proves the host invoked a skill. SP checks the fresh evidence from the same Graph execution. The real assertions and user-path coverage still require review. The [example skill](../../../examples/verification/verify-cli/SKILL.md) was read and its Doctor/Drive executed; offline fixtures exercised both installed hosts, including failure, recovery, receipt binding and product/recipe/feature-map freshness. This does not establish automatic skill selection by a live host.
+
+The review also exposed a deadline assumption hidden by passing process-group tests: `close` can wait for pipes held by a descendant that escaped the group. A configured 1000ms check took about 3680ms in the new RED regression. Termination grace now ends collection with failed `outputIncomplete` evidence rather than waiting indefinitely or killing unrelated processes. Detached services remain the checker's cleanup responsibility. A separate regression showed that duplicate-check lookup must use own properties: inherited names such as `toString` are valid IDs, not existing receipts.
+
+Review allocation belongs at the same host boundary. Default three workers is an adaptive operating policy, not a measured optimum. Main simplifies/aggregates, nested workers count in the same round, and incompatible skill fan-out uses bounded direct review. Graph task metadata communicates the policy; it cannot enforce unknown host dispatch calls. An obsolete test required a particular simplify instruction sentence; it was removed rather than rewritten to assert new wording. Installation/update preservation tests remain, and consumer-behavior scenarios live in EVALS. Neither document regexes nor JSON payload checks prove prompt compliance.
+
+Fresh verification passed **175 tests**, the package dry run, and offline tarball execution for Codex and Claude. Review/simplification ran sequentially in the main context under the active no-delegation instruction, so independent review and real model-cost savings are not claimed. No lint/typecheck command is configured. Prevention: test owned process termination and output-stream completion separately, bind project procedure changes to freshness, and distinguish host policy from runtime enforcement before adding another agent layer.

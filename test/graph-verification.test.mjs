@@ -2,7 +2,68 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
+import { createHash } from 'node:crypto';
 import { graphProject } from './fixtures/graph-project.mjs';
+
+test('project recipe is bound to tasks and receipts; edits stale completed verification', async t => {
+  const f = await graphProject(t, { profile: { recipe: 'verify/SKILL.md' } });
+  const body = '# Verify CLI\nDrive: node check.mjs\n';
+  await f.put('verify/SKILL.md', body);
+  const recipe = { path: 'verify/SKILL.md', hash: createHash('sha256').update(body).digest('hex') };
+  const initial = f.ok('init', '-', 'run.json', 'story.md');
+  assert.deepEqual(initial.ready[0].input.verification.recipe, recipe);
+  await f.record('implement'); await f.record('workflow-review');
+  const task = f.start('workflow-verify');
+  assert.deepEqual(task.input.verification.checks, [{ id: 'addition', covers: ['V1'] }]);
+  const executed = f.ok('verify', 'run.json', task.id, task.token, 'addition').verification;
+  assert.deepEqual(executed.recipe, recipe);
+  assert.equal(executed.passed, true);
+  assert.equal((await f.result(task)).status, 0);
+  await f.put('verify/SKILL.md', `${body}Cleanup: no long-lived processes.\n`);
+  const before = await fs.readFile(path.join(f.root, 'run.json'), 'utf8');
+  assert.equal(f.ok('status', 'run.json').action, 'stale');
+  assert.equal(await fs.readFile(path.join(f.root, 'run.json'), 'utf8'), before);
+  f.ok('reset', 'run.json', 'workflow-review', 'Review updated recipe');
+  await f.record('workflow-review');
+  const fresh = f.start('workflow-verify');
+  const rerun = f.ok('verify', 'run.json', fresh.id, fresh.token, 'addition').verification;
+  assert.notEqual(rerun.recipe.hash, recipe.hash);
+  assert.equal(rerun.passed, true);
+  assert.equal((await f.result(fresh)).status, 0);
+  assert.equal(f.ok('status', 'run.json').action, 'g4');
+});
+
+for (const [name, recipe, body] of [
+  ['missing', 'verify/SKILL.md', undefined],
+  ['blank', 'verify/SKILL.md', '  \n'],
+  ['escape', '../verify.md', undefined],
+  ['invalid type', 3, undefined],
+]) test(`profile rejects ${name} project recipes`, async t => {
+  const f = await graphProject(t, { profile: { recipe } });
+  if (body !== undefined) await f.put(recipe, body);
+  assert.equal(f.cli('init', '-', 'run.json', 'story.md').status, 1);
+});
+
+test('profile rejects symlink recipes', async t => {
+  const f = await graphProject(t, { profile: { recipe: 'verify.md' } });
+  await fs.symlink('check.mjs', path.join(f.root, 'verify.md'));
+  assert.equal(f.cli('init', '-', 'run.json', 'story.md').status, 1);
+});
+
+test('review budget is passed only to delivery and role review tasks', async t => {
+  const f = await graphProject(t);
+  const initial = f.ok('init', '-', 'run.json', 'story.md');
+  assert.equal(initial.ready[0].input.reviewBudget, undefined);
+  const reviewed = await f.record('implement');
+  const budget = reviewed.ready[0].input.reviewBudget;
+  assert.equal(budget.defaultAgents, 3);
+  assert.equal(budget.scope, 'whole-review-round');
+  assert.equal(budget.nestedDelegation, false);
+  assert.equal(budget.dispatchOwner, 'host');
+  await f.put('assignment.json', { version: 1, taskId: 'review-1', role: 'reviewer', source: 'story.md', scope: ['M1', 'V1'], targetRevision: 'fixture-target' });
+  const role = f.ok('init-role', 'assignment.json', 'role.json');
+  assert.deepEqual(role.ready[0].input.reviewBudget, budget);
+});
 
 test('verification refuses a prose-only pass without an actual execution', async t => {
   const f = await graphProject(t);

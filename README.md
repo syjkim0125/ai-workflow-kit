@@ -1,5 +1,7 @@
 # AI Workflow Kit
 
+Project verification skills/guides can be linked with profile `recipe`; tasks and receipts carry the file's path/hash, and edits invalidate old evidence. Reviews default to three workers, with smaller/larger allocations based on scope and risk; host dispatch enforces the shared round budget. See [stage integration](skills/workflow/references/skill-integration.md).
+
 Version 5.0 uses persisted run format v3 with runner-issued verification receipts. Pstack's MIT verification principles/recipe guide are selectively vendored at a fixed commit; the kit remains the workflow owner. Configure `.ai-workflow/verification.json` and bound G1/G3 records using [the verification guide](skills/workflow/references/verification.md). `graph verify` executes real checks by ID, and code changes invalidate review/verification. `graph delivery` additionally requires a real G4 bound to the final snapshot. Document checks alone cannot establish delivery. Legacy v1/v2 runs are read-only (`upgrade-required`); stop old workers, retain evidence, then rerun review/checks in v3 without evading retry limits. This is a breaking change from 4.x. See [the runnable CLI example](examples/verification/README.md).
 
 [한국어](https://github.com/syjkim0125/ai-workflow-kit/blob/main/README.ko.md) · English
