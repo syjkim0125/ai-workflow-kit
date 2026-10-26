@@ -1,16 +1,23 @@
 # AI Workflow Kit
 
-프로젝트 검증 스킬·가이드를 profile의 `recipe`로 연결합니다. 작업 입력과 실행 기록에 경로·해시가 남고, 내용이 바뀌면 이전 증거는 stale이 됩니다. 일반 리뷰는 기본 3명이며 규모·위험에 따라 조정합니다. 전체 라운드의 실제 인원 제한은 호스트가 적용합니다. [단계별 연동 규칙](skills/workflow/references/skill-integration.md)을 참고하세요.
-
-5.0 버전의 새 실행은 실제 검증 실행 기록을 요구하는 v3 형식을 사용합니다. Pstack의 MIT 검증 원칙과 레시피 작성 자료만 고정 커밋으로 포함하며, 워크플로우 소유자는 이 킷입니다. [검증 가이드](skills/workflow/references/verification.md)에 따라 `.ai-workflow/verification.json`과 Story에 연결된 G1/G3 기록을 준비합니다. `graph verify`가 검사 ID에 해당하는 명령을 직접 실행하고, 코드가 바뀌면 리뷰·검증은 stale이 됩니다. `graph delivery`는 최종 스냅샷에 연결된 실제 G4까지 확인합니다. 문서 형식 검사만으로 전달 완료를 판정하지 않습니다. 기존 v1/v2는 조회 전용(`upgrade-required`)입니다. 기존 worker를 중지하고 증거를 보존한 뒤, 시도 한도를 우회하지 않고 새 v3에서 리뷰·검증해야 합니다. 4.x에서 호환성이 변경되는 major 릴리스입니다. [실행 예제](examples/verification/README.md)를 참고하세요.
-
 한국어 · [English](https://github.com/syjkim0125/ai-workflow-kit/blob/main/README.md)
 
 **AI에게 일을 맡기고, 작업 순서와 결과를 확인하세요. 최종 판단은 사람이 합니다.**
 
 AI Workflow Kit은 Codex와 Claude Code에 작업 절차를 추가합니다. 무엇을 만들지 정하고, 작업 상태를 저장하고, 결과를 검사합니다. 다음 작업에 쓸 교훈도 남깁니다.
 
-4버전에는 그래프 실행기가 들어 있습니다. **그래프는 작업 목록과 실행 순서를 정한 규칙입니다.**
+그래프 실행기가 작업 목록과 실행 순서를 관리합니다.
+
+## 5.0.1 업데이트
+
+- **검증 스킬을 Story마다 새로 만들지 않고 재사용합니다.** 기존 프로젝트 스킬·가이드를 profile의 `recipe`로 연결합니다. 작업 입력과 실행 기록에 경로·해시가 남고, 레시피나 입력으로 선언한 기능 문서가 바뀌면 이전 증거는 stale이 됩니다. 기존 검증으로 부족할 때만 절차를 보완하거나 만듭니다.
+- **Pstack 검증 절차로 실제 제품을 실행합니다.** 예제는 Launch·Doctor·Drive·Evidence·Cleanup을 포함합니다. Superpowers가 같은 Graph 실행의 최신 증거를 확인하고, 전체 흐름은 kit이 관리합니다. [실행 예제](examples/verification/README.md)를 참고하세요.
+- **리뷰는 기본 3명으로 조정합니다.** 작은 변경은 0~2명, 명확한 전문 위험이 있으면 4~5명으로 조정합니다. 메인이 단순화와 결과 통합을 맡고, 내부 위임도 같은 예산에 포함합니다. 실제 인원 제한은 호스트가 적용합니다.
+- **검증 실행의 예외를 수정했습니다.** 분리된 자식이 출력 파이프를 유지해도 정해진 정리 시간 뒤 불완전한 수집을 실패로 기록합니다. `toString`, `hasOwnProperty` 같은 유효한 검사 ID도 실행 순서와 관계없이 사용할 수 있습니다.
+
+기존 프로젝트는 `npx @pazmo/ai-workflow-kit@latest init`과 `npx @pazmo/ai-workflow-kit@latest doctor`로 업데이트한 뒤 새 Codex 작업 또는 Claude Code 세션을 여세요. 사용자가 수정한 관리 파일은 보존하고 알려주므로, 새 지침을 수동 반영해야 하는지 확인하세요.
+
+**4.x에서 업데이트할 때:** 5.x는 실제 실행 기록을 요구하는 v3 형식을 사용합니다. [검증 가이드](skills/workflow/references/verification.md)에 따라 `.ai-workflow/verification.json`과 Story에 연결된 G1/G3 기록을 준비하세요. 기존 v1/v2는 조회 전용(`upgrade-required`)입니다. 기존 worker를 중지하고 증거·시도 기록을 보존한 뒤 v3에서 리뷰·검증해야 합니다. `graph delivery`는 최종 스냅샷에 연결된 실제 G4도 확인합니다. [전체 변경 이력](CHANGELOG.md)을 참고하세요.
 
 ## 시작하기
 
@@ -113,8 +120,8 @@ kit이 전체 절차를 정합니다. 설치된 스킬은 각 단계를 맡습�
 | 계획 | CE `ce-plan` |
 | 테스트를 쓰며 구현 | Superpowers `test-driven-development` |
 | 실패 원인 분석 | Superpowers `systematic-debugging` |
-| 테스트 통과 후 단순화 | CE `ce-simplify-code` |
-| 리뷰 | CE `ce-code-review mode:agent` |
+| 테스트 통과 후 단순화 | 메인이 수행하고, 같은 리뷰 예산 안에서 CE `ce-simplify-code`를 선택 사용 |
+| 리뷰 | 같은 예산 안에서 CE `ce-code-review mode:agent` 또는 직접 검토 |
 | 최신 코드 검증 | Superpowers `verification-before-completion` |
 | 검증된 교훈 기록 | CE `ce-compound` |
 
@@ -213,6 +220,6 @@ node test/fixtures/verify-tarball.mjs ./pazmo-ai-workflow-kit-<version>.tgz
 - [그래프 검증 방법](https://github.com/syjkim0125/ai-workflow-kit/blob/main/docs/graph-verification.md)
 - [Office 인계 문서](https://github.com/syjkim0125/ai-workflow-kit/blob/main/docs/agent-office-handoff.md)
 - [스킬 연결 규칙](https://github.com/syjkim0125/ai-workflow-kit/blob/main/skills/workflow/references/skill-integration.md)
-- [4.0.0 변경 내용](https://github.com/syjkim0125/ai-workflow-kit/blob/main/CHANGELOG.md)
+- [변경 이력](https://github.com/syjkim0125/ai-workflow-kit/blob/main/CHANGELOG.md)
 
 MIT · [JongKun Kim](https://github.com/syjkim0125)
