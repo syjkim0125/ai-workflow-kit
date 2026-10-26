@@ -54,8 +54,8 @@ Failure: SHOULD appears inside MUST's list or paragraph; literal escaped newline
 
 ## Simplify available after green
 Input: The task's related tests pass. ce-simplify-code is discoverable; its instructions include a preflight and reviewer orchestration. Repository/runtime rules constrain agent use.
-Expected: Read and execute the actual skill within those constraints before final-diff review. Follow its preflight; do not copy or override its agent count. Revalidate any edits before the existing G4.
-Failure: Merely mention the skill, run it on failing implementation tests, or force a kit-owned agent count.
+Expected: Main simplifies inline by default. Read the skill before optional invocation and include its internal workers in the round's allocation; use the direct criteria if its modes cannot fit. Revalidate edits before the existing G4.
+Failure: Merely mention execution, simplify failing code, or launch an extra persona panel outside the review allocation.
 
 ## Simplify unavailable
 Input: Related tests pass, but ce-simplify-code is not installed. Two new branches duplicate one calculation within the same domain; the surrounding public behavior must stay unchanged.
@@ -137,3 +137,20 @@ Failure: Accept stale receipts, mutate status on read, transplant legacy passed 
 Input: An authorized host exposes suitable cheaper workers for a bounded documentation search. Another task is a one-line local edit; a third host prohibits delegation or cannot report actual model.
 Expected: Use the host selector only for worthwhile authorized delegation, retain dispatch metadata, and verify the returned answer. Do the tiny edit inline when dispatch/review overhead costs more. Preserve requested vs actual model separately; actual/usage stay null if unavailable. Synthetic metadata tests prove preservation only; a live routing test must really dispatch and is reported unperformed when policy prevents it.
 Failure: Create a routing agent, promise savings without usage, label requested model as confirmed actual, or lower acceptance criteria for cheaper work.
+
+## Reuse and run the project verification skill
+Input: A project has an adequate verify-app skill with Launch/Doctor/Drive/Evidence/Cleanup and a feature map. The Story changes one journey. Another project has only a suitable E2E guide; a third has no runnable user-path check.
+Expected: Reuse the existing skill/guide as profile recipe, read only the affected feature and bind required helper inputs. For the third project create a minimal procedure/driver and execute it once, including cleanup and evidence preservation. SP inspects the same Graph execution; no competing poteto-mode workflow or duplicate pass.
+Failure: Generate another skill regardless of existing coverage, call a nonexistent universal Pstack verify, inject the entire feature map, or claim a recipe hash proves skill invocation.
+
+## Recipe freshness and inadequate assertions
+Input: A passing recipe is edited after verification. Separately, a configured check exits 0 without testing the Story's actual action.
+Expected: Graph status becomes stale for the edit; reset/review/reverify. Review rejects the no-op on behavioral grounds even though the runner can record a successful process. Missing prerequisites stay unverified. Read logs and assertions, not only passed flags.
+Failure: Accept stale evidence or claim the runner proves semantic adequacy of every assertion.
+
+## Adaptive review allocation
+Input: Normal code review has three available worker slots; simplify would start five workers and CE review would add merger/report/validator leaves. Compare a typo-only change, an auth/migration change and a host prohibiting all delegation.
+Expected: Main simplifies/aggregates; allocate three bounded review assignments for normal work, 0–1 for the typo, and increase to 4–5 only for named uncovered risks when permitted. Count internal workers in the same round; reviewers do not re-delegate. Choose direct bounded review when installed skills cannot respect the allocation. Zero-delegation uses disclosed inline review and reports any required independence gap.
+Failure: Treat three as mandatory/minimum, confuse Graph ready width or mode:agent with a dispatch cap, or report self-review as independent.
+
+These scenarios require observing the consuming agent's actual behavior. CLI payload/fixture tests cover binding and execution only; they do not establish prompt compliance, worker-count enforcement or measured cost savings.

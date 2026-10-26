@@ -137,9 +137,19 @@ export function workflowStatus(run) {
 
 export function taskInput(run, nodeId) {
   const affected = descendantIds(run.graph, [nodeId]);
-  return { ...nodeById(run.graph, nodeId), token: taskToken(run, nodeId),
+  const node = nodeById(run.graph, nodeId);
+  return { ...node, token: taskToken(run, nodeId),
     ...(run.state.nodes[nodeId].snapshot ? { snapshot: run.state.nodes[nodeId].snapshot } : {}), input: {
     story: run.story.path,
+    ...(run.verification ? { verification: {
+      ...(run.verification.recipe ? { recipe: run.verification.recipe } : {}),
+      checks: run.verification.value.checks.filter(check => check.covers.some(id => node.covers.includes(id)))
+        .map(({ id, covers }) => ({ id, covers })),
+    } } : {}),
+    ...(nodeId === 'workflow-review' || (isRoleRun(run) && run.assignment.value.role === 'reviewer' && nodeId === 'review') ? {
+      reviewBudget: { defaultAgents: 3, smallChangeAgents: [0, 2], highRiskAgents: [4, 5], scope: 'whole-review-round',
+        nestedDelegation: false, dispatchOwner: 'host', aggregation: 'caller' },
+    } : {}),
     ...(isRoleRun(run) ? { assignment: run.assignment.value } : {}),
     messages: run.history.flatMap(entry => {
       if (entry.event === 'record' && affected.has(entry.nodeId) && entry.result.evaluation?.passed === false) {

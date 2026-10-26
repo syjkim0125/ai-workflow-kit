@@ -22,8 +22,8 @@ These are skill invocation arguments, not Graph CLI flags. Invocation uses the h
 | Team lead: plan approved work | `ce-plan` with an explicit caller-owned pipeline instruction and the approved Story | Plan, requirement links, confidence/review result and unresolved blockers |
 | Developer: implement the assigned approved task | `superpowers:test-driven-development`; `superpowers:systematic-debugging` for unexplained failures | Changed files, applicable RED/GREEN evidence, diagnosis and blockers; return to the assigned graph |
 | Verification owner: verify the submitted revision | `superpowers:verification-before-completion` | Fresh relevant commands, results, revision and limits |
-| Developer: simplify after related GREEN checks | `ce-simplify-code` scoped to the assigned changes | Behavior-preserving changes or a justified no-change result, then affected checks |
-| Reviewer: assess the submitted change | `ce-code-review mode:agent base:<base-ref> plan:<plan-path>` | Review JSON and evidence, including scope, verdict, findings and coverage limits |
+| Developer: simplify after related GREEN checks | Inline simplification criteria in `execution.md`; compatible `ce-simplify-code` only within the shared budget below | Behavior-preserving changes or a justified no-change result, then affected checks |
+| Reviewer: assess the submitted change | Budget-compatible `ce-code-review mode:agent base:<base-ref> plan:<plan-path>`, otherwise direct bounded review | Findings and evidence, including scope, verdict and coverage limits |
 | Delivery owner: capture proven learning | Namespaced CE `ce-compound mode:non-interactive <verified-context>` when supported | One useful learning or an explicit no-lesson outcome |
 
 For `ce-plan`, state: "Pipeline context: return the plan and review result to this workflow; the caller owns execution, human gates and the next action. Return unresolved decisions as blockers." Do not invent a `mode:pipeline` argument for a version that does not document it. Reuse an existing plan; a small reversible task can use the kit's minimal plan and direct implementation without creating a CE plan artifact solely to invoke `ce-work`.
@@ -46,6 +46,17 @@ Planning may already include document review. Reuse that receipt; a graph valida
 
 Office/host assigns roles, runs agents, transports messages and owns global execution limits. All skill-internal workers and correction attempts consume those same limits. Use permitted inline execution when the selected skill supports it; otherwise return a capability/budget blocker. Never claim an inline self-review was an independent reviewer. Do not weaken an independence requirement to fit a budget or force every review to the heaviest depth.
 
+### One review allocation
+
+Before dispatch, the caller chooses the round's allocation and records the reason in existing review evidence. Graph review task input supplies `reviewBudget`: **default 3 agents**, 0–2 for small changes, 4–5 for specific high-risk seams. Host/user limits take precedence, including zero delegation. This is an operating default, not a measured optimum or a CLI-enforced scheduler.
+
+- Normal round: combine correctness/security, tests/spec/runtime evidence, and maintainability/performance into three bounded assignments. Give each only the relevant diff, requirements and evidence references.
+- Docs/mechanical changes: 0–1; a small behavioral change: 1–2. Add a specialist only for a named uncovered risk such as authorization or migration recovery; state why 4–5 is needed.
+- Count **all** simplify/review/validation/report workers in the same round. Main performs simplification and aggregation by default. Reviewers return findings directly and do not re-delegate. New rounds need changed code or a named unresolved concern; unchanged work does not earn another full panel.
+- Check the installed skill before invoking it. `mode:agent` selects output, not a worker cap. If its internal fan-out cannot fit the allocation, use the direct bounded review instead of launching it and hoping. Do not invent `max_reviewers` flags. Preserve any required independent-review coverage; report a gap if host limits prevent it.
+
+The host enforces actual dispatch counts. Graph's ready-node width is a separate DAG limit and does not cap nested skill workers. Model choice follows `model-selection.md`; extra personas on one model are not the multi-model evidence of Pstack `interrogate`. Do not automatically append interrogate to CE review.
+
 The Reviewer reports fixes to the Developer; do not use `apply:local` on a read-only review assignment. "Read-only" concerns product changes; allow required review artifacts only in the designated output/scratch paths. Do not invoke CE shipping, PR, babysitting, or external-model routes merely because they are installed. A user-approved route still applies within its authorized scope.
 
 ## Superpowers coexistence
@@ -56,4 +67,4 @@ Use Superpowers' focused TDD, systematic-debugging and verification skills by de
 
 This reference is host instruction policy, not an SDK bridge or a code-enforced Office adapter. The kit installs this policy, not CE or Superpowers. Confirm capabilities in each actual agent environment; neither plugin's presence in the current developer session proves it is available in Office workers.
 
-Pstack is selectively vendored reference material, pinned with MIT notices in `pstack/provenance.json`. Read `verification.md` at verification setup/execution only. Do not invoke full Pstack setup/poteto-mode, create another registered skill by default, or nest its shipping/team workflow. The kit retains Graph/gate ownership. Retrieve only relevant `docs/solutions/` lessons, and capture verified lessons once after review and fresh checks.
+Pstack's principles and creation guide are selectively vendored with MIT notices in `pstack/provenance.json`. Read `verification.md` at setup/execution: discover/reuse the project's verification skill or guide, bind it through profile `recipe`, and drive its real journeys under SP's fresh-evidence procedure. No second orchestration or duplicate verification pass. Retrieve relevant `docs/solutions/` lessons and capture verified learning once after review and fresh checks.

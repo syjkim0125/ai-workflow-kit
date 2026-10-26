@@ -66,3 +66,16 @@ test('snapshot fingerprints canonical Story requirements without mutable gate me
   await f.put('story.md', '# Story: test\nStatus: Approved\n## MUST\n- M1. Different.\n');
   assert.notEqual((await f.snapshot({ story: 'story.md' })).fingerprint, first.fingerprint);
 });
+
+test('required inputs include Git-ignored recipes without bypassing non-Git input declarations', async t => {
+  const f = await fixture(t, true);
+  await f.put('.gitignore', 'verify/\n');
+  await f.put('verify/SKILL.md', 'Drive the CLI.\n');
+  const options = { inputs: undefined, additionalInputs: ['verify/SKILL.md'] };
+  const first = await f.snapshot(options);
+  await f.put('verify/SKILL.md', 'Drive valid and invalid CLI inputs.\n');
+  assert.notEqual((await f.snapshot(options)).fingerprint, first.fingerprint);
+  const nonGit = await fixture(t);
+  await assert.rejects(nonGit.snapshot({ inputs: undefined, additionalInputs: ['app.mjs'] }), /inputs.*non.git|non.git.*inputs/i);
+  await assert.rejects(f.snapshot({ additionalInputs: ['.ai-workflow/evidence/input'] }), /output|evidence/i);
+});

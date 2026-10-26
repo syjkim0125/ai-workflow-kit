@@ -91,9 +91,10 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
 
   const snapshot = async run => {
     const text = await readProjectFile(root, run.story.path);
-    const extra = run.verification ? [PROFILE, ...(run.verification.value.requiresG3 ? [run.verification.value.design] : [])] : [];
+    const extra = run.verification ? [PROFILE, ...(run.verification.recipe ? [run.verification.recipe.path] : []),
+      ...(run.verification.value.requiresG3 ? [run.verification.value.design] : [])] : [];
     const runFile = command === 'init' || command === 'init-role' ? values[1] : values[0];
-    return createSnapshot({ root, inputs: run.verification?.value.inputs ? [...run.verification.value.inputs, ...extra] : undefined,
+    return createSnapshot({ root, inputs: run.verification?.value.inputs, additionalInputs: extra,
       story: run.story.path, exclude: [runFile, `${runFile}.lock`, ...['G1', 'G3', 'G4'].map(gate => approvalPath(text, gate)).filter(Boolean)] });
   };
   const status = async run => {

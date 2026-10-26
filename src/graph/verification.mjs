@@ -27,20 +27,43 @@ export async function verificationProfile(root, ids) {
     if (!value.checks.some(check => check.covers.includes(id))) throw new Error(`Verification profile does not cover ${id}.`);
   }
   if (value.requiresG3 && (typeof value.design !== 'string' || !value.design.trim())) throw new Error('G3 requires a design artifact path.');
-  return { value, fingerprint: digest(JSON.stringify(value)) };
+  let recipe;
+  if (value.recipe !== undefined) {
+    const bytes = await fs.readFile(await projectFile(root, value.recipe));
+    if (!bytes.toString('utf8').trim()) throw new Error('Verification recipe must not be empty.');
+    recipe = { path: value.recipe, hash: digest(bytes) };
+  }
+  return { value, fingerprint: digest(JSON.stringify(value)), ...(recipe ? { recipe } : {}) };
 }
 
 async function execute(argv, root, timeoutMs) {
   return new Promise(resolve => {
     const stdout = [], stderr = [];
-    let bytes = 0, timedOut = false, truncated = false, spawnError, killer;
+    let bytes = 0, timedOut = false, truncated = false, spawnError, killer, settled = false;
     const child = spawn(argv[0], argv.slice(1), { cwd: root, shell: false, detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'] });
     const kill = signal => {
       try { process.platform === 'win32' ? child.kill(signal) : process.kill(-child.pid, signal); }
       catch (error) { if (error.code !== 'ESRCH') spawnError ??= error.message; }
     };
-    const stop = () => { kill('SIGTERM'); killer ??= setTimeout(() => kill('SIGKILL'), 500); };
+    const finish = (exitCode, signal, outputIncomplete = false) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer); clearTimeout(killer);
+      if (process.platform !== 'win32' && child.pid) kill('SIGKILL');
+      if (outputIncomplete) { child.stdout.destroy(); child.stderr.destroy(); child.unref(); }
+      resolve({ exitCode, signal, timedOut, truncated, outputIncomplete, ...(spawnError ? { spawnError } : {}), stdout: Buffer.concat(stdout), stderr: Buffer.concat(stderr) });
+    };
+    const stop = () => {
+      if (settled) return;
+      kill('SIGTERM');
+      // An escaped descendant may keep the pipes open after our process group exits.
+      killer ??= setTimeout(() => {
+        kill('SIGKILL');
+        finish(child.exitCode, child.signalCode, true);
+      }, 500);
+    };
     const capture = target => chunk => {
+      if (settled) return;
       bytes += chunk.length;
       if (bytes <= 10 * 1024 * 1024) target.push(chunk);
       else { truncated = true; stop(); }
@@ -51,11 +74,7 @@ async function execute(argv, root, timeoutMs) {
     // Kill descendants belonging to this command when the parent exits, too.
     child.on('exit', () => { if (process.platform !== 'win32') stop(); });
     const timer = setTimeout(() => { timedOut = true; stop(); }, timeoutMs);
-    child.on('close', (exitCode, signal) => {
-      clearTimeout(timer); clearTimeout(killer);
-      if (process.platform !== 'win32' && child.pid) kill('SIGKILL');
-      resolve({ exitCode, signal, timedOut, truncated, ...(spawnError ? { spawnError } : {}), stdout: Buffer.concat(stdout), stderr: Buffer.concat(stderr) });
-    });
+    child.on('close', (exitCode, signal) => finish(exitCode, signal));
   });
 }
 
@@ -95,7 +114,7 @@ export async function runVerification({ root, runFile, nodeId, token, checkId, v
       || run.state.nodes[nodeId]?.status !== 'running' || token !== taskToken(run, nodeId)) throw new Error('Verification requires the current running verification task token.');
     const check = run.verification.value.checks.find(check => check.id === checkId);
     if (!check) throw new Error('Unknown verification check.');
-    if (run.state.nodes[nodeId].executions?.[checkId]) throw new Error('Check already executed in this attempt; reset before retrying.');
+    if (Object.hasOwn(run.state.nodes[nodeId].executions ?? {}, checkId)) throw new Error('Check already executed in this attempt; reset before retrying.');
     const before = (await snapshot(run)).fingerprint;
     if (before !== run.state.nodes[nodeId].snapshot) throw new Error('Verification snapshot is stale; reset affected work.');
     run.state.nodes[nodeId].executions ??= {};
@@ -108,6 +127,7 @@ export async function runVerification({ root, runFile, nodeId, token, checkId, v
   const startedAt = new Date().toISOString();
   const result = await execute(check.argv, root, check.timeoutMs ?? 30000);
   const receipt = { version: 1, runId: reserved.runId, storyHash: reserved.story.fingerprint, nodeId, token, checkId, covers: check.covers,
+    ...(reserved.verification.recipe ? { recipe: reserved.verification.recipe } : {}),
     argv: check.argv, cwd: '.', startedAt, finishedAt: new Date().toISOString(),
     ...result, stdout: `${directory}/stdout.log`, stderr: `${directory}/stderr.log`,
     stdoutHash: digest(result.stdout), stderrHash: digest(result.stderr),
@@ -115,7 +135,7 @@ export async function runVerification({ root, runFile, nodeId, token, checkId, v
   for (const stream of ['stdout', 'stderr']) await fs.writeFile(await projectFile(root, receipt[stream]), result[stream], { flag: 'wx', mode: 0o600 });
   try { receipt.snapshotAfter = (await snapshot(reserved)).fingerprint; }
   catch (error) { receipt.snapshotError = error.message; }
-  receipt.passed = receipt.exitCode === 0 && !receipt.signal && !receipt.timedOut && !receipt.truncated && !receipt.spawnError
+  receipt.passed = receipt.exitCode === 0 && !receipt.signal && !receipt.timedOut && !receipt.truncated && !receipt.outputIncomplete && !receipt.spawnError
     && !receipt.snapshotError && receipt.snapshotBefore === receipt.snapshotAfter;
   const file = `${directory}/receipt.json`;
   await fs.writeFile(await projectFile(root, file), `${JSON.stringify(receipt, null, 2)}\n`, { flag: 'wx', mode: 0o600 });

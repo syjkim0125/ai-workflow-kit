@@ -14,6 +14,8 @@ Standalone use has the same local rules. Codex/Claude runs the CLI and tools. No
 
 Every role follows [model-selection.md](model-selection.md) before model dispatch. The host discovers and invokes permitted models; the role name does not fix a model tier. Model selection adds no assignment fields or CLI flags and cannot bypass local graph checks.
 
+Task `input.verification` supplies the selected project recipe path/hash and checks relevant to this node's V scope. Read the recipe and only relevant feature entries; the CLI runs profile argv, not Markdown. Delivery `workflow-review` and role `review` also receive `input.reviewBudget`: default 3 with adaptation and no nested delegation. Apply the shared round allocation in `skill-integration.md`; Office/host enforces actual worker counts.
+
 If PM and Developer disagree about completion, return the exact requirement and evidence to Office. Resolve the shared criteria there. A changed requirement or assignment starts a new run; do not silently edit the bound source or reuse old completion evidence.
 
 ## Assignment schema and initialization

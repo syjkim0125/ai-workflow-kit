@@ -100,3 +100,34 @@ test('snapshot collection failure still preserves the actual process logs and fa
   assert.match(receipt.snapshotError, /symlink/);
   assert.match(await fs.readFile(path.join(f.root, receipt.stderr), 'utf8'), /observed before unsafe link/);
 });
+
+test('an escaped descendant holding output pipes cannot delay completion indefinitely', { skip: process.platform === 'win32' }, async t => {
+  const f = await ready(t, `import {spawn} from 'node:child_process';
+    import fs from 'node:fs';
+    const child=spawn(process.execPath,['-e','setTimeout(()=>{},3500)'],{detached:true,stdio:'inherit'});
+    fs.writeFileSync('.ai-workflow/evidence/escaped.pid',String(child.pid));
+    child.unref();`, { timeoutMs: 1000 });
+  let pid;
+  t.after(() => {
+    try { if (pid) process.kill(pid, 'SIGKILL'); }
+    catch (error) { if (error.code !== 'ESRCH') throw error; }
+  });
+  const result = f.ok('verify', 'run.json', f.task.id, f.task.token, 'addition').verification;
+  pid = Number(await fs.readFile(path.join(f.root, '.ai-workflow/evidence/escaped.pid'), 'utf8'));
+  const duration = Date.parse(result.finishedAt) - Date.parse(result.startedAt);
+  assert.ok(duration < 2500, `completion took ${duration}ms despite bounded cleanup`);
+  assert.equal(result.outputIncomplete, true);
+  assert.equal(result.passed, false);
+  assert.equal((await f.result(f.task)).status, 1);
+});
+
+test('inherited property names are valid check IDs regardless of execution order', async t => {
+  const ids = ['addition', 'toString', 'hasOwnProperty'];
+  const f = await graphProject(t, { profile: { checks: ids.map(id => ({ id, covers: ['V1'], argv: [process.execPath, 'check.mjs'] })) } });
+  f.ok('init', '-', 'run.json', 'story.md');
+  await f.record('implement'); await f.record('workflow-review');
+  const task = f.start('workflow-verify');
+  for (const id of ids) assert.equal(f.ok('verify', 'run.json', task.id, task.token, id).verification.passed, true);
+  assert.equal((await f.result(task)).status, 0);
+  assert.equal(f.ok('status', 'run.json').action, 'g4');
+});

@@ -1,6 +1,7 @@
 {
   "version": 1,
-  "inputs": ["examples/verification/app.mjs", "examples/verification/prove.mjs"],
+  "recipe": "examples/verification/verify-cli/SKILL.md",
+  "inputs": ["examples/verification/app.mjs", "examples/verification/prove.mjs", "examples/verification/verify-cli"],
   "checks": [{"id":"addition", "covers":["V1"], "argv":["node","examples/verification/prove.mjs"]}],
   "requiresG3": false
 }
