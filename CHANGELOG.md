@@ -1,5 +1,22 @@
 # Changelog
 
+## 5.0.1 — 2026-10-26
+
+### Verification
+
+- Reuse project verification skills/guides across Stories through optional profile `recipe`. Bind its path and byte hash to task inputs and execution receipts; recipe edits invalidate prior review/verification.
+- Include the profile, recipe and required design in snapshots even when Git-ignored. Non-Git projects still require explicit product inputs; declare helper and feature-map inputs separately.
+- Add a runnable project verification skill and feature map following Pstack's Launch/Doctor/Drive/Evidence/Cleanup procedure. SP inspects the same Graph execution's fresh evidence, without another workflow or duplicate verification pass.
+
+### Review
+
+- Default normal review to three workers, adapt to 0–2 for small changes or 4–5 for named risks, and count internal workers in the same round. Main simplifies/aggregates; host dispatch enforces the budget.
+
+### Fixed
+
+- Bound output collection after termination grace when an escaped descendant keeps output pipes open. Incomplete collection fails verification.
+- Accept valid check IDs such as `toString` and `hasOwnProperty` without mistaking inherited object properties for previous executions.
+
 ## 5.0.0 — 2026-10-23
 
 ### Breaking changes

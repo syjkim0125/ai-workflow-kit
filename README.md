@@ -1,16 +1,23 @@
 # AI Workflow Kit
 
-Project verification skills/guides can be linked with profile `recipe`; tasks and receipts carry the file's path/hash, and edits invalidate old evidence. Reviews default to three workers, with smaller/larger allocations based on scope and risk; host dispatch enforces the shared round budget. See [stage integration](skills/workflow/references/skill-integration.md).
-
-Version 5.0 uses persisted run format v3 with runner-issued verification receipts. Pstack's MIT verification principles/recipe guide are selectively vendored at a fixed commit; the kit remains the workflow owner. Configure `.ai-workflow/verification.json` and bound G1/G3 records using [the verification guide](skills/workflow/references/verification.md). `graph verify` executes real checks by ID, and code changes invalidate review/verification. `graph delivery` additionally requires a real G4 bound to the final snapshot. Document checks alone cannot establish delivery. Legacy v1/v2 runs are read-only (`upgrade-required`); stop old workers, retain evidence, then rerun review/checks in v3 without evading retry limits. This is a breaking change from 4.x. See [the runnable CLI example](examples/verification/README.md).
-
 [한국어](https://github.com/syjkim0125/ai-workflow-kit/blob/main/README.ko.md) · English
 
 **Give AI a task. Keep the work ordered, checked, and approved by a person.**
 
 AI Workflow Kit adds a work process to Codex and Claude Code. It defines what to build, tracks each task, checks results, and records useful lessons.
 
-Version 4 includes a graph runner. A graph is a list of tasks and the rules for which task runs next.
+A graph runner tracks the task list and the rules for which task runs next.
+
+## What's new in 5.0.1
+
+- **Reuse project verification skills across Stories.** Link an existing skill or guide with profile `recipe`. Task inputs and execution receipts retain its path/hash; recipe and declared feature-map edits invalidate old evidence. Create a procedure only when existing coverage is insufficient.
+- **Drive the real product with Pstack's verification procedure.** The example covers Launch, Doctor, Drive, Evidence and Cleanup. Superpowers inspects that same Graph execution's fresh results; the kit keeps workflow ownership. See the [runnable example](examples/verification/README.md).
+- **Keep review work bounded.** Default to three workers, reduce to 0–2 for small changes, and expand to 4–5 for named risks. Main simplifies and aggregates; nested workers share the same budget. The host enforces actual dispatch limits.
+- **Fix verification edge cases.** Incomplete output collection fails after bounded cleanup when an escaped child keeps pipes open. Valid check IDs such as `toString` and `hasOwnProperty` work regardless of execution order.
+
+To update an existing project, run `npx @pazmo/ai-workflow-kit@latest init`, then `npx @pazmo/ai-workflow-kit@latest doctor`. Open a new Codex task or Claude Code session. User-edited managed files are preserved and reported; inspect them for changes that need applying manually.
+
+**Upgrading from 4.x:** 5.x uses persisted run format v3 and runner-issued receipts. Configure `.ai-workflow/verification.json` and Story-bound G1/G3 records using the [verification guide](skills/workflow/references/verification.md). Legacy v1/v2 runs are read-only (`upgrade-required`): stop old workers, preserve evidence/attempt history, and rerun review/checks in v3. `graph delivery` also requires a real G4 bound to the final snapshot. See [all changes](CHANGELOG.md).
 
 ## Start
 
@@ -114,8 +121,8 @@ The kit controls the overall process. Available skills handle individual steps.
 | Plan | CE `ce-plan` |
 | Implement with tests | Superpowers `test-driven-development` |
 | Diagnose a failure | Superpowers `systematic-debugging` |
-| Simplify after tests pass | CE `ce-simplify-code` |
-| Review | CE `ce-code-review mode:agent` |
+| Simplify after tests pass | Main performs the pass; optional CE `ce-simplify-code` within the shared review budget |
+| Review | Bounded CE `ce-code-review mode:agent` or direct review within the same budget |
 | Run fresh final checks | Superpowers `verification-before-completion` |
 | Save a proven lesson | CE `ce-compound` |
 
@@ -214,6 +221,6 @@ These checks do not prove that a live agent follows every step. Also run a small
 - [Graph verification](https://github.com/syjkim0125/ai-workflow-kit/blob/main/docs/graph-verification.md)
 - [Office handoff](https://github.com/syjkim0125/ai-workflow-kit/blob/main/docs/agent-office-handoff.md)
 - [Skill integration](https://github.com/syjkim0125/ai-workflow-kit/blob/main/skills/workflow/references/skill-integration.md)
-- [Changes in 4.0.0](https://github.com/syjkim0125/ai-workflow-kit/blob/main/CHANGELOG.md)
+- [Changelog](https://github.com/syjkim0125/ai-workflow-kit/blob/main/CHANGELOG.md)
 
 MIT · [JongKun Kim](https://github.com/syjkim0125)
