@@ -1,5 +1,11 @@
 # Changelog
 
+## 5.0.3 — 2026-11-02
+
+### Fixed
+
+- The verification example prints plain output when a terminal forces color (`FORCE_COLOR`). Before this, `npm test` and the publish-time test run failed in color terminals.
+
 ## 5.0.2 — 2026-11-02
 
 ### Intake
