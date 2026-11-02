@@ -55,6 +55,21 @@ test('intake limits questions and surfaces assumptions', async () => {
   assert.match(intake, /MUST.*SHOULD.*OUT/is);
 });
 
+test('risk lenses shape intake before G1 and keep migration choices blocking', async () => {
+  const skill = await read('skills/workflow/SKILL.md');
+  const intakeRoute = skill.split('\n').find((line) => line.includes('No approved Story'));
+  assert.match(intakeRoute, /domain-risks\.md/);
+  const intake = await read('skills/workflow/references/intake.md');
+  assert.match(intake, /domain-risks\.md/);
+  assert.match(intake, /Payment\/money.*migration.*`OPEN BLOCKING`, never `ASSUMED`/is);
+  const risks = await read('skills/workflow/references/domain-risks.md');
+  const migration = risks.split(/^## /m).find((section) => /^Data or system migration/.test(section));
+  assert.ok(migration, 'migration lens covers system switches');
+  for (const item of [/coexist/, /rollback trigger/, /fails open/, /closed/, /disagree/, /deploy order/]) {
+    assert.match(migration, item);
+  }
+});
+
 test('execution composes focused Superpowers and CE stages without duplicating ce-plan', async () => {
   const execution = await read('skills/workflow/references/execution.md');
   assert.match(execution, /ce-plan/);

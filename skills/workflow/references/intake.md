@@ -11,6 +11,7 @@ Derive before asking: actor, desired outcome, terms/entities, state change, inva
 - Ask **only blocking** unknowns that change behavior, ownership, or failure semantics.
 - Ask one decision per turn by default; **at most three** independent, closely related questions.
 - Stop after **two question rounds**. Draft with safe defaults labeled `ASSUMED`; keep unsafe gaps as `OPEN BLOCKING`.
+- Apply the matching lenses in `domain-risks.md` before drafting. In a Payment/money or Data or system migration Story, a lens item that changes behavior and that neither the requirement nor a human settled is `OPEN BLOCKING`, never `ASSUMED`; reasonable people could pick either side.
 - Never ask implementation or **HOW** questions before the contract is clear. Database, queue, lock, and file choices belong to planning.
 - Offer a concrete default rather than an open questionnaire when a conventional safe choice exists.
 
