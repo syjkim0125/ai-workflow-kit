@@ -27,3 +27,11 @@ test('verification example drives the actual CLI success and failure path', () =
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /PASS CLI/);
 });
+
+test('verification example output stays plain when a terminal forces color', () => {
+  const env = { ...process.env, FORCE_COLOR: '1' };
+  delete env.NO_COLOR;
+  const result = spawnSync(process.execPath, ['examples/verification/prove.mjs'], { cwd: root, encoding: 'utf8', env });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /PASS CLI/);
+});
