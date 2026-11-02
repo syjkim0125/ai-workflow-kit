@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Intake
+
+- Read the domain risk lenses during intake, before G1, instead of only after approval.
+- In Payment/money and data or system migration Stories, an unsettled lens item that changes behavior is `OPEN BLOCKING`, never `ASSUMED`.
+- Extend the migration lens to system, vendor and provider switches: coexistence of old and new paths, cutover and rollback trigger, fail open or closed, which side wins when data disagree, and deploy order across teams.
+
 ## 5.0.1 — 2026-10-26
 
 ### Verification
