@@ -8,7 +8,11 @@ AI Workflow Kit adds a work process to Codex and Claude Code. It defines what to
 
 A graph runner tracks the task list and the rules for which task runs next.
 
-## What's new in 5.0.1
+## What's new in 5.0.2
+
+- **Surface risky choices before G1.** Intake now reads the domain risk lenses before G1, not only after approval. In payment and data or system migration Stories, a lens item that the requirement or a human has not settled stays `OPEN BLOCKING` instead of being labeled `ASSUMED`. Examples: how long old and new paths coexist, the rollback trigger, whether a failure fails open or closed, which data wins when two sources disagree, and deploy order across teams.
+
+5.0.1 added:
 
 - **Reuse project verification skills across Stories.** Link an existing skill or guide with profile `recipe`. Task inputs and execution receipts retain its path/hash; recipe and declared feature-map edits invalidate old evidence. Create a procedure only when existing coverage is insufficient.
 - **Drive the real product with Pstack's verification procedure.** The example covers Launch, Doctor, Drive, Evidence and Cleanup. Superpowers inspects that same Graph execution's fresh results; the kit keeps workflow ownership. See the [runnable example](examples/verification/README.md).
