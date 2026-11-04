@@ -6,12 +6,12 @@ If a host such as Agent Office delegates a started kit node, use its run/token a
 
 ## Stage integration
 
-Read `skill-integration.md` before selecting skills. Prefer Superpowers focused implementation/verification skills and CE planning/simplify/review/learning modes; keep one workflow owner. Existing approvals and the assigned role/task bound each invocation. Use the same evidence requirements with a disclosed direct fallback when a compatible skill is unavailable.
+Read `skill-integration.md` before selecting skills. Prefer Superpowers focused planning/implementation/review/verification skills and CE learning capture; CE planning, simplify and review modes are explicit alternatives. Keep one workflow owner. Existing approvals and the assigned role/task bound each invocation. Use the same evidence requirements with a disclosed direct fallback when a compatible skill is unavailable.
 
 ## Size first
 
 - **Small/reversible:** one reviewable outcome, local effect. Record `Plan source: N/A — small and reversible`; use test-first implementation and review.
-- **Normal:** use `ce-plan` in caller-owned pipeline context → Superpowers focused TDD/diagnosis → inline simplification → bounded review when compatible skills are available; simplify only after related tests pass. Apply the shared review allocation in `skill-integration.md` (default 3, adaptive 0–5). Otherwise perform equivalent repository-grounded stages directly.
+- **Normal:** use `superpowers:writing-plans` under the caller-owned contract → Superpowers focused TDD/diagnosis → inline simplification → bounded review with `superpowers:requesting-code-review` or direct review when compatible skills are available; simplify only after related tests pass. Apply the shared review allocation in `skill-integration.md` (default 3, adaptive 0–5). Otherwise perform equivalent repository-grounded stages directly.
 - **High-risk/hard to reverse:** add G3. Present the key design decision, alternatives, invariant, rollback/recovery path, and evidence plan; end the turn for human approval before work. Save that decision to `docs/understanding/<slug>-plan.md` and record `Understanding gate (G3): <artifact> · <YYYY-MM-DD> · Check-in: accepted`.
 
 High-risk signals: money/payment, authentication/authorization, concurrency, destructive migration, sensitive data, data loss, and irreversible external side effects.
@@ -37,7 +37,7 @@ For user-authorized optional Jira publication after G1, follow `jira.md`. Withou
    Automatically initialize/resume the installed graph as described in `graph-engineering.md`. Use `-` for small work; otherwise supply the reviewed task DAG. The CLI adds final review and fresh verification. Complete any required G3 before implementation nodes run.
 3. Use compatible `superpowers:test-driven-development` for implementation and `superpowers:systematic-debugging` for unexplained failures. For new behavior or a bug fix, demonstrate RED before production code, then GREEN after the minimum change. Proceed when related tests pass.
 4. Refactor while green: main performs the simplification pass below. Use `ce-simplify-code` only when its actual dispatch fits the same round's allocation; otherwise apply the criteria directly.
-5. Review the final diff against the Story, failure paths and testing limits. Allocate reviewers before dispatch using `skill-integration.md`; use compatible bounded `ce-code-review mode:agent` or direct review. Resolve material findings and state independence/coverage limits. Do not apply fixes from a read-only review assignment.
+5. Review the final diff against the Story, failure paths and testing limits. Allocate reviewers before dispatch using `skill-integration.md`; use compatible `superpowers:requesting-code-review` or direct review, and bounded `ce-code-review mode:agent` only when the user or host selects it. Resolve material findings and state independence/coverage limits. Do not apply fixes from a read-only review assignment.
 6. Apply compatible `superpowers:verification-before-completion`, using Graph `verify` on the current started token to execute the configured checks. Pstack recipe material defines the user journeys; SP governs fresh execution and evidence inspection. Read receipts and raw logs from that same execution; do not run a second verification pass solely to satisfy both names. Revalidate affected behavior after simplify/review edits before G4. If review edits affect previously simplified code, recheck only the affected scope; do not restart the whole pipeline automatically. Broaden tests when impact warrants it; never claim old results cover new edits.
 7. Record the verified evidence in the graph, run its `status` command, and require `action: g4` before continuing to `understanding-gate.md`; passing tests alone are not completion.
 
@@ -55,7 +55,7 @@ For user-authorized optional Jira publication after G1, follow `jira.md`. Withou
 
 Graph execution is installed and used automatically after G1. Small changes use the built-in minimal plan without a separate plan document; split larger work only where dependency tracking or independent verification helps. Keep the size-based route above: no planning ceremony for a small/reversible change.
 
-Planning is repository-grounded planning → review → deterministic validation. Research code, tests and risks as needed; do not require separate analyzer, advocate or mediator agents. Reuse an existing `ce-plan` result. The host performs agent/tool work and the installed CLI owns readiness, evidence records and recovery; never create a second nested orchestration pipeline for the same task.
+Planning is repository-grounded planning → review → deterministic validation. Research code, tests and risks as needed; do not require separate analyzer, advocate or mediator agents. Reuse an existing plan, whichever skill produced it. The host performs agent/tool work and the installed CLI owns readiness, evidence records and recovery; never create a second nested orchestration pipeline for the same task.
 
 The execution graph does not replace human gates. G1 still approves scope before planning/implementation, G3 still protects high-risk choices, and G4 still requires prediction-before-reveal. Superpowers focused skills and CE stage skills provide node behavior as mapped in `skill-integration.md`; the graph owns dependency and retry structure rather than copying those skills.
 

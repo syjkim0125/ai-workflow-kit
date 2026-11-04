@@ -8,14 +8,14 @@ const flows = {
   ],
   'team-lead': [
     ['investigate', 'read', 'Inspect the repository, dependencies and related lessons.', 'Ground the plan in source and approved requirements.'],
-    ['plan', 'write', 'Plan the assigned scope and propose ownership and dependencies.', 'Use caller-owned CE planning; return the plan without dispatching another full workflow.'],
+    ['plan', 'write', 'Plan the assigned scope and propose ownership and dependencies.', 'Use the caller-owned planning contract in skill-integration; return the plan without dispatching another full workflow.'],
   ],
   developer: [
     ['implement', 'write', 'Implement the assigned scope using focused TDD and diagnosis.', 'Record applicable RED/GREEN evidence; simplify while green.'],
     ['self-check', 'read', 'Verify the produced revision against assigned requirements.', 'Record fresh checks, producedRevision and limitations; independent review remains separate.'],
   ],
   reviewer: [
-    ['review', 'read', 'Review the assigned revision using CE review in agent mode.', 'Return pass or needs_changes, reviewedRevision and evidence; do not edit product code.'],
+    ['review', 'read', 'Review the assigned revision with the bounded review in skill-integration.', 'Return pass or needs_changes, reviewedRevision and evidence; do not edit product code.'],
   ],
 };
 

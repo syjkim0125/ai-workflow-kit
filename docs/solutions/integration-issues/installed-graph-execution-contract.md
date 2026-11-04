@@ -1,7 +1,7 @@
 ---
 title: Installed graph execution needs durable task identity and dispatch state
 date: 2026-09-21
-last_updated: 2026-10-26
+last_updated: 2026-11-04
 category: integration-issues
 module: Graph runtime and installer
 problem_type: integration_issue
@@ -96,6 +96,8 @@ Two regressions were reproduced during implementation and fixed before delivery:
 External feedback uses a current run token and evidence, resets only the affected subgraph and preserves attempt counts. Keep conversation evidence immutable across resets. Test a waiting reader alongside an independently finishing reader so conversation support does not break dependency joins.
 
 The complete suite passed **139/139** after these fixes. This proves local installed CLI behavior for both hosts, not live Office collaboration or actual user acceptance. See [role contract](../../../skills/workflow/references/role-graphs.md) and [verification](../../understanding/role-graph-verification.md).
+
+Role node text is part of that binding. `graphFingerprint` hashes the whole graph JSON (`src/graph/task-graph.mjs`), including each node's description and verify text, and `assertRoleRun` rebuilds the role graph from `src/graph/roles.mjs` and compares fingerprints. Rewording a role node therefore makes every role run started on the old text fail with `Role assignment or graph changed.` Keep role text tool-neutral (point at `skill-integration.md` rather than naming a skill) so routing changes do not touch it, and when the text must change, say in the CHANGELOG that in-flight role runs need restarting. The 2026-11-04 routing change did both; see [stage skill routing](../tooling-decisions/stage-skill-routing-superpowers-default.md).
 
 ## Related Issues and Evidence
 

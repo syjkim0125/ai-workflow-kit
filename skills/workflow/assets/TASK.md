@@ -1,7 +1,7 @@
 # Task: <one reviewable outcome>
 Readiness: Draft
 Story: <link or ID>
-Plan source: <ce-plan path | approved plan path | N/A — small and reversible>
+Plan source: <plan path | N/A — small and reversible>
 
 ## Outcome
 <One independently reviewable result>

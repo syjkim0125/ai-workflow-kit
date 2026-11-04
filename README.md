@@ -122,15 +122,15 @@ The kit controls the overall process. Available skills handle individual steps.
 
 | Step | Preferred skill |
 |---|---|
-| Plan | CE `ce-plan` |
+| Plan | Superpowers `writing-plans`, returned to the kit (caller-owned) |
 | Implement with tests | Superpowers `test-driven-development` |
 | Diagnose a failure | Superpowers `systematic-debugging` |
 | Simplify after tests pass | Main performs the pass; optional CE `ce-simplify-code` within the shared review budget |
-| Review | Bounded CE `ce-code-review mode:agent` or direct review within the same budget |
+| Review | Superpowers `requesting-code-review` or direct review within the same budget |
 | Run fresh final checks | Superpowers `verification-before-completion` |
 | Save a proven lesson | CE `ce-compound` |
 
-A Developer performs its assigned task. It does not restart the full Superpowers or CE process. CE `ce-work mode:return-to-caller` is an alternative when explicitly selected, not a second implementation pass.
+A Developer performs its assigned task. It does not restart the full Superpowers or CE process. CE `ce-work mode:return-to-caller` is an alternative when explicitly selected, not a second implementation pass. CE `ce-plan` and bounded `ce-code-review mode:agent` are also explicit alternatives.
 
 **These plugins are not bundled.** The agent checks which skills are installed. If a skill is missing, it follows the kit's direct procedure and reports that choice.
 
