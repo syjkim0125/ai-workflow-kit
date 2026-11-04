@@ -30,7 +30,7 @@ for (const host of ['codex', 'claude']) {
   await fs.access(skill);
   const pstack = path.join(path.dirname(skill), 'references/pstack');
   const provenance = JSON.parse(await fs.readFile(path.join(pstack, 'provenance.json')));
-  assert.equal(provenance.commit, '0c3333f09655d7933919795fbf4f9946d62b6f77');
+  assert.equal(provenance.commit, '180939f9e59cc9512e9330649175763e81fad16f');
   for (const file of provenance.files) {
     assert.equal(createHash('sha256').update(await fs.readFile(path.join(pstack, file.file))).digest('hex'), file.sha256);
   }

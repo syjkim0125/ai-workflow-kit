@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Pstack provenance names the official `cursor/plugins` repository (`pstack/` at `180939f`) instead of the `backnotprop/pstack` mirror. The bundled files are unchanged. `create-verification-skill.md` records its upstream hash and its harness-neutral skill-folder change.
+
 ## 5.0.3 — 2026-11-02
 
 ### Fixed
