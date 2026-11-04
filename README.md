@@ -128,6 +128,7 @@ The kit controls the overall process. Available skills handle individual steps.
 
 | Step | Preferred skill |
 |---|---|
+| Clarify the request | The kit's own intake; CE `ce-brainstorm` only for an open idea (a goal with no concrete change yet) or when selected |
 | Plan | Superpowers `writing-plans`, returned to the kit (caller-owned) |
 | Implement with tests | Superpowers `test-driven-development` |
 | Diagnose a failure | Superpowers `systematic-debugging` |

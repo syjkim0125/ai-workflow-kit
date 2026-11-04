@@ -4,7 +4,7 @@ Use only the matching lens. These are missing-behavior prompts, not architecture
 
 ## Payment / money
 
-Check: charge timing; authorization vs capture; duplicate request/idempotency; timeout with unknown external result; cancellation/refund boundary; amount/currency ownership; reconciliation and operator recovery. Do not infer Redis, Kafka, Outbox, or locks.
+Check: charge timing; authorization vs capture; duplicate request/idempotency; timeout with unknown external result; cancellation/refund boundary; amount/currency ownership; reconciliation and operator recovery; rollback trigger for a changed price or charge rule, and what happens to charges already issued. Do not infer Redis, Kafka, Outbox, or locks.
 
 ## Inventory / concurrency
 
