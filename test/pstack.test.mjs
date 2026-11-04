@@ -11,7 +11,8 @@ const root = path.resolve(import.meta.dirname, '..');
 test('pinned Pstack reference bytes, license and relative feature-map dependencies ship intact', async t => {
   const base = path.join(root, 'skills/workflow/references/pstack');
   const provenance = JSON.parse(await fs.readFile(path.join(base, 'provenance.json')));
-  assert.equal(provenance.commit, '0c3333f09655d7933919795fbf4f9946d62b6f77');
+  assert.equal(provenance.repository, 'https://github.com/cursor/plugins');
+  assert.equal(provenance.commit, '180939f9e59cc9512e9330649175763e81fad16f');
   for (const file of provenance.files) assert.equal(digest(await fs.readFile(path.join(base, file.file))), file.sha256);
   assert.match(await fs.readFile(path.join(base, 'LICENSE'), 'utf8'), /MIT License[\s\S]*Lauren Tan/);
   for (const host of ['codex', 'claude']) {

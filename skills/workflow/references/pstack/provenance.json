@@ -1,6 +1,7 @@
 {
-  "repository": "https://github.com/backnotprop/pstack",
-  "commit": "0c3333f09655d7933919795fbf4f9946d62b6f77",
+  "repository": "https://github.com/cursor/plugins",
+  "path": "pstack",
+  "commit": "180939f9e59cc9512e9330649175763e81fad16f",
   "license": "MIT",
   "files": [
     {
@@ -11,7 +12,9 @@
     {
       "source": "skills/create-verification-skill/SKILL.md",
       "file": "create-verification-skill.md",
-      "sha256": "bba612e8b81a02df0f49e6f6911f3b543c8c7d9f1f3c13ae6c0e2d58cc8c3ad3"
+      "sha256": "bba612e8b81a02df0f49e6f6911f3b543c8c7d9f1f3c13ae6c0e2d58cc8c3ad3",
+      "upstreamSha256": "d353973547bf8ad8977eca645f4cd4feaed0d32f4b43d1448f906b0a76c4d694",
+      "modified": "Three `.cursor/skills/verify-<app>/` paths read `<skills>/verify-<app>/`, with one sentence mapping `<skills>` to each harness's project skill folder, because the kit installs into Claude Code and Codex without upstream's docs/harness mapping. Wording taken from https://github.com/backnotprop/pstack at 0c3333f09655d7933919795fbf4f9946d62b6f77."
     },
     {
       "source": "skills/create-verification-skill/references/feature-map-example/README.md",
