@@ -8,7 +8,13 @@ AI Workflow Kit adds a work process to Codex and Claude Code. It defines what to
 
 A graph runner tracks the task list and the rules for which task runs next.
 
-## What's new in 5.0.2
+## What's new in 5.1.0
+
+- **Plan and review with focused Superpowers skills.** Planning uses Superpowers `writing-plans`; the plan comes back to the kit, which keeps execution and the human gates. Review uses Superpowers `requesting-code-review` or a direct review within the same budget. CE `ce-plan` and `ce-code-review` remain available when you select them, and CE `ce-compound` still saves proven lessons. In a local comparison on a small project, these routes matched CE plan and review quality at much lower token cost.
+- **Pstack provenance points at the official source.** The bundled verification files are unchanged; their record now names `cursor/plugins`.
+- **Restart role runs after updating.** A role run started before 5.1.0 stops with `Role assignment or graph changed`. Start a new role run.
+
+5.0.2 added:
 
 - **Surface risky choices before G1.** Intake now reads the domain risk lenses before G1, not only after approval. In payment and data or system migration Stories, a lens item that the requirement or a human has not settled stays `OPEN BLOCKING` instead of being labeled `ASSUMED`. Examples: how long old and new paths coexist, the rollback trigger, whether a failure fails open or closed, which data wins when two sources disagree, and deploy order across teams.
 
