@@ -1,6 +1,6 @@
 # Intake and Contract
 
-For a PM assignment, perform only intake and return the Story proposal or question to the host. Use `skill-integration.md` for optional CE exploration; do not start another design approval workflow over an already settled scope. G1 still requires the actual user's decision.
+For a PM assignment, perform only intake and return the Story proposal or question to the host. Explore alternatives here; `skill-integration.md` says when an open idea calls for CE exploration. Do not start another design approval workflow over an already settled scope. G1 still requires the actual user's decision.
 
 ## Internal Domain Frame
 
@@ -14,6 +14,7 @@ Derive before asking: actor, desired outcome, terms/entities, state change, inva
 - Apply the matching lenses in `domain-risks.md` before drafting. In a Payment/money or Data or system migration Story, a lens item that changes behavior and that neither the requirement nor a human settled is `OPEN BLOCKING`, never `ASSUMED`; reasonable people could pick either side.
 - Never ask implementation or **HOW** questions before the contract is clear. Database, queue, lock, and file choices belong to planning.
 - Offer a concrete default rather than an open questionnaire when a conventional safe choice exists.
+- When the request names the change but materially different behaviors remain, show two or three options as one question: what each does, its trade-off and your recommended default.
 
 ## Explain the direction first
 

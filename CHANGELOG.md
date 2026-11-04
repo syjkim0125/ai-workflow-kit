@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Intake
+
+- Intake explores alternatives itself. When the request names the change but behaviors still diverge, it shows two or three options with trade-offs and a recommended default as one question.
+- CE `ce-brainstorm` runs only for an open idea (a goal or problem with no concrete change yet), when the user says they do not know what to build, or when the user selects it. The agent announces the choice, and the call returns its results to the kit without writing a separate spec or showing a handoff menu.
+- The payment risk lens now asks for the rollback trigger of a changed price or charge rule, and what happens to charges already issued.
+- Reason: in a local 9-run comparison on three named-feature requests, intake alone matched CE `ce-brainstorm` quality (mean 7.2 vs 7.0 of 10) at 41% of its token cost, and kept an unsettled payment item blocking where CE downgraded it. Superpowers `brainstorming` scored lowest in all three. Open-idea requests were not measured.
+
 ## 5.1.0 — 2026-11-04
 
 ### Stage skills

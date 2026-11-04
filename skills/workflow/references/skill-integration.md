@@ -18,13 +18,15 @@ These are skill invocation arguments, not Graph CLI flags. Invocation uses the h
 
 | Assigned work | Preferred skill and call contract | Return to the kit/host |
 |---|---|---|
-| PM: clarify behavior and propose scope | `intake.md`; use `ce-brainstorm` only for material unresolved alternatives | Canonical Story proposal or a specific question; no implementation or self-issued G1 |
+| PM: clarify behavior and propose scope | `intake.md`; `ce-brainstorm` only under the open-idea rule below | Canonical Story proposal or a specific question; no implementation or self-issued G1 |
 | Team lead: plan approved work | `superpowers:writing-plans` with the caller-owned instruction below and the approved Story | Plan path, requirement links, self-review result and unresolved blockers |
 | Developer: implement the assigned approved task | `superpowers:test-driven-development`; `superpowers:systematic-debugging` for unexplained failures | Changed files, applicable RED/GREEN evidence, diagnosis and blockers; return to the assigned graph |
 | Verification owner: verify the submitted revision | `superpowers:verification-before-completion` | Fresh relevant commands, results, revision and limits |
 | Developer: simplify after related GREEN checks | Inline simplification criteria in `execution.md`; compatible `ce-simplify-code` only within the shared budget below | Behavior-preserving changes or a justified no-change result, then affected checks |
 | Reviewer: assess the submitted change | `superpowers:requesting-code-review`, one filled reviewer template per assignment in the allocation below; otherwise direct bounded review | Findings and evidence, including scope, verdict and coverage limits |
 | Delivery owner: capture proven learning | Namespaced CE `ce-compound mode:non-interactive <verified-context>` when supported | One useful learning or an explicit no-lesson outcome |
+
+Intake explores alternatives itself. Use `ce-brainstorm` only when the request names a goal or problem but no concrete change to make, when the user says they do not know what to build, or when the user selects it. Decide from the request before loading the skill. Announce the choice in one line; the user can switch to direct scoping or ask for broader exploration at any time. State: "Caller-owned exploration: return the decisions, alternatives considered and open questions to the kit intake. Do not write or commit a separate spec or requirements document, do not invoke a planning or implementation skill, and do not show a next-step handoff menu. The kit's Story and G1 are the only requirements source and approval."
 
 For `writing-plans`, state: "Caller-owned plan: save the plan and return its path and self-review result to this workflow. Skip the Execution Handoff; the caller owns execution, human gates and the next action. In the plan header, name this workflow's graph as the executor instead of an execution sub-skill. Return unresolved decisions as blockers." Reuse an existing plan; a small reversible task can use the kit's minimal plan and direct implementation without creating a plan artifact.
 

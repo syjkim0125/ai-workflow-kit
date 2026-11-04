@@ -94,6 +94,30 @@ test('execution defaults to focused Superpowers stages and keeps CE planning and
   assert.doesNotMatch(await read('src/graph/roles.mjs'), /CE planning|CE review/);
 });
 
+test('intake shows divergent behavior options itself', async () => {
+  const intake = await read('skills/workflow/references/intake.md');
+  assert.match(intake, /two or three options/i);
+  assert.match(intake, /trade-off/i);
+  assert.match(intake, /recommended default/i);
+});
+
+test('ce-brainstorm runs only for an open idea or an explicit selection, announced and returned to the kit', async () => {
+  const integration = await read('skills/workflow/references/skill-integration.md');
+  const pm = integration.split('\n').find((line) => line.startsWith('| PM'));
+  assert.doesNotMatch(pm, /material unresolved alternatives/);
+  assert.match(integration, /goal or problem but no concrete change/i);
+  assert.match(integration, /(does|do) not know what to build/i);
+  assert.match(integration, /announce the choice/i);
+  assert.match(integration, /Caller-owned exploration/);
+  assert.match(integration, /do not show a next-step handoff menu/i);
+});
+
+test('payment lens asks how a changed charge is rolled back', async () => {
+  const risks = await read('skills/workflow/references/domain-risks.md');
+  const payment = risks.split(/^## /m).find((section) => /^Payment/.test(section));
+  assert.match(payment, /rollback/i);
+});
+
 test('G4 forces prediction before explanation and checks evidence boundaries', async () => {
   const gate = await read('skills/workflow/references/understanding-gate.md');
   const rawIndex = gate.indexOf('raw diff');

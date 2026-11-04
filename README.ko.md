@@ -127,6 +127,7 @@ kit이 전체 절차를 정합니다. 설치된 스킬은 각 단계를 맡습�
 
 | 단계 | 우선 사용하는 스킬 |
 |---|---|
+| 요구 정리 | kit 자체 intake. 만들 기능 없이 목표만 있는 열린 요청이거나 사용자가 고를 때만 CE `ce-brainstorm` |
 | 계획 | Superpowers `writing-plans`, 결과는 kit에 돌려줌(호출자가 실행 담당) |
 | 테스트를 쓰며 구현 | Superpowers `test-driven-development` |
 | 실패 원인 분석 | Superpowers `systematic-debugging` |
