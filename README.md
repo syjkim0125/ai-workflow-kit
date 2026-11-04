@@ -8,11 +8,16 @@ AI Workflow Kit adds a work process to Codex and Claude Code. It defines what to
 
 A graph runner tracks the task list and the rules for which task runs next.
 
-## What's new in 5.1.0
+## What's new in 5.2.0
+
+- **Intake explores alternatives itself.** When a requested change can still behave in materially different ways, intake shows two or three options with trade-offs and a recommended default. CE `ce-brainstorm` runs only for an open idea (a goal with no concrete change yet), when you say you do not know what to build, or when you select it. The agent tells you when it uses it, and the results come back to the kit's Story and G1.
+- **The payment lens asks about rollback.** A Story that changes a price or charge rule now asks what triggers a rollback and what happens to charges already issued.
+- **Upgrading from 5.0.x?** 5.1.0 was not published to npm, so 5.2.0 also includes the 5.1.0 changes below. A role run started before the upgrade stops with `Role assignment or graph changed`. Start a new role run.
+
+5.1.0 added:
 
 - **Plan and review with focused Superpowers skills.** Planning uses Superpowers `writing-plans`; the plan comes back to the kit, which keeps execution and the human gates. Review uses Superpowers `requesting-code-review` or a direct review within the same budget. CE `ce-plan` and `ce-code-review` remain available when you select them, and CE `ce-compound` still saves proven lessons. In a local comparison on a small project, these routes matched CE plan and review quality at much lower token cost.
 - **Pstack provenance points at the official source.** The bundled verification files are unchanged; their record now names `cursor/plugins`.
-- **Restart role runs after updating.** A role run started before 5.1.0 stops with `Role assignment or graph changed`. Start a new role run.
 
 5.0.2 added:
 

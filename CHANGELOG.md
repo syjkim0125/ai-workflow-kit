@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 5.2.0 — 2026-11-04
 
 ### Intake
 
@@ -8,6 +8,10 @@
 - CE `ce-brainstorm` runs only for an open idea (a goal or problem with no concrete change yet), when the user says they do not know what to build, or when the user selects it. The agent announces the choice, and the call returns its results to the kit without writing a separate spec or showing a handoff menu.
 - The payment risk lens now asks for the rollback trigger of a changed price or charge rule, and what happens to charges already issued.
 - Reason: in a local 9-run comparison on three named-feature requests, intake alone matched CE `ce-brainstorm` quality (mean 7.2 vs 7.0 of 10) at 41% of its token cost, and kept an unsettled payment item blocking where CE downgraded it. Superpowers `brainstorming` scored lowest in all three. Open-idea requests were not measured.
+
+### Upgrade note
+
+- 5.1.0 was not published to npm. Upgrading from 5.0.x to 5.2.0 also brings the 5.1.0 changes below, including its upgrade note: a role run started before the upgrade fails with `Role assignment or graph changed`; start a new role run.
 
 ## 5.1.0 — 2026-11-04
 
