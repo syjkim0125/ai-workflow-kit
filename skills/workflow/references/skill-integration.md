@@ -1,6 +1,6 @@
 # Stage skills and role boundaries
 
-The kit owns work-graph rules and human gates. Prefer compatible Superpowers focused skills for implementation discipline and verification, and Compound Engineering (CE) for planning, simplification, review and verified learning. The host runs agents and persists the authoritative state using the selected integration contract. Do not start a second end-to-end workflow inside a kit node.
+The kit owns work-graph rules and human gates. Prefer compatible Superpowers focused skills for planning, implementation discipline, review and verification, and Compound Engineering (CE) for verified learning. CE planning, simplification and review skills are explicit alternatives. The host runs agents and persists the authoritative state using the selected integration contract. Do not start a second end-to-end workflow inside a kit node.
 
 ## Select once for the assigned stage
 
@@ -19,14 +19,16 @@ These are skill invocation arguments, not Graph CLI flags. Invocation uses the h
 | Assigned work | Preferred skill and call contract | Return to the kit/host |
 |---|---|---|
 | PM: clarify behavior and propose scope | `intake.md`; use `ce-brainstorm` only for material unresolved alternatives | Canonical Story proposal or a specific question; no implementation or self-issued G1 |
-| Team lead: plan approved work | `ce-plan` with an explicit caller-owned pipeline instruction and the approved Story | Plan, requirement links, confidence/review result and unresolved blockers |
+| Team lead: plan approved work | `superpowers:writing-plans` with the caller-owned instruction below and the approved Story | Plan path, requirement links, self-review result and unresolved blockers |
 | Developer: implement the assigned approved task | `superpowers:test-driven-development`; `superpowers:systematic-debugging` for unexplained failures | Changed files, applicable RED/GREEN evidence, diagnosis and blockers; return to the assigned graph |
 | Verification owner: verify the submitted revision | `superpowers:verification-before-completion` | Fresh relevant commands, results, revision and limits |
 | Developer: simplify after related GREEN checks | Inline simplification criteria in `execution.md`; compatible `ce-simplify-code` only within the shared budget below | Behavior-preserving changes or a justified no-change result, then affected checks |
-| Reviewer: assess the submitted change | Budget-compatible `ce-code-review mode:agent base:<base-ref> plan:<plan-path>`, otherwise direct bounded review | Findings and evidence, including scope, verdict and coverage limits |
+| Reviewer: assess the submitted change | `superpowers:requesting-code-review`, one filled reviewer template per assignment in the allocation below; otherwise direct bounded review | Findings and evidence, including scope, verdict and coverage limits |
 | Delivery owner: capture proven learning | Namespaced CE `ce-compound mode:non-interactive <verified-context>` when supported | One useful learning or an explicit no-lesson outcome |
 
-For `ce-plan`, state: "Pipeline context: return the plan and review result to this workflow; the caller owns execution, human gates and the next action. Return unresolved decisions as blockers." Do not invent a `mode:pipeline` argument for a version that does not document it. Reuse an existing plan; a small reversible task can use the kit's minimal plan and direct implementation without creating a CE plan artifact solely to invoke `ce-work`.
+For `writing-plans`, state: "Caller-owned plan: save the plan and return its path and self-review result to this workflow. Skip the Execution Handoff; the caller owns execution, human gates and the next action. In the plan header, name this workflow's graph as the executor instead of an execution sub-skill. Return unresolved decisions as blockers." Reuse an existing plan; a small reversible task can use the kit's minimal plan and direct implementation without creating a plan artifact.
+
+If the user or host explicitly selects CE planning, use `ce-plan` and state: "Pipeline context: return the plan and review result to this workflow; the caller owns execution, human gates and the next action. Return unresolved decisions as blockers." Do not invent a `mode:pipeline` argument for a version that does not document it. If they explicitly select CE review, use `ce-code-review mode:agent base:<base-ref> plan:<plan-path>` only when its internal fan-out fits the round's allocation.
 
 If the user or host explicitly selects CE implementation instead, use `ce-work mode:return-to-caller <plan-path>` as an alternative executor, not an additional implementation pass. Give it an executable plan bounded to the assigned unit. Do not pass the whole project plan to a Developer assigned only one task: its completion contract covers the supplied plan. A bounded HOW artifact may reference the canonical plan and Story IDs; do not copy requirements into it. If the work is small enough to do directly, use the direct path instead of manufacturing plan files.
 
@@ -53,7 +55,7 @@ Before dispatch, the caller chooses the round's allocation and records the reaso
 - Normal round: combine correctness/security, tests/spec/runtime evidence, and maintainability/performance into three bounded assignments. Give each only the relevant diff, requirements and evidence references.
 - Docs/mechanical changes: 0–1; a small behavioral change: 1–2. Add a specialist only for a named uncovered risk such as authorization or migration recovery; state why 4–5 is needed.
 - Count **all** simplify/review/validation/report workers in the same round. Main performs simplification and aggregation by default. Reviewers return findings directly and do not re-delegate. New rounds need changed code or a named unresolved concern; unchanged work does not earn another full panel.
-- Check the installed skill before invoking it. `mode:agent` selects output, not a worker cap. If its internal fan-out cannot fit the allocation, use the direct bounded review instead of launching it and hoping. Do not invent `max_reviewers` flags. Preserve any required independent-review coverage; report a gap if host limits prevent it.
+- Check the installed skill before invoking it. `requesting-code-review` dispatches one reviewer per filled template, so each assignment counts as one worker. For a selected `ce-code-review`, `mode:agent` selects output, not a worker cap. If its internal fan-out cannot fit the allocation, use the direct bounded review instead of launching it and hoping. Do not invent `max_reviewers` flags. Preserve any required independent-review coverage; report a gap if host limits prevent it.
 
 The host enforces actual dispatch counts. Graph's ready-node width is a separate DAG limit and does not cap nested skill workers. Model choice follows `model-selection.md`; extra personas on one model are not the multi-model evidence of Pstack `interrogate`. Do not automatically append interrogate to CE review.
 
@@ -61,9 +63,9 @@ The Reviewer reports fixes to the Developer; do not use `apply:local` on a read-
 
 ## Superpowers coexistence
 
-Do not automatically invoke `brainstorming → writing-plans → executing-plans/subagent-driven-development → finishing-a-development-branch` inside this workflow. That adds another owner for design approval, task dispatch, review and delivery.
+Do not automatically invoke the full `brainstorming → writing-plans → executing-plans/subagent-driven-development → finishing-a-development-branch` chain inside this workflow. That adds another owner for design approval, task dispatch, review and delivery. A focused `writing-plans` or `requesting-code-review` call under the contracts above is a stage skill, not that chain.
 
-Use Superpowers' focused TDD, systematic-debugging and verification skills by default where available and applicable to the assigned stage. Read their actual instructions; a skill name in evidence is not proof of execution. No artificial RED test is needed for a prose-only change. Preserve existing approvals and plans, and respect higher-priority host instructions. Do not rerun a procedure already completed with sufficient evidence. Missing focused skills use the kit's direct procedure, with the fallback disclosed. This is a deliberate composition of focused skills, not a claim that the full Superpowers workflow ran. Capture reusable knowledge through CE after resolved review and fresh verification.
+Use Superpowers' focused planning, TDD, systematic-debugging, review and verification skills by default where available and applicable to the assigned stage. Read their actual instructions; a skill name in evidence is not proof of execution. No artificial RED test is needed for a prose-only change. Preserve existing approvals and plans, and respect higher-priority host instructions. Do not rerun a procedure already completed with sufficient evidence. Missing focused skills use the kit's direct procedure, with the fallback disclosed. This is a deliberate composition of focused skills, not a claim that the full Superpowers workflow ran. Capture reusable knowledge through CE after resolved review and fresh verification.
 
 This reference is host instruction policy, not an SDK bridge or a code-enforced Office adapter. The kit installs this policy, not CE or Superpowers. Confirm capabilities in each actual agent environment; neither plugin's presence in the current developer session proves it is available in Office workers.
 

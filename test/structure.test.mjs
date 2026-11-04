@@ -70,15 +70,28 @@ test('risk lenses shape intake before G1 and keep migration choices blocking', a
   }
 });
 
-test('execution composes focused Superpowers and CE stages without duplicating ce-plan', async () => {
+test('execution defaults to focused Superpowers stages and keeps CE planning and review as explicit alternatives', async () => {
   const execution = await read('skills/workflow/references/execution.md');
-  assert.match(execution, /ce-plan/);
-  assert.match(execution, /superpowers:test-driven-development/);
-  assert.match(execution, /superpowers:verification-before-completion/);
-  assert.match(execution, /ce-code-review/);
+  for (const skill of ['writing-plans', 'test-driven-development', 'requesting-code-review', 'verification-before-completion']) {
+    assert.match(execution, new RegExp(`superpowers:${skill}`));
+  }
+  const normal = execution.split('\n').find((line) => line.startsWith('- **Normal:**'));
+  assert.doesNotMatch(normal, /ce-plan|ce-code-review/);
   assert.match(execution, /Plan source: N\/A/);
   assert.match(execution, /high-risk|high risk/i);
   assert.match(execution, /HOW belongs to|HOW.*plan/is);
+
+  const integration = await read('skills/workflow/references/skill-integration.md');
+  const row = (role) => integration.split('\n').find((line) => line.startsWith(`| ${role}`));
+  assert.match(row('Team lead'), /superpowers:writing-plans/);
+  assert.match(row('Reviewer'), /superpowers:requesting-code-review/);
+  assert.match(integration, /Skip the Execution Handoff/);
+  assert.match(integration, /explicitly selects CE planning.*`ce-plan`/s);
+  assert.match(integration, /explicitly selects? CE review.*`ce-code-review mode:agent/s);
+
+  const { MANAGED_BLOCK } = await import('../src/managed-block.mjs');
+  assert.doesNotMatch(MANAGED_BLOCK, /CE caller-owned planning|CE review/);
+  assert.doesNotMatch(await read('src/graph/roles.mjs'), /CE planning|CE review/);
 });
 
 test('G4 forces prediction before explanation and checks evidence boundaries', async () => {

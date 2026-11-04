@@ -121,15 +121,15 @@ kit이 전체 절차를 정합니다. 설치된 스킬은 각 단계를 맡습�
 
 | 단계 | 우선 사용하는 스킬 |
 |---|---|
-| 계획 | CE `ce-plan` |
+| 계획 | Superpowers `writing-plans`, 결과는 kit에 돌려줌(호출자가 실행 담당) |
 | 테스트를 쓰며 구현 | Superpowers `test-driven-development` |
 | 실패 원인 분석 | Superpowers `systematic-debugging` |
 | 테스트 통과 후 단순화 | 메인이 수행하고, 같은 리뷰 예산 안에서 CE `ce-simplify-code`를 선택 사용 |
-| 리뷰 | 같은 예산 안에서 CE `ce-code-review mode:agent` 또는 직접 검토 |
+| 리뷰 | 같은 예산 안에서 Superpowers `requesting-code-review` 또는 직접 검토 |
 | 최신 코드 검증 | Superpowers `verification-before-completion` |
 | 검증된 교훈 기록 | CE `ce-compound` |
 
-Developer는 배정받은 작업만 합니다. Superpowers나 CE의 전체 절차를 다시 시작하지 않습니다. CE `ce-work mode:return-to-caller`는 명시적으로 선택할 때 쓰는 대안입니다. 구현을 두 번 수행하지 않습니다.
+Developer는 배정받은 작업만 합니다. Superpowers나 CE의 전체 절차를 다시 시작하지 않습니다. CE `ce-work mode:return-to-caller`는 명시적으로 선택할 때 쓰는 대안입니다. 구현을 두 번 수행하지 않습니다. CE `ce-plan`과 예산 안의 `ce-code-review mode:agent`도 명시적으로 선택할 때 쓰는 대안입니다.
 
 **이 플러그인들은 kit에 포함되지 않습니다.** 에이전트는 사용할 수 있는 스킬을 확인합니다. 스킬이 없으면 kit의 직접 수행 절차를 쓰고 그 사실을 알립니다.
 

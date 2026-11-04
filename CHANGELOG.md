@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Stage skills
+
+- Plan with Superpowers `writing-plans` under a caller-owned contract: the plan returns to the kit, which skips the skill's Execution Handoff and names the kit graph as the executor.
+- Review with Superpowers `requesting-code-review` (one reviewer per assignment in the shared allocation) or direct bounded review.
+- CE `ce-plan` and `ce-code-review mode:agent` stay available when the user or host selects them. CE `ce-compound` still captures verified learning.
+- Reason: in a local 20-run comparison on a small fixture, the Superpowers routes matched CE plan and review quality at 3.6–15× lower token cost.
+
+### Upgrade note
+
+- The team-lead and reviewer role nodes no longer name a tool, which changes their graph fingerprint. A role run started before the upgrade fails with `Role assignment or graph changed`; start a new role run.
+
 ## 5.0.3 — 2026-11-02
 
 ### Fixed
