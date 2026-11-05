@@ -30,7 +30,16 @@ A graph runner tracks the task list and the rules for which task runs next.
 - **Keep review work bounded.** Default to three workers, reduce to 0–2 for small changes, and expand to 4–5 for named risks. Main simplifies and aggregates; nested workers share the same budget. The host enforces actual dispatch limits.
 - **Fix verification edge cases.** Incomplete output collection fails after bounded cleanup when an escaped child keeps pipes open. Valid check IDs such as `toString` and `hasOwnProperty` work regardless of execution order.
 
-To update an existing project, run `npx @pazmo/ai-workflow-kit@latest init`, then `npx @pazmo/ai-workflow-kit@latest doctor`. Open a new Codex task or Claude Code session. User-edited managed files are preserved and reported; inspect them for changes that need applying manually.
+To update an existing project, pin the exact release instead of `@latest`, and check which CLI npx runs before you install. npx can quietly run an older cached copy, for example when the project's `.npmrc` points at a private registry that is unreachable. An exact version cannot be met by a different cached copy.
+
+```sh
+VERSION=$(npm view @pazmo/ai-workflow-kit version --registry=https://registry.npmjs.org/)
+npx @pazmo/ai-workflow-kit@$VERSION --version
+npx @pazmo/ai-workflow-kit@$VERSION init
+npx @pazmo/ai-workflow-kit@$VERSION doctor
+```
+
+Stop if `--version` prints anything other than `$VERSION`. In a project whose `.npmrc` points at a private registry, put `--registry=https://registry.npmjs.org/` before the package name, for example `npx --registry=https://registry.npmjs.org/ @pazmo/ai-workflow-kit@$VERSION init`. After the package name it goes to the kit, not to npm. `init` names both versions, such as `Updated AI Workflow Kit 5.0.3 → 5.2.0.`, and `doctor` prints `Kit version: CLI …, installed …`. Then open a new Codex task or Claude Code session. User-edited managed files are preserved and reported; inspect them for changes that need applying manually.
 
 **Upgrading from 4.x:** 5.x uses persisted run format v3 and runner-issued receipts. Configure `.ai-workflow/verification.json` and Story-bound G1/G3 records using the [verification guide](skills/workflow/references/verification.md). Legacy v1/v2 runs are read-only (`upgrade-required`): stop old workers, preserve evidence/attempt history, and rerun review/checks in v3. `graph delivery` also requires a real G4 bound to the final snapshot. See [all changes](CHANGELOG.md).
 
@@ -192,9 +201,9 @@ AGENTS.md / CLAUDE.md       Workflow instructions inside a marked block
 templates/ai-workflow/     Story and Task templates
 ```
 
-`init` also updates an existing installation. It preserves user-edited managed files and reports them. `remove` removes owned files and instruction blocks. It keeps user changes, run files, and evidence.
+`init` also updates an existing installation and names the version it ran and the version it replaced. It preserves user-edited managed files and reports them. A preserved file keeps its old content, so the install then mixes versions. Formatter passes count as edits. To take the new copy, delete the file and run `init` again. `remove` removes owned files and instruction blocks. It keeps user changes, run files, and evidence.
 
-Run `doctor` after installation. It finds missing files and Git ignore rules that hide the checker or graph runtime. Follow its suggested fixes before sharing the project.
+Run `doctor` after installation. It prints the CLI and installed versions, finds missing files, warns about managed files that differ from that version, and finds Git ignore rules that hide the checker or graph runtime. It fails when the CLI is older than the installed kit. Follow its suggested fixes before sharing the project.
 
 ## Commands
 

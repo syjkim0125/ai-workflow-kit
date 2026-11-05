@@ -30,7 +30,16 @@ AI Workflow Kit은 Codex와 Claude Code에 작업 절차를 추가합니다. 무
 - **리뷰는 기본 3명으로 조정합니다.** 작은 변경은 0~2명, 명확한 전문 위험이 있으면 4~5명으로 조정합니다. 메인이 단순화와 결과 통합을 맡고, 내부 위임도 같은 예산에 포함합니다. 실제 인원 제한은 호스트가 적용합니다.
 - **검증 실행의 예외를 수정했습니다.** 분리된 자식이 출력 파이프를 유지해도 정해진 정리 시간 뒤 불완전한 수집을 실패로 기록합니다. `toString`, `hasOwnProperty` 같은 유효한 검사 ID도 실행 순서와 관계없이 사용할 수 있습니다.
 
-기존 프로젝트는 `npx @pazmo/ai-workflow-kit@latest init`과 `npx @pazmo/ai-workflow-kit@latest doctor`로 업데이트한 뒤 새 Codex 작업 또는 Claude Code 세션을 여세요. 사용자가 수정한 관리 파일은 보존하고 알려주므로, 새 지침을 수동 반영해야 하는지 확인하세요.
+기존 프로젝트를 업데이트할 때는 `@latest` 대신 정확한 버전을 지정하고, 설치 전에 npx가 실제로 실행하는 CLI 버전을 확인하세요. 프로젝트의 `.npmrc`가 접속할 수 없는 사설 레지스트리를 가리키면, npx가 캐시된 옛 버전을 알리지 않고 실행할 수 있습니다. 정확한 버전을 지정하면 다른 버전의 캐시로 대신 실행되지 않습니다.
+
+```sh
+VERSION=$(npm view @pazmo/ai-workflow-kit version --registry=https://registry.npmjs.org/)
+npx @pazmo/ai-workflow-kit@$VERSION --version
+npx @pazmo/ai-workflow-kit@$VERSION init
+npx @pazmo/ai-workflow-kit@$VERSION doctor
+```
+
+`--version`이 `$VERSION`과 다른 값을 출력하면 멈추세요. `.npmrc`가 사설 레지스트리를 가리키는 프로젝트에서는 패키지 이름 앞에 `--registry=https://registry.npmjs.org/`를 넣으세요. 예: `npx --registry=https://registry.npmjs.org/ @pazmo/ai-workflow-kit@$VERSION init`. 패키지 이름 뒤에 두면 npm이 아니라 kit에 전달됩니다. `init`은 `Updated AI Workflow Kit 5.0.3 → 5.2.0.`처럼 두 버전을 출력하고, `doctor`는 `Kit version: CLI …, installed …` 줄을 출력합니다. 그다음 새 Codex 작업 또는 Claude Code 세션을 여세요. 사용자가 수정한 관리 파일은 보존하고 알려주므로, 새 지침을 수동 반영해야 하는지 확인하세요.
 
 **4.x에서 업데이트할 때:** 5.x는 실제 실행 기록을 요구하는 v3 형식을 사용합니다. [검증 가이드](skills/workflow/references/verification.md)에 따라 `.ai-workflow/verification.json`과 Story에 연결된 G1/G3 기록을 준비하세요. 기존 v1/v2는 조회 전용(`upgrade-required`)입니다. 기존 worker를 중지하고 증거·시도 기록을 보존한 뒤 v3에서 리뷰·검증해야 합니다. `graph delivery`는 최종 스냅샷에 연결된 실제 G4도 확인합니다. [전체 변경 이력](CHANGELOG.md)을 참고하세요.
 
@@ -191,9 +200,9 @@ AGENTS.md / CLAUDE.md       표시된 구간에 작업 지침 추가
 templates/ai-workflow/     Story와 Task 서식
 ```
 
-`init`은 기존 설치도 업데이트합니다. 사용자가 고친 관리 파일은 보존하고 알려줍니다. `remove`는 kit이 관리하는 파일과 지침 구간을 제거합니다. 사용자 변경, 실행 기록, 증거는 남깁니다.
+`init`은 기존 설치도 업데이트하고, 실행한 버전과 교체한 버전을 출력합니다. 사용자가 고친 관리 파일은 보존하고 알려줍니다. 보존된 파일은 옛 내용 그대로이므로 설치에 여러 버전이 섞입니다. 포매터가 바꾼 것도 수정으로 봅니다. 새 버전을 받으려면 그 파일을 지우고 `init`을 다시 실행하세요. `remove`는 kit이 관리하는 파일과 지침 구간을 제거합니다. 사용자 변경, 실행 기록, 증거는 남깁니다.
 
-설치 후 `doctor`를 실행하세요. 누락된 파일과 검사기·그래프를 숨기는 Git 무시 규칙을 찾습니다. 프로젝트를 공유하기 전에 안내대로 수정하세요.
+설치 후 `doctor`를 실행하세요. CLI 버전과 설치된 버전을 출력하고, 누락된 파일, 그 버전과 내용이 다른 관리 파일, 검사기·그래프를 숨기는 Git 무시 규칙을 찾습니다. CLI가 설치된 kit보다 오래된 버전이면 실패합니다. 프로젝트를 공유하기 전에 안내대로 수정하세요.
 
 ## 명령어
 

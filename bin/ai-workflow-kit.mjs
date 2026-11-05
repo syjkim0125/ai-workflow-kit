@@ -3,14 +3,17 @@ import { access, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkArtifact, checkGate } from '../assets/check.mjs';
-import { installWorkflow, removeWorkflow } from '../src/install.mjs';
+import { installWorkflow, managedDrift, removeWorkflow } from '../src/install.mjs';
 import { checkerVisibility, fileVisibilities, ignoredCheckerAdvice } from '../src/git-visibility.mjs';
 import { END_MARKER, START_MARKER } from '../src/managed-block.mjs';
 import { HOSTS } from '../src/paths.mjs';
 import { publishStory } from '../src/jira.mjs';
 import { runGraphCommand } from '../src/graph/cli.mjs';
+import { compareVersions, readPackageVersion } from '../src/version.mjs';
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const PACKAGE_NAME = '@pazmo/ai-workflow-kit';
+const PUBLIC_REGISTRY = 'https://registry.npmjs.org/';
 
 async function graphFiles() {
   return ['.ai-workflow/bin/graph.mjs', ...(await readdir(path.join(packageRoot, 'src/graph')))
@@ -73,6 +76,38 @@ async function exists(file) {
   try { await access(file); return true; } catch { return false; }
 }
 
+// A stale CLI (for example a cached npx copy behind an unreachable private registry)
+// must not vouch for a newer install: that direction fails, the other only warns.
+function versionCheck(cli, installed) {
+  const line = `Kit version: CLI ${cli}, installed ${installed ?? 'unknown'}`;
+  const order = compareVersions(cli, installed);
+  if (order === 0) return { status: 'PASS', line, advice: [], ok: true, sameVersion: true };
+  if (order === null) {
+    return { status: 'WARN', line, advice: ['The installed version is not recorded. Run init with this CLI to record it.'], ok: true };
+  }
+  if (order > 0) {
+    return {
+      status: 'WARN', line, ok: true,
+      advice: [
+        `The project has an older release. Run init with this CLI to update it, or check it with ${PACKAGE_NAME}@${installed}.`,
+        'File contents are compared only when the versions match.',
+      ],
+    };
+  }
+  return {
+    status: 'FAIL', line, ok: false,
+    advice: [
+      'This CLI is older than the installed kit: it cannot check that release, and its init would downgrade it.',
+      `npx may have run a cached copy (for example when a private registry in .npmrc is unreachable). Run: npx --registry=${PUBLIC_REGISTRY} ${PACKAGE_NAME}@${installed} doctor`,
+    ],
+  };
+}
+
+function listSome(items, limit = 3) {
+  const shown = items.slice(0, limit).join(', ');
+  return items.length > limit ? `${shown}, +${items.length - limit} more` : shown;
+}
+
 async function doctor(root) {
   const configFile = path.join(root, '.ai-workflow/config.json');
   if (!await exists(configFile)) {
@@ -87,6 +122,11 @@ async function doctor(root) {
     console.log('MISS  valid workflow config: .ai-workflow/config.json');
     return false;
   }
+
+  const cliVersion = await readPackageVersion(packageRoot);
+  const version = versionCheck(cliVersion, config.packageVersion);
+  console.log(`${version.status}  ${version.line}`);
+  for (const line of version.advice) console.log(`      ${line}`);
 
   const hosts = Array.isArray(config.hosts) ? config.hosts : [];
   if (hosts.length === 0 || hosts.some((host) => !HOSTS[host])) {
@@ -110,7 +150,7 @@ async function doctor(root) {
     if (name.endsWith('.mjs')) checks.push([`Graph runtime ${name}`, `.ai-workflow/graph/${name}`]);
   }
 
-  let ok = true;
+  let ok = version.ok;
   for (const [label, relative, routing] of checks) {
     const file = path.join(root, relative);
     let present = await exists(file);
@@ -120,6 +160,16 @@ async function doctor(root) {
     }
     console.log(`${present ? 'PASS' : 'MISS'}  ${label}: ${relative}`);
     ok &&= present;
+  }
+
+  if (version.sameVersion) {
+    const drift = await managedDrift({ root, packageRoot, hosts });
+    for (const { relative, files } of drift) {
+      console.log(`WARN  Mixed version: ${relative} differs from ${cliVersion}${files.length ? ` (${listSome(files)})` : ''}`);
+    }
+    if (drift.length) {
+      console.log(`      Kept from an older release or edited locally (a formatter pass counts). To take ${cliVersion}, delete each listed path and re-run init; copy any edits you want to keep first.`);
+    }
   }
 
   const visibility = await checkerVisibility(root);
@@ -172,9 +222,18 @@ async function main(argv) {
 
   if (command === 'init') {
     const result = await installWorkflow({ root, packageRoot, hosts });
-    console.log(result.changed ? 'Installed/updated AI Workflow Kit.' : 'AI Workflow Kit is already up to date.');
+    const { version, previousVersion } = result;
+    if (!result.changed) console.log(`AI Workflow Kit ${version} is already up to date (installed ${previousVersion ?? version}).`);
+    else if (!previousVersion) console.log(`Installed AI Workflow Kit ${version}.`);
+    else console.log(`Updated AI Workflow Kit ${previousVersion} → ${version}.`);
+    if (compareVersions(version, previousVersion) < 0) {
+      console.log(`WARNING  This CLI (${version}) is older than the kit it replaced (${previousVersion}), so the project was downgraded. If npx ran a cached copy, re-run: npx --registry=${PUBLIC_REGISTRY} ${PACKAGE_NAME}@${previousVersion} init`);
+    }
     console.log(`Hosts: ${result.hosts.join(', ')}`);
-    if (result.preserved.length) console.log(`Preserved modified files: ${result.preserved.join(', ')}`);
+    if (result.preserved.length) {
+      console.log(`Preserved modified files: ${result.preserved.join(', ')}`);
+      console.log(`WARNING  Mixed-version install: the files above were kept as they were and do not match ${version}. To take ${version}, delete each one and re-run init; copy any local edits you want to keep first.`);
+    }
     const visibility = await checkerVisibility(root);
     if (visibility.status === 'ignored') {
       console.log('');

@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { HOSTS, normalizeHosts, projectPath } from './paths.mjs';
 import { managedBlockFor, removeManagedBlock, upsertManagedBlock } from './managed-block.mjs';
 import { installTransaction } from './install-transaction.mjs';
+import { readPackageVersion } from './version.mjs';
 
 const modulePackageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CONFIG_PATH = '.ai-workflow/config.json';
@@ -50,9 +51,9 @@ async function fileHash(file) {
   return sha256(await readFile(file));
 }
 
-async function treeHash(directory) {
-  if (!await exists(directory)) return null;
-  const entries = [];
+// Relative path -> content hash, in the walk order treeHash has always used.
+async function treeFiles(directory) {
+  const files = new Map();
 
   async function walk(current, prefix = '') {
     const children = await readdir(current, { withFileTypes: true });
@@ -61,11 +62,18 @@ async function treeHash(directory) {
       const relative = path.posix.join(prefix, child.name);
       const full = path.join(current, child.name);
       if (child.isDirectory()) await walk(full, relative);
-      else entries.push(`${relative}:${await fileHash(full)}`);
+      else files.set(relative, await fileHash(full));
     }
   }
 
   await walk(directory);
+  return files;
+}
+
+// Recorded in .ai-workflow/config.json: the entry format must stay byte-identical.
+async function treeHash(directory) {
+  if (!await exists(directory)) return null;
+  const entries = [...await treeFiles(directory)].map(([relative, hash]) => `${relative}:${hash}`);
   return sha256(entries.join('\n'));
 }
 
@@ -75,14 +83,6 @@ async function writeIfChanged(file, content) {
   await mkdir(path.dirname(file), { recursive: true });
   await writeFile(file, content);
   return true;
-}
-
-async function packageVersion(packageRoot) {
-  try {
-    return JSON.parse(await readFile(path.join(packageRoot, 'package.json'), 'utf8')).version;
-  } catch {
-    return '3.0.0';
-  }
 }
 
 async function readConfig(root) {
@@ -259,21 +259,60 @@ async function installPrepared({
   if (checkerResult.changed) installed.push(CHECKER_PATH);
   if (checkerResult.preserved) preserved.push(CHECKER_PATH);
 
+  const version = await readPackageVersion(packageRoot);
   const config = `${JSON.stringify({
     schemaVersion: 2,
-    packageVersion: await packageVersion(packageRoot),
+    packageVersion: version,
     hosts: selectedHosts,
     managedFiles,
     managedTrees,
   }, null, 2)}\n`;
   changed = await writeIfChanged(projectPath(root, CONFIG_PATH), config) || changed;
 
-  return { changed, installed, preserved, hosts: selectedHosts };
+  return {
+    changed,
+    installed,
+    preserved,
+    hosts: selectedHosts,
+    previousVersion: previous?.packageVersion ?? null,
+    version,
+  };
 }
 
 export async function installWorkflow(options = {}) {
   const root = path.resolve(options.root ?? process.cwd());
   return installTransaction(root, (stage) => installPrepared({ ...options, root: stage }));
+}
+
+// Managed paths whose bytes differ from this package's source: files an install
+// preserved (local edits, formatter passes, older copies) next to newer ones.
+// Trees list the differing files inside them; deleting the tree is the fix.
+export async function managedDrift({ root = process.cwd(), packageRoot = modulePackageRoot, hosts = [] } = {}) {
+  root = path.resolve(root);
+  packageRoot = path.resolve(packageRoot);
+  const drift = [];
+  const trees = [
+    ...normalizeHosts(hosts).map((host) => ['skills/workflow', HOSTS[host].skillDir]),
+    ['src/graph', GRAPH_PATH],
+  ];
+  for (const [sourceRelative, relative] of trees) {
+    const target = projectPath(root, relative);
+    if (!await exists(target)) continue;
+    const expected = await treeFiles(path.join(packageRoot, sourceRelative));
+    const actual = await treeFiles(target);
+    const files = [...new Set([...expected.keys(), ...actual.keys()])]
+      .filter((file) => expected.get(file) !== actual.get(file))
+      .sort();
+    if (files.length) drift.push({ relative, files });
+  }
+  for (const [sourceRelative, relative] of [...TEMPLATE_PATHS, ['assets/check.mjs', CHECKER_PATH]]) {
+    const target = projectPath(root, relative);
+    if (!await exists(target)) continue;
+    if (await fileHash(target) !== await fileHash(path.join(packageRoot, sourceRelative))) {
+      drift.push({ relative, files: [] });
+    }
+  }
+  return drift;
 }
 
 async function removeEmptyParents(file, stopAt) {

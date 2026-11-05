@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Upgrade checks
+
+- `init` names the running CLI version and the version recorded in `.ai-workflow/config.json`: `Installed AI Workflow Kit 5.2.0.`, `Updated AI Workflow Kit 5.0.3 → 5.2.0.`, or `AI Workflow Kit 5.2.0 is already up to date (installed 5.2.0).` It warns when the CLI is older than the install it replaced (a downgrade).
+- `doctor` prints `Kit version: CLI …, installed …`. A CLI newer than the install warns and suggests `init`. A CLI older than the install fails: it cannot check a newer release's files, and its `init` would downgrade them.
+- When the versions match, `doctor` warns about each managed file or directory whose content differs from that release (`Mixed version: <path> differs from <version>`), formatter passes included, and says to delete the path and re-run `init`.
+- The `Preserved modified files` line from `init` now says the install mixes versions and how to take the new copy.
+- README upgrade steps pin the exact version, check `--version` first, and show the `--registry=https://registry.npmjs.org/` override for projects whose `.npmrc` points at a private registry.
+- Reason: on 2026-11-05 a project's `.npmrc` pointed at an unreachable private registry. `npx @pazmo/ai-workflow-kit@latest init` ran a cached 5.0.3, printed "already up to date" and changed nothing while 5.2.0 was published, and `doctor` passed. In two other projects a 3.1.1 → 5.2.0 `init` kept a prettier-formatted 3.1.1 checker next to the 5.2.0 skills, and `doctor` still passed.
+
 ## 5.2.0 — 2026-11-04
 
 ### Intake
