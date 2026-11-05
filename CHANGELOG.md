@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 5.3.0 — 2026-11-05
 
 ### Upgrade checks
 
@@ -15,6 +15,11 @@
 
 - `EVALS.md` adds manual scenarios for the 5.1 and 5.2 stage routing: a named change explored in intake, an open idea sent to `ce-brainstorm`, caller-owned `writing-plans`, and Superpowers review inside the review allocation.
 - Removed the unused `test/fixtures/expected-managed-block.md`, which still described the old CE-default pipeline.
+
+### Upgrade note
+
+- No graph runtime file or role node changed since 5.2.0, so a run started under 5.2.0 continues after the upgrade.
+- Upgrading from 5.0.x also brings the 5.1.0 and 5.2.0 changes below. The 5.1.0 upgrade note still applies: a role run started before the upgrade fails with `Role assignment or graph changed`; start a new role run.
 
 ## 5.2.0 — 2026-11-04
 
