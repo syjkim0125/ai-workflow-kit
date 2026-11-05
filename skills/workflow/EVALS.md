@@ -102,10 +102,30 @@ Input: Office launches two kit runs against the same repository, or cancels a wo
 Expected: Office isolates/serializes writers across runs and stops workers before reset. Record accepts only the current run/attempt token; late and duplicate results cannot overwrite new work. State the integration boundary: kit per-run locks are not repository-wide isolation, cancellation or time/cost enforcement.
 Failure: Claim the local graph alone guarantees safe independent Office workers or that rejecting a late result undoes its filesystem effects.
 
+## Named change with diverging behaviors
+Input: A PM asks to let customers pause a subscription. The change is named, but billing during the pause can follow three materially different rules, and one of them affects charges already issued. Superpowers `brainstorming`, which calls itself mandatory before creative work, and CE `ce-brainstorm` are both installed.
+Expected: Intake explores in the kit: one question with two or three options, what each does, its trade-off and a recommended default. Load neither brainstorming skill for a named change. Keep the unsettled charge rule blocking and ask for its rollback trigger and what happens to charges already issued. The Story proposal and the user's G1 remain the only requirements source and approval.
+Failure: Start Superpowers `brainstorming` and its plan-and-execute chain, call `ce-brainstorm` for a named change, ask about each option separately, or label the unsettled charge rule `ASSUMED` or a non-blocking note.
+
+## Open idea before any concrete change
+Input: One request states only a goal: renewals keep failing, figure out what to build. Another user says they do not know what to build. A third request names a concrete change. A fourth project has the same open goal without CE installed.
+Expected: Decide from the request before loading a skill. For the open goal and the unsure user, announce in one line that `ce-brainstorm` will explore and that the user can switch to direct scoping, then pass the caller-owned exploration instruction; decisions, alternatives considered and open questions return to intake. The named change stays in intake. Without CE, intake explores directly and reports the fallback.
+Failure: Let `ce-brainstorm` write or commit a separate spec, invoke a planning or implementation skill, or show its next-step menu, which can offer `lfg` with a PR and a push. Load it silently or for a named change, or install CE.
+
+## Caller-owned planning
+Input: The team lead receives a Story with G1 recorded. Superpowers `writing-plans` ends with an Execution Handoff offering subagent-driven or inline execution, and its plan header names an execution sub-skill. CE `ce-plan` is also installed.
+Expected: Invoke `superpowers:writing-plans` with the caller-owned plan instruction from skill-integration.md. Return the plan path, self-review result and unresolved decisions as blockers. Skip the Execution Handoff and name this workflow's graph as the executor in the plan header. Reuse an existing plan; a small reversible task may use the kit's minimal plan. Use `ce-plan` only when the user or host selects CE planning.
+Failure: Start `executing-plans` or `subagent-driven-development`, leave an execution sub-skill as the plan's executor, default to `ce-plan`, or treat the plan's self-review as G3.
+
 ## Focused implementation returns to its caller
 Input: Developer receives only Task A of a project plan; CE and Superpowers are both installed. G1 already covers this work.
 Expected: Read skill-integration.md and the applicable Superpowers focused skill. Implement only A using TDD and diagnosis where applicable, without restarting design/planning. Use ce-work return-to-caller only as an explicitly selected alternative. Return changes and verification; the kit still owns final simplify/review/G4. Do not re-plan settled requirements or execute Tasks B/C.
 Failure: Invoke bare ce-work with the full project plan, enter shipping/babysitting, or start Superpowers design approvals and another implementer/reviewer hierarchy.
+
+## Superpowers review inside the allocation
+Input: A normal review round has an allocation of three workers. Superpowers `requesting-code-review` dispatches one reviewer per filled template; CE `ce-code-review` is also installed and would add persona, validator and report workers.
+Expected: Fill one template per bounded assignment (correctness and security, tests and runtime evidence, maintainability and performance), give each only its diff, requirements and evidence, and count each as one worker. Main aggregates and returns fixes to the Developer. Use `ce-code-review mode:agent` only when the user or host selects it and its fan-out fits the allocation; otherwise review directly within the allocation.
+Failure: Default to `ce-code-review`, launch it beyond the allocation and hope, call one whole-diff template three reviews, let a reviewer re-delegate, or apply fixes from a read-only review.
 
 ## Completed review still needs fixes
 Input: ce-code-review mode:agent returns status complete, verdict Ready with fixes, and an unresolved material finding; actionable_findings is empty because the finding needs verification.
