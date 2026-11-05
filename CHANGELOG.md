@@ -11,6 +11,11 @@
 - README upgrade steps pin the exact version, check `--version` first, and show the `--registry=https://registry.npmjs.org/` override for projects whose `.npmrc` points at a private registry.
 - Reason: on 2026-11-05 a project's `.npmrc` pointed at an unreachable private registry. `npx @pazmo/ai-workflow-kit@latest init` ran a cached 5.0.3, printed "already up to date" and changed nothing while 5.2.0 was published, and `doctor` passed. In two other projects a 3.1.1 → 5.2.0 `init` kept a prettier-formatted 3.1.1 checker next to the 5.2.0 skills, and `doctor` still passed.
 
+### Evaluations
+
+- `EVALS.md` adds manual scenarios for the 5.1 and 5.2 stage routing: a named change explored in intake, an open idea sent to `ce-brainstorm`, caller-owned `writing-plans`, and Superpowers review inside the review allocation.
+- Removed the unused `test/fixtures/expected-managed-block.md`, which still described the old CE-default pipeline.
+
 ## 5.2.0 — 2026-11-04
 
 ### Intake
