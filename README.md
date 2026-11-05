@@ -8,11 +8,16 @@ AI Workflow Kit adds a work process to Codex and Claude Code. It defines what to
 
 A graph runner tracks the task list and the rules for which task runs next.
 
-## What's new in 5.2.0
+## What's new in 5.3.0
+
+- **Upgrades name the versions involved.** `init` prints the running CLI version and the version it replaced, such as `Updated AI Workflow Kit 5.2.0 → 5.3.0.`, and `doctor` prints `Kit version: CLI …, installed …`. An older cached CLI now shows its version number instead of a bare "already up to date". `doctor` fails when the CLI is older than the install, because it cannot check a newer release's files.
+- **Mixed-version installs are flagged.** When a managed file differs from the installed release, even if only a formatter changed it, `doctor` warns and says to delete the path and re-run `init`.
+- **Upgrading from 5.2.0** keeps existing runs: no graph runtime file or role node changed. **From 5.0.x**, 5.1.0 was not published to npm, so the 5.1.0 changes below apply too. A role run started before the upgrade stops with `Role assignment or graph changed`. Start a new role run.
+
+5.2.0 added:
 
 - **Intake explores alternatives itself.** When a requested change can still behave in materially different ways, intake shows two or three options with trade-offs and a recommended default. CE `ce-brainstorm` runs only for an open idea (a goal with no concrete change yet), when you say you do not know what to build, or when you select it. The agent tells you when it uses it, and the results come back to the kit's Story and G1.
 - **The payment lens asks about rollback.** A Story that changes a price or charge rule now asks what triggers a rollback and what happens to charges already issued.
-- **Upgrading from 5.0.x?** 5.1.0 was not published to npm, so 5.2.0 also includes the 5.1.0 changes below. A role run started before the upgrade stops with `Role assignment or graph changed`. Start a new role run.
 
 5.1.0 added:
 
@@ -39,7 +44,7 @@ npx @pazmo/ai-workflow-kit@$VERSION init
 npx @pazmo/ai-workflow-kit@$VERSION doctor
 ```
 
-Stop if `--version` prints anything other than `$VERSION`. In a project whose `.npmrc` points at a private registry, put `--registry=https://registry.npmjs.org/` before the package name, for example `npx --registry=https://registry.npmjs.org/ @pazmo/ai-workflow-kit@$VERSION init`. After the package name it goes to the kit, not to npm. `init` names both versions, such as `Updated AI Workflow Kit 5.0.3 → 5.2.0.`, and `doctor` prints `Kit version: CLI …, installed …`. Then open a new Codex task or Claude Code session. User-edited managed files are preserved and reported; inspect them for changes that need applying manually.
+Stop if `--version` prints anything other than `$VERSION`. In a project whose `.npmrc` points at a private registry, put `--registry=https://registry.npmjs.org/` before the package name, for example `npx --registry=https://registry.npmjs.org/ @pazmo/ai-workflow-kit@$VERSION init`. After the package name it goes to the kit, not to npm. `init` names both versions, such as `Updated AI Workflow Kit 5.2.0 → 5.3.0.`, and `doctor` prints `Kit version: CLI …, installed …`. Then open a new Codex task or Claude Code session. User-edited managed files are preserved and reported; inspect them for changes that need applying manually.
 
 **Upgrading from 4.x:** 5.x uses persisted run format v3 and runner-issued receipts. Configure `.ai-workflow/verification.json` and Story-bound G1/G3 records using the [verification guide](skills/workflow/references/verification.md). Legacy v1/v2 runs are read-only (`upgrade-required`): stop old workers, preserve evidence/attempt history, and rerun review/checks in v3. `graph delivery` also requires a real G4 bound to the final snapshot. See [all changes](CHANGELOG.md).
 

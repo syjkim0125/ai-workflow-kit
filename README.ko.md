@@ -8,11 +8,16 @@ AI Workflow Kit은 Codex와 Claude Code에 작업 절차를 추가합니다. 무
 
 그래프 실행기가 작업 목록과 실행 순서를 관리합니다.
 
-## 5.2.0 업데이트
+## 5.3.0 업데이트
+
+- **업데이트할 때 버전을 알려 줍니다.** `init`은 실행 중인 CLI 버전과 바꾼 버전을 `Updated AI Workflow Kit 5.2.0 → 5.3.0.`처럼 출력합니다. `doctor`는 `Kit version: CLI …, installed …` 줄을 출력합니다. 캐시된 옛 CLI가 돌면 그냥 "이미 최신"이라고 하지 않고 자기 버전 번호를 보여 줍니다. CLI가 설치된 버전보다 오래되면 더 새 버전의 파일을 검사할 수 없으므로 `doctor`가 실패합니다.
+- **버전이 섞인 설치를 알려 줍니다.** 관리 파일이 설치된 버전과 다르면, 포매터만 바꾼 경우라도 `doctor`가 경고하고, 그 경로를 지운 뒤 `init`을 다시 실행하라고 안내합니다.
+- **5.2.0에서 올리면** 기존 실행이 그대로 이어집니다. 그래프 런타임 파일과 역할 노드가 바뀌지 않았습니다. **5.0.x에서 올리면** 5.1.0을 npm에 배포하지 않았기 때문에 아래 5.1.0 변경도 함께 들어옵니다. 업데이트 전에 시작한 역할 실행은 `Role assignment or graph changed`로 멈춥니다. 새 역할 실행을 시작하세요.
+
+5.2.0에서 추가된 것:
 
 - **요구 정리 단계에서 대안을 직접 보여 줍니다.** 요청한 변경이 아직 크게 다르게 동작할 수 있으면, intake가 선택지 2~3개를 장단점과 추천 기본값과 함께 보여 줍니다. CE `ce-brainstorm`은 만들 기능 없이 목표만 있는 열린 요청이거나, 무엇을 만들지 모르겠다고 하거나, 직접 고를 때만 씁니다. 쓸 때는 에이전트가 먼저 알리고, 결과는 kit의 Story와 G1로 돌아옵니다.
 - **결제 렌즈가 되돌릴 기준을 묻습니다.** 가격이나 청구 규칙을 바꾸는 Story는 무엇이 되돌림(rollback)의 기준인지, 이미 발행된 청구는 어떻게 되는지 묻습니다.
-- **5.0.x에서 올리나요?** 5.1.0은 npm에 배포하지 않았기 때문에 5.2.0에는 아래 5.1.0 변경도 들어 있습니다. 업데이트 전에 시작한 역할 실행은 `Role assignment or graph changed`로 멈춥니다. 새 역할 실행을 시작하세요.
 
 5.1.0에서 추가된 것:
 
@@ -39,7 +44,7 @@ npx @pazmo/ai-workflow-kit@$VERSION init
 npx @pazmo/ai-workflow-kit@$VERSION doctor
 ```
 
-`--version`이 `$VERSION`과 다른 값을 출력하면 멈추세요. `.npmrc`가 사설 레지스트리를 가리키는 프로젝트에서는 패키지 이름 앞에 `--registry=https://registry.npmjs.org/`를 넣으세요. 예: `npx --registry=https://registry.npmjs.org/ @pazmo/ai-workflow-kit@$VERSION init`. 패키지 이름 뒤에 두면 npm이 아니라 kit에 전달됩니다. `init`은 `Updated AI Workflow Kit 5.0.3 → 5.2.0.`처럼 두 버전을 출력하고, `doctor`는 `Kit version: CLI …, installed …` 줄을 출력합니다. 그다음 새 Codex 작업 또는 Claude Code 세션을 여세요. 사용자가 수정한 관리 파일은 보존하고 알려주므로, 새 지침을 수동 반영해야 하는지 확인하세요.
+`--version`이 `$VERSION`과 다른 값을 출력하면 멈추세요. `.npmrc`가 사설 레지스트리를 가리키는 프로젝트에서는 패키지 이름 앞에 `--registry=https://registry.npmjs.org/`를 넣으세요. 예: `npx --registry=https://registry.npmjs.org/ @pazmo/ai-workflow-kit@$VERSION init`. 패키지 이름 뒤에 두면 npm이 아니라 kit에 전달됩니다. `init`은 `Updated AI Workflow Kit 5.2.0 → 5.3.0.`처럼 두 버전을 출력하고, `doctor`는 `Kit version: CLI …, installed …` 줄을 출력합니다. 그다음 새 Codex 작업 또는 Claude Code 세션을 여세요. 사용자가 수정한 관리 파일은 보존하고 알려주므로, 새 지침을 수동 반영해야 하는지 확인하세요.
 
 **4.x에서 업데이트할 때:** 5.x는 실제 실행 기록을 요구하는 v3 형식을 사용합니다. [검증 가이드](skills/workflow/references/verification.md)에 따라 `.ai-workflow/verification.json`과 Story에 연결된 G1/G3 기록을 준비하세요. 기존 v1/v2는 조회 전용(`upgrade-required`)입니다. 기존 worker를 중지하고 증거·시도 기록을 보존한 뒤 v3에서 리뷰·검증해야 합니다. `graph delivery`는 최종 스냅샷에 연결된 실제 G4도 확인합니다. [전체 변경 이력](CHANGELOG.md)을 참고하세요.
 
