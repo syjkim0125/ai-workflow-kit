@@ -1,6 +1,7 @@
 ---
 title: An upgrade run by a stale CLI or with preserved managed files could pass as finished
 date: 2026-11-05
+last_updated: 2026-11-05
 category: integration-issues
 module: Installer and doctor CLI
 problem_type: integration_issue
@@ -10,6 +11,7 @@ symptoms:
   - "`doctor` from the same stale CLI reported every check as PASS"
   - "`npx … --version` printed the old version only in a project whose `.npmrc` pointed at an unreachable private npm registry"
   - "An upgrade `init` kept a formatter-touched managed checker (`Preserved modified files`) next to newer skills, and `doctor` still passed"
+  - "Seconds after a successful publish, `npx …@<new version>` failed with `notarget` although the registry already listed the version"
 root_cause: missing_validation
 resolution_type: code_fix
 severity: high
@@ -138,6 +140,17 @@ A cached copy of a different version cannot satisfy an exact version. For a proj
   - Never trust `@latest` through npx in a project whose `.npmrc` points elsewhere.
   - Put npm options such as `--registry` before the package spec. `npm help exec` says that options after the first positional argument are passed to the executed command, so npm never sees them.
   - Right after publishing, pin the version you just published instead of reading it back with `npm view`. On a release day the registry kept returning the previous version for about 1.5 minutes after a successful publish, so the README's `VERSION=$(npm view …)` step would have pinned the old release in that window. (session history)
+    - The `+ <package>@<version>` line is not proof the version can be fetched yet. For 5.3.0, `npm publish` printed it with `Your package is being processed and may take a few minutes to become available`. That was more than a minute before the registry's `time` for the version (`2026-11-05T05:24:30Z`).
+    - A pinned `npx …@<new version>` in that window fails loudly, not silently:
+
+      ```text
+      npm error notarget a package version that doesn't exist.
+      ```
+
+    - On 2026-11-05 it failed about 17 seconds after that `time`. A cache-busting request for the package document (a `?t=<timestamp>` query) already listed 5.3.0.
+    - The registry serves that document with `cache-control: public, max-age=300`. So both npm's local cache and the registry's CDN may hand out a pre-publish copy for up to five minutes. Which of the two did it here was not separated: npm's cache index held entries for that document only from the retry onward, so any entry from the failing run was gone.
+    - Eight seconds later, `npx --prefer-online --registry=https://registry.npmjs.org/ -y @pazmo/ai-workflow-kit@5.3.0 --version` printed `5.3.0`.
+    - So `notarget` within about five minutes of a publish means a cache window, not a failed publish. Confirm the publish with `npm view <package>@<version> version --prefer-online --registry=https://registry.npmjs.org/`. Then re-run with `--prefer-online`, placed before the package spec like `--registry`.
   - In projects that pin the kit as a package dependency, keep the `package.json` pin, the lockfile and `packageVersion` in `.ai-workflow/config.json` in agreement. (session history)
 - **When a release adds a new managed path to `installPrepared`:** add it to `managedDrift` as well, so that `doctor` compares it.
 - **For any check that reports "clean":** print the versions it compared, not just the pass count. A count like "22/22 PASS" from the wrong binary carries no information.
@@ -160,10 +173,11 @@ assert.equal(doctor.status, 0);
 assert.ok(doctor.stdout.includes(`WARN  Mixed version: .ai-workflow/bin/check.mjs differs from ${version}`));
 ```
 
-- **Limit:** only CLIs that include PR #22 print these lines. A cached 5.2.0 or older copy still prints the old messages. Until a release with this change is published and used, the README's pin-and-check steps are the only guard.
+- **Limit:** only CLIs that include PR #22 print these lines. 5.3.0, published 2026-11-05, is the first release with them. A cached 5.2.0 or older copy still prints the old messages, so the README's pin-and-check steps stay the guard against that.
 
 ## Related Issues
 
 - [installed-graph-execution-contract.md](installed-graph-execution-contract.md) — the earlier installer learning (a fresh `init` lacked the graph runtime). Its prevention rule to test install and upgrade in disposable projects still holds; this doc adds checking which CLI version ran and what content was installed.
 - `docs/agent-office-handoff.md`: its migration step (update the install, then run `doctor`) was written before `doctor` printed versions. `doctor` now prints the CLI and installed versions that step asks you to confirm.
+- [npm-publish-e404-from-rejected-login.md](npm-publish-e404-from-rejected-login.md) covers the step before this one: a publish that failed with `E404` because the saved npm login was refused.
 - No GitHub issues exist for this; the work was tracked in PR #22.
