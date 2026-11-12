@@ -1,7 +1,7 @@
 # Kit cost and time redesign
 
 - Date: 2026-11-12
-- Status: awaiting approval (builder check done; owner answers recorded)
+- Status: approved by the owner (2026-11-12)
 - Scope: ai-workflow-kit 5.4.0 (minor). Phase 2 (measuring `ce-compound` lessons) gets its own design after this one ships.
 
 ## 1. Intent and why
