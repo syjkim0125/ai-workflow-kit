@@ -1,7 +1,7 @@
 # Kit cost and time redesign
 
 - Date: 2026-11-12
-- Status: awaiting approval
+- Status: awaiting approval (builder check done; owner answers recorded)
 - Scope: ai-workflow-kit 5.4.0 (minor). Phase 2 (measuring `ce-compound` lessons) gets its own design after this one ships.
 
 ## 1. Intent and why
@@ -156,8 +156,16 @@ Light lane:
 
 - Writes the same Story template. A section can hold a single item.
 - Does not create a Graph run.
-- Implements test-first. Verification runs the configured checks once through the CLI, and the CLI writes a receipt bound to the code snapshot.
-- Delivery requires an approved Story, a passing receipt for the current snapshot, and G4 (§4.7).
+- Implementation goes to the cheaper-tier implementer (§4.4), test-first.
+- One cheaper-tier reviewer checks the diff against the Story. *(Claude's call: keeps the quality bar on small tasks; review is cheap when the reviewer gets only the Story and the diff.)*
+- Verification runs the configured checks once through the CLI, and the CLI writes a receipt bound to the code snapshot.
+- Delivery requires an approved Story, a review record, a passing receipt for the current snapshot, and G4 (§4.7).
+
+Lane changes after G1 *(Claude's call)*:
+
+- `Lane:` stays out of the G1 Story hash, like `Status:`.
+- The agent may move a light run up to standard at any time. It records the reason in the footer (`Lane: standard (from light: <reason>)`), and the change shows at G4.
+- Moving down from standard to light after G1 needs a new G1 approval.
 
 Standard lane: the Graph flow, with §4.3–4.6 applied.
 
@@ -169,9 +177,13 @@ Two new Graph commands replace the model-driven `start` → write result JSON �
   - Starts the node.
   - Returns a compact brief: node id, covered M/V IDs, allowed files or areas, and checks to run.
   - Returns no token juggling for the model to copy around.
-- `complete <run> <node> [--notes <file>]`
+- `complete <run> <node> [--verdict pass|fix|human|replan] [--notes <file>]`
   - Runs the node's configured checks and writes the receipts.
-  - Derives the evaluation from the check results: passed, or `fix` with the failing check's output tail.
+  - Evaluation *(Claude's call)*:
+    - A failing check forces `fix`, with the failing check's output tail as feedback.
+    - Otherwise the verdict is the one given. It defaults to `pass` for implementation nodes.
+    - Review nodes must pass `--verdict`, because their judgment does not come from checks. `--notes` holds the findings.
+    - A review `fix` resets the implementation node in the same call, following today's reset rule.
   - Hashes the evidence, records the result, and returns the next ready node.
 
 Rules for the new commands:
@@ -191,6 +203,8 @@ On hosts with subagents (Claude Code), the work is split by role:
 | Review | A cheaper-tier subagent. It gets the Story's MUST/Verify and the diff, and returns findings |
 | Verification | The CLI |
 
+- **Reviewers** *(Claude's call)*: one by default on both lanes, two when the Story needs G3. This replaces today's default of three. The 5.3.0 kit runs in the evaluation used one review subagent per run.
+- **Allowed files or areas** in the `begin` brief are advisory text taken from the node description and the Story. They are not enforced *(Claude's call)*.
 - **Implementation subagent.**
   - It receives only the Story's MUST/Verify items, the node brief from `begin`, and the file pointers it needs.
   - It writes the tests and code and returns a short summary.
@@ -198,13 +212,30 @@ On hosts with subagents (Claude Code), the work is split by role:
   - When one node's implementation fails twice, the next attempt escalates to the main model.
 - `references/model-selection.md` states these defaults concretely and drops the advice that left routing to judgment.
 
-### 4.5 Verification order and reuse
+### 4.5 Fewer test and build runs
 
-- The minimal plan becomes `implement → review → verify`.
-  - Review runs before the final checks.
-  - Review fixes reset `implement`, as today.
-  - The final `verify` runs once on the reviewed snapshot.
-- Receipt reuse: if a passing receipt for an identical snapshot and an identical check definition already exists, `complete` reuses it instead of running the check again.
+Where the runs went, measured per kit run in the evaluation:
+
+| Stage | Test or build runs |
+|---|---|
+| Before the Graph started (writing the check profile, finding failures that already existed) | 5.7 |
+| Implementation | 2.7 |
+| Review | 1.4 |
+| Verification (1.6 of them through `graph verify`) | 3.3 |
+
+On top of that, results were reported stale 3.9 times per run and a node was reset 0.7 times. The minimal plan already runs review before verification (`implement → workflow-review → workflow-verify`), so the node order does not change.
+
+Changes:
+
+- **Check profile.**
+  - A CLI command writes the verification profile from the repository type. It reads the `package.json` test and typecheck scripts, or the Gradle test task for the touched modules.
+  - The agent edits the profile only when the detection is wrong.
+- **Failures that already existed.**
+  - The CLI runs the profile once on the start commit.
+  - It stores the failing cases with the snapshot.
+  - Later checks compare against that list instead of re-running the start commit.
+- **Receipt reuse.** If a passing receipt exists for an identical snapshot and an identical check definition, `complete` reuses it instead of running the check again.
+- **Stale handling.** Only code changes make a result stale. Writing evidence or approval files under `.ai-workflow/` does not. The builder confirms this against today's snapshot rules and fixes it if it is not already so.
 
 ### 4.6 Test volume
 
@@ -232,6 +263,11 @@ On hosts with subagents (Claude Code), the work is split by role:
 
 **Mode `human-restatement`** (the current gate) stays available when the owner asks for it. Records say which mode passed, so the two can be told apart later.
 
+**High-risk work** *(owner decision, 2026-11-12)*:
+
+- A Story that requires G3 (hard to reverse or high-risk) must pass G4 by `human-restatement`.
+- The checker and the delivery check reject `Mode: ai-summary` for such a Story.
+
 ### 4.8 Lighter reading
 
 - `SKILL.md` routes by lane.
@@ -240,7 +276,23 @@ On hosts with subagents (Claude Code), the work is split by role:
   - the minimal plan with `begin`/`complete` goes in a short file;
   - advanced material (role graphs, delegation, reset rules) moves into a separate file that is read only when it is needed.
 
-## 5. Validation (arm D in the internal evaluation)
+## 5. Shipping order (owner decision, 2026-11-12)
+
+The work ships as two pull requests.
+
+1. **PR 1: owner-approved readability.** Ships as soon as it is reviewed, independent of the cost results.
+   - Story template v2 (§4.1).
+   - Checker support for both Story layouts.
+   - G4 `ai-summary` mode with the high-risk rule (§4.7).
+2. **PR 2: cost and time.** Merges to main only after arm D passes (§6). If D fails, the branch stays open for another round, and PR 1 stays shipped.
+   - Lanes (§4.2).
+   - `begin`/`complete` (§4.3).
+   - Orchestrator and implementer split (§4.4).
+   - Check profile, baseline and receipt reuse (§4.5).
+   - Test volume (§4.6).
+   - Lighter reading (§4.8).
+
+## 6. Validation (arm D in the internal evaluation)
 
 The internal evaluation is finishing kit 5.3.0 now. Arm D runs after that, so the frozen 5.3.0 comparison is not disturbed.
 
@@ -254,11 +306,11 @@ The internal evaluation is finishing kit 5.3.0 now. Arm D runs after that, so th
   - No new test failures.
 - **Report.** A per-size cost ratio, and which arm D was compared against.
 
-## 6. Phase 2: lessons (`ce-compound`)
+## 7. Phase 2: lessons (`ce-compound`)
 
 This gets a separate design after 5.4.0. One thing is already known: in the 5.3.0 runs, C stopped at G4 before the lesson capture step, and the Compound Engineering plugin was not installed in C. Its effect is therefore unmeasured. The measurement has to test repetition across tasks, for example the same mistake reappearing in a later, similar task with and without the lesson. Single-task replay cannot show that.
 
-## 7. Left to the builder
+## 8. Left to the builder
 
 - Exact command names and flags beyond `begin` and `complete`, and the compact output format.
 - How to split the reference files and what their final names are.
