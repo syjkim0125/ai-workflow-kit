@@ -175,7 +175,9 @@
 **Files:**
 - Modify: `src/graph/cli.mjs` (the `delivery` branch near line 145)
 - Modify: `skills/workflow/references/understanding-gate.md`, `skills/workflow/SKILL.md` (lines 18–29), `CHANGELOG.md` (Unreleased)
-- Test: `test/delivery-check.test.mjs`
+- Test: `test/delivery-check.test.mjs`, `test/structure.test.mjs`
+  - Update the existing test `G4 forces prediction before explanation and checks evidence boundaries` (line 121).
+  - It now asserts that the doc names both modes, keeps prediction-before-reveal under `human-restatement`, and states the G3 rule.
 
 **Interfaces:**
 - Consumes: `g4Mode` (Task 3). `boundApproval` returns `{ file, hash }`; re-read the JSON with `readJson(root, file)`.
