@@ -8,7 +8,8 @@ import { assertAssignment, assertRoleOutput, createRoleGraph } from './roles.mjs
 import { approvalPath, boundApproval, checkG4Record, storyG4Mode } from './approvals.mjs';
 import { createSnapshot } from './snapshot.mjs';
 import { begin, complete } from './advance.mjs';
-import { PROFILE, checkExecutions, findReusableReceipt, indexReceipt, needsExecution, runVerification, verificationProfile } from './verification.mjs';
+import { BASELINE_NARROW, writeProfile } from './profile.mjs';
+import { PROFILE, checkExecutions, executeCheck, findReusableReceipt, indexReceipt, needsExecution, receiptTail, runVerification, verificationProfile } from './verification.mjs';
 import { normalizeExecutionMetadata } from './execution-metadata.mjs';
 import {
   MAX_ATTEMPTS, MAX_QUESTIONS, assertWorkflowRun, checkRunEvidence, createWorkflowGraph, evidenceHashes,
@@ -19,6 +20,8 @@ export const GRAPH_HELP = `Graph commands (run from project root):
   graph.mjs init <plan.json|-> <run.json> <story.md>
   graph.mjs init-role <assignment.json> <run.json>
   graph.mjs status <run.json>
+  graph.mjs profile <story.md>
+  graph.mjs baseline <run.json>
   graph.mjs begin <run.json> <node-id>
   graph.mjs complete <run.json> <node-id> [--verdict pass|fix|human|replan] [--notes <file>]
   graph.mjs start <run.json> <node-id> <ready-token>
@@ -53,7 +56,7 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
   if (!command || command === '--help') return { help: GRAPH_HELP };
   const { flags, values } = splitFlags(command, raw);
   const counts = { init: 3, 'init-role': 2, status: 1, delivery: 1, verify: 4, start: 3, record: 3, reset: 3, question: 3, answer: 3, feedback: 3,
-    begin: 2, complete: 2 };
+    begin: 2, complete: 2, profile: 1, baseline: 1 };
   if (!Object.hasOwn(counts, command) || values.length !== counts[command]) throw new Error(GRAPH_HELP);
 
   const loadStory = async file => {
@@ -180,7 +183,37 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
     return { ...await status(result.run), verification: result.verification };
   }
   const call = argv => runGraphCommand(argv, { root, checkArtifact, checkGate });
-  if (command === 'begin') return begin({ root, runFile: values[0], nodeId: values[1], call });
+  if (command === 'profile') return writeProfile({ root, ids: (await loadStory(values[0])).ids });
+  if (command === 'baseline') {
+    // One run of every check on the code before the change; implementation waits for it.
+    const [runFile] = values;
+    const run = await validate(await readJson(root, runFile));
+    if (run.kind !== 'delivery' || !run.verification) throw new Error('Baseline needs a delivery run with a verification profile.');
+    const code = (await snapshot(run)).fingerprint;
+    const receipts = {};
+    const failing = [];
+    for (const check of run.verification.value.checks) {
+      let found = await findReusableReceipt(root, run, check, code);
+      if (!found) {
+        found = await executeCheck({ root, run, nodeId: 'baseline', token: null, check, snapshotBefore: code, snapshot });
+        await indexReceipt(root, runFile, check, found.receipt, found.file);
+      }
+      receipts[check.id] = { file: found.file, hash: found.hash };
+      if (!found.receipt.passed) failing.push(`${check.id}:\n${await receiptTail(root, found.receipt)}`);
+    }
+    if (failing.length) throw new Error(`Baseline failed before any change.\n${failing.join('\n')}\n${BASELINE_NARROW}`);
+    await updateRun(root, runFile, async previous => ({ ...structuredClone(previous),
+      baseline: { profile: run.verification.fingerprint, snapshot: code, receipts } }));
+    return { baseline: 'passed', checks: Object.keys(receipts), next: (await call(['status', runFile])).ready[0]?.id ?? null };
+  }
+  if (command === 'begin') {
+    const run = await validate(await readJson(root, values[0]));
+    return begin({ root, runFile: values[0], nodeId: values[1], call, beforeStart: async ready => {
+      if (run.kind === 'delivery' && run.verification && ready.access !== 'read' && run.baseline?.profile !== run.verification.fingerprint) {
+        throw new Error(`Run the baseline before implementation: graph.mjs baseline ${values[0]}`);
+      }
+    } });
+  }
   if (command === 'complete') {
     return complete({ root, runFile: values[0], nodeId: values[1], verdict: flags.verdict, notesFile: flags.notes, call, snapshot,
       loadRun: async () => validate(await readJson(root, values[0])),

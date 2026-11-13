@@ -6,7 +6,17 @@ import { graphProject } from './fixtures/graph-project.mjs';
 const prepared = async (t, options) => {
   const f = await graphProject(t, options);
   f.ok('init', '-', 'run.json', 'story.md');
+  if (!options?.broken) f.ok('baseline', 'run.json');
+  else await forceBaseline(f);
   return f;
+};
+// A broken fixture fails its baseline by design; mark it passed to test later failures.
+const forceBaseline = async f => {
+  const { readFile } = await import('node:fs/promises');
+  const path = await import('node:path');
+  const file = path.join(f.root, 'run.json');
+  const run = JSON.parse(await readFile(file, 'utf8'));
+  await f.put('run.json', { ...run, baseline: { profile: run.verification.fingerprint, snapshot: 'fixture', receipts: {} } });
 };
 const complete = (f, node, ...flags) => {
   const result = f.cli('complete', 'run.json', node, ...flags);
