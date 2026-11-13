@@ -9,6 +9,7 @@ import { approvalPath, boundApproval, checkG4Record, storyG4Mode } from './appro
 import { createSnapshot } from './snapshot.mjs';
 import { begin, complete } from './advance.mjs';
 import { BASELINE_NARROW, writeProfile } from './profile.mjs';
+import { lightCommands } from './light.mjs';
 import { PROFILE, checkExecutions, executeCheck, findReusableReceipt, indexReceipt, needsExecution, receiptTail, runVerification, verificationProfile } from './verification.mjs';
 import { normalizeExecutionMetadata } from './execution-metadata.mjs';
 import {
@@ -24,6 +25,9 @@ export const GRAPH_HELP = `Graph commands (run from project root):
   graph.mjs baseline <run.json>
   graph.mjs begin <run.json> <node-id>
   graph.mjs complete <run.json> <node-id> [--verdict pass|fix|human|replan] [--notes <file>]
+  graph.mjs light <story.md> <run.json>          (light lane: Lane: light in the Story)
+  graph.mjs check <run.json>                     (light lane)
+  graph.mjs review <run.json> --verdict pass|fix [--notes <file>]   (light lane)
   graph.mjs start <run.json> <node-id> <ready-token>
   graph.mjs record <run.json> <node-id> <result.json>
   graph.mjs verify <run.json> <node-id> <task-token> <check-id>
@@ -37,7 +41,7 @@ The host executes work; this tool validates state/evidence and routes the next a
 
 // Only these commands take flags; every other argument stays positional.
 function splitFlags(command, raw) {
-  const allowed = { complete: ['verdict', 'notes'] }[command] ?? [];
+  const allowed = { complete: ['verdict', 'notes'], review: ['verdict', 'notes'] }[command] ?? [];
   const flags = {};
   const values = [];
   for (let index = 0; index < raw.length; index += 1) {
@@ -56,7 +60,7 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
   if (!command || command === '--help') return { help: GRAPH_HELP };
   const { flags, values } = splitFlags(command, raw);
   const counts = { init: 3, 'init-role': 2, status: 1, delivery: 1, verify: 4, start: 3, record: 3, reset: 3, question: 3, answer: 3, feedback: 3,
-    begin: 2, complete: 2, profile: 1, baseline: 1 };
+    begin: 2, complete: 2, profile: 1, baseline: 1, light: 2, check: 1, review: 1 };
   if (!Object.hasOwn(counts, command) || values.length !== counts[command]) throw new Error(GRAPH_HELP);
 
   const loadStory = async file => {
@@ -117,7 +121,7 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
     const text = await readProjectFile(root, run.story.path);
     const extra = run.verification ? [PROFILE, ...(run.verification.recipe ? [run.verification.recipe.path] : []),
       ...(run.verification.value.requiresG3 ? [run.verification.value.design] : [])] : [];
-    const runFile = command === 'init' || command === 'init-role' ? values[1] : values[0];
+    const runFile = ['init', 'init-role', 'light'].includes(command) ? values[1] : values[0];
     return createSnapshot({ root, inputs: run.verification?.value.inputs, additionalInputs: extra,
       story: run.story.path, exclude: [runFile, `${runFile}.lock`, ...['G1', 'G3', 'G4'].map(gate => approvalPath(text, gate)).filter(Boolean)] });
   };
@@ -166,6 +170,11 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
     }, { create: true });
     return status(run);
   }
+  const lane = lightCommands({ root, loadStory, checkGate, snapshot });
+  if (command === 'light') return lane.create(values[0], values[1]);
+  if (command === 'check') return lane.check(values[0]);
+  if (command === 'review') return lane.review(values[0], flags);
+  if ((command === 'status' || command === 'delivery') && (await readJson(root, values[0]))?.kind === 'light') return lane[command](values[0]);
   if (command === 'status' || command === 'delivery') {
     const run = await validate(await readJson(root, values[0]));
     const current = await status(run);

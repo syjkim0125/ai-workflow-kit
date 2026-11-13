@@ -326,9 +326,14 @@ function checkStoryShape(text) {
   }
   const { preamble, footer } = storyRecordZones(text);
   const records = [...preamble, ...footer];
-  for (const record of ['Status', 'Owner']) {
+  for (const record of ['Status', 'Owner', 'Lane']) {
     if (records.filter((line) => new RegExp(`^${record}:`, 'iu').test(line.trim())).length > 1) {
       errors.push(`${record} must appear once; keep the record lines in the footer.`);
+    }
+  }
+  for (const line of records.filter((record) => /^Lane:/iu.test(record.trim()))) {
+    if (!/^Lane:[\t ]*(?:light|standard|standard \(from light:[\t ]*[^\s)][^)]*\))[\t ]*$/iu.test(line.trim())) {
+      errors.push('Lane must be "light", "standard", or "standard (from light: <reason>)".');
     }
   }
   errors.push(...duplicateGateErrors(text, ['G1', 'G3', 'G4']));

@@ -507,3 +507,13 @@ test('v2 Goal labels need text on the same line and no placeholder', async () =>
     assert.ok(result.errors.some((error) => error.includes('Unchanged')), result.errors.join('\n'));
   }
 });
+
+test('checker rejects an unknown Lane value', async () => {
+  const unknown = await storyResult(v2Story.replace('Owner: human owner\n', 'Owner: human owner\nLane: fast\n'));
+  assert.equal(unknown.ok, false);
+  assert.ok(unknown.errors.some((error) => error.includes('Lane')), unknown.errors.join('\n'));
+  for (const lane of ['Lane: light', 'Lane: standard', 'Lane: standard (from light: touches the schema)']) {
+    const result = await storyResult(v2Story.replace('Owner: human owner\n', `Owner: human owner\n${lane}\n`));
+    assert.equal(result.ok, true, `${lane}: ${result.errors.join('\n')}`);
+  }
+});
