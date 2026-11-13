@@ -105,6 +105,36 @@ export async function checkExecutions(root, run, nodeId, { requirePass = false }
   return receipts;
 }
 
+/** Run one profile check against the current code and write its receipt and raw logs. */
+export async function executeCheck({ root, run, nodeId, token, check, snapshotBefore, snapshot, executionId = randomUUID() }) {
+  const directory = `.ai-workflow/evidence/${run.runId}/${executionId}`;
+  await fs.mkdir(await projectFile(root, directory), { recursive: true, mode: 0o700 });
+  const startedAt = new Date().toISOString();
+  const result = await execute(check.argv, root, check.timeoutMs ?? 30000);
+  const receipt = { version: 1, runId: run.runId, storyHash: run.story.fingerprint, nodeId, token, checkId: check.id, covers: check.covers,
+    ...(run.verification.recipe ? { recipe: run.verification.recipe } : {}),
+    argv: check.argv, cwd: '.', startedAt, finishedAt: new Date().toISOString(),
+    ...result, stdout: `${directory}/stdout.log`, stderr: `${directory}/stderr.log`,
+    stdoutHash: digest(result.stdout), stderrHash: digest(result.stderr),
+    snapshotBefore, snapshotAfter: null };
+  for (const stream of ['stdout', 'stderr']) await fs.writeFile(await projectFile(root, receipt[stream]), result[stream], { flag: 'wx', mode: 0o600 });
+  try { receipt.snapshotAfter = (await snapshot(run)).fingerprint; }
+  catch (error) { receipt.snapshotError = error.message; }
+  receipt.passed = receipt.exitCode === 0 && !receipt.signal && !receipt.timedOut && !receipt.truncated && !receipt.outputIncomplete && !receipt.spawnError
+    && !receipt.snapshotError && receipt.snapshotBefore === receipt.snapshotAfter;
+  const file = `${directory}/receipt.json`;
+  await fs.writeFile(await projectFile(root, file), `${JSON.stringify(receipt, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
+  return { receipt, file, hash: digest(JSON.stringify(receipt)) };
+}
+
+/** The last lines of a failed check's output, for feedback that fits in a compact result. */
+export async function receiptTail(root, receipt, lines = 20) {
+  const read = async stream => (await fs.readFile(await projectFile(root, receipt[stream]))).toString('utf8');
+  const text = (await read('stderr')).trim() || (await read('stdout')).trim()
+    || (receipt.timedOut ? 'timed out' : receipt.spawnError ?? `exit ${receipt.exitCode}`);
+  return text.split(/\r?\n/).filter(line => line.trim()).slice(-lines).join('\n').slice(-1500);
+}
+
 export async function runVerification({ root, runFile, nodeId, token, checkId, validate, snapshot }) {
   const executionId = randomUUID();
   const reserved = await updateRun(root, runFile, async previous => {
@@ -122,23 +152,8 @@ export async function runVerification({ root, runFile, nodeId, token, checkId, v
     return run;
   });
   const check = reserved.verification.value.checks.find(check => check.id === checkId);
-  const directory = `.ai-workflow/evidence/${reserved.runId}/${executionId}`;
-  await fs.mkdir(await projectFile(root, directory), { recursive: true, mode: 0o700 });
-  const startedAt = new Date().toISOString();
-  const result = await execute(check.argv, root, check.timeoutMs ?? 30000);
-  const receipt = { version: 1, runId: reserved.runId, storyHash: reserved.story.fingerprint, nodeId, token, checkId, covers: check.covers,
-    ...(reserved.verification.recipe ? { recipe: reserved.verification.recipe } : {}),
-    argv: check.argv, cwd: '.', startedAt, finishedAt: new Date().toISOString(),
-    ...result, stdout: `${directory}/stdout.log`, stderr: `${directory}/stderr.log`,
-    stdoutHash: digest(result.stdout), stderrHash: digest(result.stderr),
-    snapshotBefore: reserved.state.nodes[nodeId].snapshot, snapshotAfter: null };
-  for (const stream of ['stdout', 'stderr']) await fs.writeFile(await projectFile(root, receipt[stream]), result[stream], { flag: 'wx', mode: 0o600 });
-  try { receipt.snapshotAfter = (await snapshot(reserved)).fingerprint; }
-  catch (error) { receipt.snapshotError = error.message; }
-  receipt.passed = receipt.exitCode === 0 && !receipt.signal && !receipt.timedOut && !receipt.truncated && !receipt.outputIncomplete && !receipt.spawnError
-    && !receipt.snapshotError && receipt.snapshotBefore === receipt.snapshotAfter;
-  const file = `${directory}/receipt.json`;
-  await fs.writeFile(await projectFile(root, file), `${JSON.stringify(receipt, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
+  const { receipt, file } = await executeCheck({ root, run: reserved, nodeId, token, check, executionId,
+    snapshotBefore: reserved.state.nodes[nodeId].snapshot, snapshot });
   const run = await updateRun(root, runFile, async previous => {
     const next = structuredClone(previous);
     await validate(next);

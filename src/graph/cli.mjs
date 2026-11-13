@@ -7,6 +7,7 @@ import { digest, readJson, readProjectFile, updateRun } from './storage.mjs';
 import { assertAssignment, assertRoleOutput, createRoleGraph } from './roles.mjs';
 import { approvalPath, boundApproval, checkG4Record, storyG4Mode } from './approvals.mjs';
 import { createSnapshot } from './snapshot.mjs';
+import { begin, complete } from './advance.mjs';
 import { PROFILE, checkExecutions, needsExecution, runVerification, verificationProfile } from './verification.mjs';
 import { normalizeExecutionMetadata } from './execution-metadata.mjs';
 import {
@@ -18,6 +19,8 @@ export const GRAPH_HELP = `Graph commands (run from project root):
   graph.mjs init <plan.json|-> <run.json> <story.md>
   graph.mjs init-role <assignment.json> <run.json>
   graph.mjs status <run.json>
+  graph.mjs begin <run.json> <node-id>
+  graph.mjs complete <run.json> <node-id> [--verdict pass|fix|human|replan] [--notes <file>]
   graph.mjs start <run.json> <node-id> <ready-token>
   graph.mjs record <run.json> <node-id> <result.json>
   graph.mjs verify <run.json> <node-id> <task-token> <check-id>
@@ -26,13 +29,31 @@ export const GRAPH_HELP = `Graph commands (run from project root):
   graph.mjs question <run.json> <node-id> <question.json>
   graph.mjs answer <run.json> <node-id> <answer.json>
   graph.mjs feedback <run.json> <node-id> <feedback.json>
-Use - for a minimal plan. The host executes work; this tool validates state/evidence and routes the next action.`;
+Use - for a minimal plan. begin/complete run a node in two calls; start/verify/record remain for advanced use.
+The host executes work; this tool validates state/evidence and routes the next action.`;
+
+// Only these commands take flags; every other argument stays positional.
+function splitFlags(command, raw) {
+  const allowed = { complete: ['verdict', 'notes'] }[command] ?? [];
+  const flags = {};
+  const values = [];
+  for (let index = 0; index < raw.length; index += 1) {
+    const name = raw[index].startsWith('--') ? raw[index].slice(2) : null;
+    if (name && allowed.includes(name)) {
+      if (index + 1 >= raw.length) throw new Error(`--${name} needs a value.`);
+      flags[name] = raw[++index];
+    } else values.push(raw[index]);
+  }
+  return { flags, values };
+}
 
 export async function runGraphCommand(args, { root = process.cwd(), checkArtifact, checkGate } = {}) {
   root = await fs.realpath(root);
-  const [command, ...values] = args;
+  const [command, ...raw] = args;
   if (!command || command === '--help') return { help: GRAPH_HELP };
-  const counts = { init: 3, 'init-role': 2, status: 1, delivery: 1, verify: 4, start: 3, record: 3, reset: 3, question: 3, answer: 3, feedback: 3 };
+  const { flags, values } = splitFlags(command, raw);
+  const counts = { init: 3, 'init-role': 2, status: 1, delivery: 1, verify: 4, start: 3, record: 3, reset: 3, question: 3, answer: 3, feedback: 3,
+    begin: 2, complete: 2 };
   if (!Object.hasOwn(counts, command) || values.length !== counts[command]) throw new Error(GRAPH_HELP);
 
   const loadStory = async file => {
@@ -157,6 +178,12 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
     const [runFile, nodeId, token, checkId] = values;
     const result = await runVerification({ root, runFile, nodeId, token, checkId, validate, snapshot });
     return { ...await status(result.run), verification: result.verification };
+  }
+  const call = argv => runGraphCommand(argv, { root, checkArtifact, checkGate });
+  if (command === 'begin') return begin({ root, runFile: values[0], nodeId: values[1], call });
+  if (command === 'complete') {
+    return complete({ root, runFile: values[0], nodeId: values[1], verdict: flags.verdict, notesFile: flags.notes, call, snapshot,
+      loadRun: async () => validate(await readJson(root, values[0])) });
   }
 
   const [runFile, nodeId, argument] = values;
