@@ -37,8 +37,9 @@ Cost grows as turns × context. The redesign attacks both terms and moves the ex
 
 **Goals**
 
-1. On large tasks, kit runs cost and take no more than **1.1–1.3×** vanilla Claude Code with the same main-session model.
-2. On small tasks, the overhead shrinks substantially. The 1.1–1.3× target is not promised for small tasks, because writing a readable Story has a fixed cost.
+1. **Cheaper than vanilla Opus at Opus quality** *(owner decision, 2026-11-13; raised from the earlier 1.1–1.3× target)*: on large tasks, a kit run with an Opus main session costs less than vanilla Claude Code running Opus throughout. Checklist and test results do not fall below vanilla Opus.
+2. **Better than vanilla Sonnet at about its cost**: kit runs score higher than vanilla Claude Code running Sonnet throughout, at a similar cost. Without this comparison nobody can tell whether the saving comes from the kit's structure or only from the cheaper model.
+3. On small tasks, the overhead shrinks substantially. Being cheaper than vanilla Opus is not promised for small tasks, because the Story has a fixed cost that a small task cannot amortize.
 3. Quality holds:
    - checklist pass rate of at least 92% in the same evaluation;
    - no drop in behavior-test or hidden-test results;
@@ -204,6 +205,10 @@ On hosts with subagents (Claude Code), the work is split by role:
 | Verification | The CLI |
 
 - **Reviewers** *(Claude's call)*: one by default on both lanes, two when the Story needs G3. This replaces today's default of three. The 5.3.0 kit runs in the evaluation used one review subagent per run.
+- **Intake exploration** *(owner decision, 2026-11-13)*:
+  - Before the Story, a cheaper-tier subagent reads the code the request touches.
+  - It returns a short map of the files, the current behavior and the constraints.
+  - The main session writes the Story from that map, not from reading the code itself. This cuts the fixed Story cost, which was 0.4–0.9 USD per task in the evaluation.
 - **Allowed files or areas** in the `begin` brief are advisory text taken from the node description and the Story. They are not enforced *(Claude's call)*.
 - **Implementation subagent.**
   - It receives only the Story's MUST/Verify items, the node brief from `begin`, and the file pointers it needs.
@@ -292,18 +297,26 @@ The work ships as two pull requests.
    - Test volume (§4.6).
    - Lighter reading (§4.8).
 
-## 6. Validation (arm D in the internal evaluation)
+## 6. Validation (arms D and E in the internal evaluation)
 
-The internal evaluation is finishing kit 5.3.0 now. Arm D runs after that, so the frozen 5.3.0 comparison is not disturbed.
+The 5.3.0 comparison stops at the 21 runs already graded *(owner decision, 2026-11-13)*. Arms D and E run on the same task slice:
+
+| Arm | Setup |
+|---|---|
+| A (existing runs) | Vanilla Claude Code, Opus throughout |
+| D | Kit 5.4.0 release candidate with superpowers. Opus main session, mid-tier implementation and review |
+| E | Vanilla Claude Code, Sonnet throughout |
+
+- D and E are compared with A within each task and repetition, using the same frozen checklists, behavior tests and blind grading.
 
 - **Install.** A local `npm pack` tarball of the 5.4.0 release candidate. It is not published to npm before it passes.
 - **Tasks.** The same tasks, with the same frozen checklists, behavior tests and blind grading.
 - **Scale.** One repetition per task first. The rest follows only if the gate below passes.
 - **Pass gate.**
-  - Large tasks: D cost and wall time at most 1.3× A.
-  - All tasks: D checklist pass rate at least 92%.
-  - No drop against A in behavior-test or hidden-test results.
-  - No new test failures.
+  - Large tasks: D costs less than A.
+  - D's checklist pass rate is at least A's and at least 92%. D has no drop against A in behavior-test or hidden-test results, and no new test failures.
+  - D beats E: more pairwise wins than losses, and a higher checklist pass rate.
+  - D's cost is within about 1.5× of E's.
 - **Report.** A per-size cost ratio, and which arm D was compared against.
 
 ## 7. Phase 2: lessons (`ce-compound`)
