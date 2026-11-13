@@ -89,9 +89,8 @@ test('review fix resets implement', async t => {
   const done = complete(f, 'workflow-review', '--verdict', 'fix', '--notes', '.ai-workflow/evidence/findings.md');
   assert.equal(done.status, 0, done.stderr);
   assert.equal(done.out.next, 'implement');
-  assert.ok(f.ok('status', 'run.json').ready.some(node => node.id === 'implement'));
-  const brief = f.ok('begin', 'run.json', 'implement');
-  assert.match(brief.feedback, /negative inputs/);
+  assert.deepEqual(f.ok('status', 'run.json').running, ['implement']);
+  assert.match(done.out.brief.feedback, /negative inputs/);
 });
 
 test('complete refuses a pass on a changed snapshot', async t => {

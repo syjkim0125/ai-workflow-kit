@@ -3,13 +3,14 @@ import { randomUUID } from 'node:crypto';
 import { normalizeEvaluation } from './executor.mjs';
 import { descendantIds, nodeById } from './task-graph.mjs';
 import { resetAffectedSubgraph } from './scheduler.mjs';
-import { digest, readJson, readProjectFile, updateRun } from './storage.mjs';
+import { digest, projectFile, readJson, readProjectFile, updateRun } from './storage.mjs';
 import { assertAssignment, assertRoleOutput, createRoleGraph } from './roles.mjs';
 import { approvalPath, boundApproval, checkG4Record, storyG4Mode } from './approvals.mjs';
 import { createSnapshot } from './snapshot.mjs';
 import { begin, complete } from './advance.mjs';
 import { BASELINE_NARROW, writeProfile } from './profile.mjs';
 import { lightCommands, storyLane } from './light.mjs';
+import { approveG1, approveG4 } from './approve.mjs';
 import { PROFILE, checkExecutions, executeCheck, findReusableReceipt, indexReceipt, needsExecution, receiptTail, runVerification, verificationProfile } from './verification.mjs';
 import { normalizeExecutionMetadata } from './execution-metadata.mjs';
 import {
@@ -21,8 +22,11 @@ export const GRAPH_HELP = `Graph commands (run from project root):
   graph.mjs init <plan.json|-> <run.json> <story.md>
   graph.mjs init-role <assignment.json> <run.json>
   graph.mjs status <run.json>
-  graph.mjs profile <story.md>
-  graph.mjs baseline <run.json>
+  graph.mjs approve G1 <story.md> --response <reply-file>
+  graph.mjs go <story.md> <run.json> [--scope <module-or-path>]
+  graph.mjs approve G4 <run.json> --summary <four-lines-file> --response <reply-file> [--mode ai-summary|human-restatement]
+  graph.mjs profile <story.md> [--scope <module-or-path>]
+  graph.mjs baseline <run.json>                  (optional: repositories with known failures)
   graph.mjs begin <run.json> <node-id>
   graph.mjs complete <run.json> <node-id> [--verdict pass|fix|human|replan] [--notes <file>]
   graph.mjs light <story.md> <run.json>          (light lane: Lane: light in the Story)
@@ -41,7 +45,8 @@ The host executes work; this tool validates state/evidence and routes the next a
 
 // Only these commands take flags; every other argument stays positional.
 function splitFlags(command, raw) {
-  const allowed = { complete: ['verdict', 'notes'], review: ['verdict', 'notes'] }[command] ?? [];
+  const allowed = { complete: ['verdict', 'notes'], review: ['verdict', 'notes'], approve: ['response', 'summary', 'mode'],
+    go: ['scope'], profile: ['scope'] }[command] ?? [];
   const flags = {};
   const values = [];
   for (let index = 0; index < raw.length; index += 1) {
@@ -60,7 +65,7 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
   if (!command || command === '--help') return { help: GRAPH_HELP };
   const { flags, values } = splitFlags(command, raw);
   const counts = { init: 3, 'init-role': 2, status: 1, delivery: 1, verify: 4, start: 3, record: 3, reset: 3, question: 3, answer: 3, feedback: 3,
-    begin: 2, complete: 2, profile: 1, baseline: 1, light: 2, check: 1, review: 1 };
+    begin: 2, complete: 2, profile: 1, baseline: 1, light: 2, check: 1, review: 1, approve: 2, go: 2 };
   if (!Object.hasOwn(counts, command) || values.length !== counts[command]) throw new Error(GRAPH_HELP);
 
   const loadStory = async file => {
@@ -192,7 +197,25 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
     return { ...await status(result.run), verification: result.verification };
   }
   const call = argv => runGraphCommand(argv, { root, checkArtifact, checkGate });
-  if (command === 'profile') return writeProfile({ root, ids: (await loadStory(values[0])).ids });
+  if (command === 'profile') return writeProfile({ root, ids: (await loadStory(values[0])).ids, scope: flags.scope });
+  if (command === 'approve') {
+    if (values[0] === 'G1') return approveG1({ root, story: values[1], response: flags.response, checkArtifact, checkGate });
+    if (values[0] === 'G4') return approveG4({ root, runFile: values[1], summary: flags.summary, response: flags.response, mode: flags.mode, call });
+    throw new Error('approve takes G1 <story.md> or G4 <run.json>.');
+  }
+  if (command === 'go') {
+    // One call from an approved Story to the first node's brief, or back to the node in progress.
+    const [story, runFile] = values;
+    const exists = await fs.access(await projectFile(root, runFile)).then(() => true, () => false);
+    if (storyLane(await readProjectFile(root, story)) === 'light') return exists ? call(['status', runFile]) : call(['light', story, runFile]);
+    if (!exists) {
+      await call(['profile', story, ...(flags.scope ? ['--scope', flags.scope] : [])]);
+      await call(['init', '-', runFile, story]);
+    }
+    const state = await call(['status', runFile]);
+    const nodeId = state.running[0] ?? state.ready[0]?.id;
+    return nodeId ? { run: runFile, ...await begin({ root, runFile, nodeId, call }) } : state;
+  }
   if (command === 'baseline') {
     // One run of every check on the code before the change; implementation waits for it.
     const [runFile] = values;
@@ -219,14 +242,8 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
     return { baseline: 'passed', checks: Object.keys(receipts), next: (await call(['status', runFile])).ready[0]?.id ?? null };
   }
   if (command === 'begin') {
-    const run = await validate(await readJson(root, values[0]));
-    const movedUp = storyLane(await readProjectFile(root, run.story.path)) === 'moved-up';
-    return begin({ root, runFile: values[0], nodeId: values[1], call, beforeStart: async ready => {
-      if (run.kind === 'delivery' && run.verification && ready.access !== 'read' && !movedUp
-        && run.baseline?.profile !== run.verification.fingerprint) {
-        throw new Error(`Run the baseline before implementation: graph.mjs baseline ${values[0]}`);
-      }
-    } });
+    // The baseline no longer gates implementation (RC 2): it sat on the critical path.
+    return begin({ root, runFile: values[0], nodeId: values[1], call });
   }
   if (command === 'complete') {
     return complete({ root, runFile: values[0], nodeId: values[1], verdict: flags.verdict, notesFile: flags.notes, call, snapshot,

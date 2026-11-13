@@ -55,14 +55,6 @@ test('profile never overwrites an existing profile', async t => {
   assert.equal(await fs.readFile(path.join(f.root, PROFILE), 'utf8'), before);
 });
 
-test('begin refuses before a passing baseline', async t => {
-  const f = await graphProject(t);
-  f.ok('init', '-', 'run.json', 'story.md');
-  const result = f.cli('begin', 'run.json', 'implement');
-  assert.equal(result.status, 1);
-  assert.match(result.stderr, /baseline/);
-});
-
 test('a failing baseline names the check and how to narrow it', async t => {
   const f = await graphProject(t, { broken: true });
   f.ok('init', '-', 'run.json', 'story.md');
@@ -70,10 +62,9 @@ test('a failing baseline names the check and how to narrow it', async t => {
   assert.equal(result.status, 1);
   assert.match(result.stderr, /addition/);
   assert.match(result.stderr, /narrow/i);
-  assert.match(f.cli('begin', 'run.json', 'implement').stderr, /baseline/);
 });
 
-test('a passing baseline unlocks begin and its receipts are reused by the first implement check', async t => {
+test('a passing baseline is reused by the first implement check', async t => {
   const f = await graphProject(t);
   const { runId } = f.ok('init', '-', 'run.json', 'story.md');
   assert.equal(f.ok('baseline', 'run.json').baseline, 'passed');

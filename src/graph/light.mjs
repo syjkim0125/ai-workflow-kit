@@ -12,11 +12,8 @@ import { assertNotesPath } from './advance.mjs';
 const RECORD = /^(?:Status|Owner|Lane|Understanding gate \(G[134]\)|G4):/i;
 const FENCE = /^\s*(?:`{3,}|~{3,})/;
 
-/**
- * The Story's lane from its preamble or record footer, outside fences: 'light', 'standard',
- * 'moved-up' (standard, from light) or null. A Lane line inside a section is content.
- */
-export function storyLane(text) {
+/** Indexes of the Story's record lines zone: the preamble before the first "##" and the trailing footer, outside fences. */
+export function recordZoneIndexes(text) {
   const lines = text.split(/\r?\n/);
   const fencedAt = [];
   let fenced = false;
@@ -30,12 +27,35 @@ export function storyLane(text) {
   let start = lines.length;
   const record = index => !fencedAt[index] && (RECORD.test(lines[index].trim()) || !lines[index].trim() || /^---\s*$/.test(lines[index]));
   while (start > firstSection && record(start - 1)) start -= 1;
-  const lane = [...lines.slice(0, firstSection), ...lines.slice(start)].map(line => line.trim()).filter(line => /^Lane:/i.test(line)).at(-1);
+  return [...Array(firstSection).keys(), ...Array.from({ length: lines.length - start }, (_, i) => start + i)];
+}
+
+/**
+ * The Story's lane from its preamble or record footer, outside fences: 'light', 'standard',
+ * 'moved-up' (standard, from light) or null. A Lane line inside a section is content.
+ */
+export function storyLane(text) {
+  const lines = text.split(/\r?\n/);
+  const lane = recordZoneIndexes(text).map(index => lines[index].trim()).filter(line => /^Lane:/i.test(line)).at(-1);
   const value = lane?.replace(/^Lane:[\t ]*/i, '');
   if (/^light$/i.test(value ?? '')) return 'light';
   if (/^standard[\t ]*\(from light:/i.test(value ?? '')) return 'moved-up';
   if (/^standard$/i.test(value ?? '')) return 'standard';
   return null;
+}
+
+/** Replace the record line matching pattern in the record zone, or add it after the last record line. */
+export function setRecordLine(text, pattern, line) {
+  const lines = text.split(/\r?\n/);
+  const zone = recordZoneIndexes(text);
+  const existing = zone.find(index => pattern.test(lines[index].trim()));
+  if (existing !== undefined) lines[existing] = line;
+  else {
+    const after = zone.filter(index => RECORD.test(lines[index].trim())).at(-1);
+    const title = lines.findIndex(entry => /^#\s+Story:/.test(entry));
+    lines.splice((after ?? title) + 1, 0, line);
+  }
+  return lines.join('\n');
 }
 
 export function lightCommands({ root, loadStory, checkGate, snapshot }) {

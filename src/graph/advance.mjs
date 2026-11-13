@@ -1,9 +1,9 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { projectFile, readProjectFile } from './storage.mjs';
+import { projectFile, readJson, readProjectFile } from './storage.mjs';
 import { dependencyIds, nodeById } from './task-graph.mjs';
-import { taskToken } from './workflow.mjs';
+import { taskInput, taskToken } from './workflow.mjs';
 import { executeCheck, needsExecution, receiptTail } from './verification.mjs';
 
 // begin/complete wrap the 5.3.0 commands (status, start, verify, record, reset) so a node
@@ -30,16 +30,20 @@ function outItems(text) {
   return [...body.matchAll(/^[-*]\s+(.+)$/gm)].map(match => match[1].trim());
 }
 
-/** Start a ready node and return a compact brief. */
+/** Start a ready node, or re-read a running one, and return a compact brief. */
 export async function begin({ root, runFile, nodeId, call, beforeStart }) {
   const state = await call(['status', runFile]);
-  const ready = state.ready.find(node => node.id === nodeId);
-  if (!ready) {
-    const hint = state.action === 'stale' ? ` Code changed since ${state.stale.join(', ')} began; reset: graph.mjs reset ${runFile} <node> "<reason>".` : '';
-    throw new Error(`Node is not ready: ${nodeId} (action: ${state.action}).${hint}`);
+  let started;
+  if (state.running.includes(nodeId)) started = taskInput(await readJson(root, runFile), nodeId);
+  else {
+    const ready = state.ready.find(node => node.id === nodeId);
+    if (!ready) {
+      const hint = state.action === 'stale' ? ` Code changed since ${state.stale.join(', ')} began; reset: graph.mjs reset ${runFile} <node> "<reason>".` : '';
+      throw new Error(`Node is not ready: ${nodeId} (action: ${state.action}).${hint}`);
+    }
+    await beforeStart?.(ready);
+    ({ started } = await call(['start', runFile, nodeId, ready.token]));
   }
-  await beforeStart?.(ready);
-  const { started } = await call(['start', runFile, nodeId, ready.token]);
   const story = await readProjectFile(root, started.input.story);
   const failure = started.input.messages.filter(message => message.event === 'failure' || message.event === 'feedback').at(-1);
   const feedback = failure?.feedback ?? failure?.summary;
@@ -88,6 +92,10 @@ export async function complete({ root, runFile, nodeId, verdict, notesFile, call
   if (reviews && !verdict) throw new Error('Review nodes need --verdict pass|fix|human|replan, and --notes <file> with the findings.');
   const notes = notesFile ? (await readProjectFile(root, notesFile)).trim() : '';
   if (verdict && verdict !== 'pass' && !notes) throw new Error('Failed evaluation needs feedback: pass --notes <file> with the findings.');
+  const fixes = run.history.filter(entry => entry.event === 'record' && entry.nodeId === nodeId && entry.result?.evaluation?.action === 'fix').length;
+  if (reviews && verdict === 'fix' && fixes >= 1) {
+    throw new Error('One review round per run: record --verdict pass and list the remaining findings in --notes (they go to the G4 summary as unverified), or use --verdict human for a blocking problem.');
+  }
   // Only a pass is refused on changed code; a fix, human or replan result is still recorded.
   const wantsPass = (verdict ?? 'pass') === 'pass';
   const state = await call(['status', runFile]);
@@ -146,10 +154,14 @@ export async function complete({ root, runFile, nodeId, verdict, notesFile, call
     }
   }
   const after = await call(['status', runFile]);
+  // Begin the next node here: one call fewer per node, and its brief is what the host needs next.
+  const nextId = after.running.length === 0 ? after.ready[0]?.id : undefined;
+  const brief = nextId ? await begin({ root, runFile, nodeId: nextId, call }) : undefined;
   return {
     node: nodeId,
     status: passed ? 'completed' : 'failed',
-    next: after.ready[0]?.id ?? after.action,
+    next: nextId ?? after.ready[0]?.id ?? after.action,
+    ...(brief ? { brief } : {}),
     ...(failing ? { failing: { check: failing.check, tail: clipEnd(failing.tail, 600) } } : {}),
     ...(note ? { note: clip(note, 200) } : {}),
   };
