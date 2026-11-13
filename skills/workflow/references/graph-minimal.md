@@ -5,14 +5,12 @@ The standard lane after G1. Run commands from the project root; each prints comp
 ## Set up once
 
 ```bash
-node .ai-workflow/bin/graph.mjs profile docs/<story>.md
-node .ai-workflow/bin/graph.mjs init - .ai-workflow/runs/<slug>.json docs/<story>.md
-node .ai-workflow/bin/graph.mjs baseline .ai-workflow/runs/<slug>.json
+node .ai-workflow/bin/graph.mjs go docs/<story>.md .ai-workflow/runs/<slug>.json --scope <module-or-path>
 ```
 
-- `profile` writes `.ai-workflow/verification.json` from `package.json`, `tsconfig.json` or `gradlew` and never overwrites one. Edit it only when detection is wrong ([verification.md](verification.md)).
-- `baseline` runs every check once on the unchanged code. Do not run the test suite yourself first. If a check already fails, narrow it to exclude the pre-existing failure, `init` a new run file and run `baseline` again.
-- A Story moved up from light (`Lane: standard (from light: …)`) skips `baseline`: its code already changed.
+- `go` runs `profile` (if no profile exists), `init` and `begin` for the first node, and returns its brief. Run again, it returns to the node in progress. `fast-path.md` is the step-by-step version of this page.
+- `profile --scope` writes `.ai-workflow/verification.json` from `package.json`, `tsconfig.json` or `gradlew`, limited to the touched module or path, and never overwrites one. Edit it only when detection is wrong ([verification.md](verification.md)).
+- Do not run the test suite yourself first. `baseline` is optional: use it when the repository is known to have failing tests, then narrow the failing check and `init` a new run file.
 - If the run file exists, run `status` and continue; never replace a run to escape a failure.
 
 ## Three nodes, two calls each

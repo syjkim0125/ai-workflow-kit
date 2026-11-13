@@ -90,7 +90,7 @@ Show the full concise draft, beginning with the plain-language explanation above
 
 `Understanding gate (G1): <artifact> · <date> · Check-in: accepted`
 
-Then verify instead of assuming. Write `Status: Approved` and the G1 record first, then run
+`node .ai-workflow/bin/graph.mjs approve G1 <story-file> --response <reply-file>` writes the approval JSON, the gate line and `Status: Approved`, then runs both checks. By hand: verify instead of assuming. Write `Status: Approved` and the G1 record first, then run
 both checks and report both exit codes:
 
 ```

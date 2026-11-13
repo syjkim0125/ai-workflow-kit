@@ -27,5 +27,5 @@ Without `.ai-workflow/verification.json`, run `node .ai-workflow/bin/graph.mjs p
 
 ## Moving lanes
 
-- Up: when the work breaks a rule above, set `Lane: standard (from light: <reason>)` and continue with [graph-minimal.md](graph-minimal.md), skipping `baseline`. No new G1; G4 shows the change.
+- Up: when the work breaks a rule above, set `Lane: standard (from light: <reason>)` and continue with [graph-minimal.md](graph-minimal.md). No new G1; G4 shows the change.
 - Down: a standard run cannot become light without a new G1; `light` refuses a Story that has a standard run.

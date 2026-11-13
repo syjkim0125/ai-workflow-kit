@@ -1,6 +1,6 @@
 # Graph: advanced use
 
-The standard path is [graph-minimal.md](graph-minimal.md): `profile`, `init`, `baseline`, then `begin`/`complete` per node. This page covers custom plans, roles, the lower-level start/verify/record protocol, routing details and the programmatic API.
+The standard path is [fast-path.md](fast-path.md) and [graph-minimal.md](graph-minimal.md): `approve G1`, `go`, `complete` per node, `approve G4`. This page covers custom plans, roles, the lower-level start/verify/record protocol, routing details and the programmatic API.
 
 Use the installed Graph CLI automatically after G1; no user opt-in, extra npm install, API key or custom JavaScript adapter is needed. The host (Codex/Claude) executes agent and tool work. The local CLI checks dependencies, persists results and tells the host what to do next. It does not launch models. Its verification runner executes only checks selected by ID from the repository-owned verification profile, using argv without a shell. Treat that profile as executable project code; host permissions still apply.
 

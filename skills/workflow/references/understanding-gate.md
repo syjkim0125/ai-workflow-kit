@@ -58,7 +58,7 @@ Append the pass line for the mode:
 - `ai-summary`: `G4: APPROVED — <owner> approved the AI summary`
 - `human-restatement` (a gate line without `Mode:`): `G4: PASS — <what the human correctly restated>`
 
-Set `Status: Delivered` only after both records exist and the document checks and the bound delivery check exit 0:
+`node .ai-workflow/bin/graph.mjs approve G4 <run.json> --summary <four-lines-file> --response <reply-file>` writes the JSON, both footer lines and `Status: Delivered`, then runs the delivery check. By hand, set `Status: Delivered` only after both records exist and the document checks and the bound delivery check exit 0:
 
 ```
 node .ai-workflow/bin/check.mjs story <story-file>

@@ -4,16 +4,17 @@ Use this policy before model dispatch, in standalone delivery and every role flo
 
 ## Kit defaults
 
-With subagents (Claude Code), the work is split by role:
+With subagents (Claude Code), the work is split by role; `fast-path.md` gives the exact calls:
 
 | Role | Model |
 |---|---|
-| Intake, Story, G1 explanation, lane, plan, G4 summary | The main model (the user's session) |
-| Intake exploration, implementation, review | The host's **mid tier**, for example Sonnet under an Opus session: the Agent tool's `model: "sonnet"` |
-| Review of a Story that needs G3 | Two reviewers on the main model |
+| Intake, Story, G1 explanation, lane, plan, G4 summary, joins | The main model (the user's session) |
+| Intake exploration (two in parallel) | The cheapest tier: the Agent tool's `model: "haiku"` |
+| Implementation, review | The host's **mid tier**: `model: "sonnet"` |
+| Review of a Story that needs G3 | Two reviewers on a strong tier |
 | Verification | The CLI, no model |
 
-After **two failed attempts** on the same node, the next implementation attempt runs on the main model. Hosts without subagents keep everything in the main session. The rules below apply when these defaults do not fit, for example when the user names other models.
+Subagents keep small, fresh contexts; the main session stays thin, because every main turn re-reads its whole context. After **two failed attempts** on the same node, the next implementation attempt runs on a stronger tier (`model: "opus"`). Hosts without subagents keep everything in the main session. The rules below apply when these defaults do not fit, for example when the user names other models.
 
 ## Discover once, then choose
 

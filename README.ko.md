@@ -229,7 +229,7 @@ node .ai-workflow/bin/graph.mjs status .ai-workflow/runs/change.json
 
 실제 Story와 run 경로로 바꿔 쓰세요. `check story`는 문서를 검사합니다. Draft 문서가 통과해도 승인된 것은 아닙니다. 승인 기록은 `gate` 명령으로 검사합니다.
 
-에이전트는 `profile`, `init`, `baseline`을 실행한 뒤 단계마다 `begin`과 `complete`를 쓰고, 마지막에 `delivery`를 실행합니다. light 경로의 작은 변경은 `light`, `check`, `review`, `delivery`를 씁니다. 입력 형식과 예시는 [그래프 안내](https://github.com/syjkim0125/ai-workflow-kit/blob/main/skills/workflow/references/graph-minimal.md)에 있습니다.
+에이전트는 G1과 G4 답을 `approve`로 기록하고, `go`로 실행을 시작하고, 단계마다 `complete`를 씁니다. light 경로의 작은 변경은 `light`, `check`, `review`, `delivery`를 씁니다. 입력 형식과 예시는 [그래프 안내](https://github.com/syjkim0125/ai-workflow-kit/blob/main/skills/workflow/references/graph-minimal.md)에 있습니다.
 
 **Jira는 선택 사항입니다.** `npx @pazmo/ai-workflow-kit jira preview docs/STORY.md`는 로컬 미리보기만 출력합니다. 실제 발행에는 승인된 실행 환경의 연결 기능이 필요합니다. kit에는 Jira 인증정보나 클라이언트가 없습니다.
 

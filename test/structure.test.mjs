@@ -202,14 +202,21 @@ test('the shipped Story template uses the v2 layout and a record footer', async 
 
 const reference = (name) => read(`skills/workflow/references/${name}`);
 
-test('SKILL.md routes light work to light-lane.md and standard work to graph-minimal.md', async () => {
+test('SKILL.md routes the normal path through the model-facing fast path', async () => {
   const skill = await read('skills/workflow/SKILL.md');
-  const route = skill.split('\n').find((line) => line.includes('Approved, not implemented'));
-  assert.match(route, /light-lane\.md/);
-  assert.match(route, /graph-minimal\.md/);
+  for (const state of ['No approved Story', 'Approved, not implemented', 'Implemented or']) {
+    assert.match(skill.split('\n').find((line) => line.includes(state)), /fast-path\.md/, state);
+  }
+  const fast = await reference('fast-path.md');
+  assert.ok(Buffer.byteLength(fast) <= 4800, `fast-path.md has ${Buffer.byteLength(fast)} bytes`);
+  for (const command of ['approve G1', 'go', 'complete', 'approve G4', 'check', 'review']) assert.match(fast, new RegExp(`graph\\.mjs ${command}`));
+  assert.match(fast, /one message/i);
+  assert.match(fast, /model: haiku/);
+  assert.match(fast, /model: sonnet/);
+  assert.match(fast, /never read code/i);
+  assert.match(fast, /never write a test runner/i);
   const minimal = await reference('graph-minimal.md');
-  for (const command of ['profile', 'baseline', 'begin', 'complete', 'delivery']) assert.match(minimal, new RegExp(`graph\\.mjs ${command}`));
-  assert.ok(Buffer.byteLength(minimal) <= 4300, `graph-minimal.md has ${Buffer.byteLength(minimal)} bytes`);
+  for (const command of ['go', 'begin', 'complete', 'delivery']) assert.match(minimal, new RegExp(`graph\\.mjs ${command}`));
   assert.match(await reference('graph-advanced.md'), /graph\.mjs record/);
   assert.ok(nonEmptyLines(await reference('graph-engineering.md')) <= 3);
   const light = await reference('light-lane.md');
