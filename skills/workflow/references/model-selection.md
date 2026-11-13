@@ -2,6 +2,19 @@
 
 Use this policy before model dispatch, in standalone delivery and every role flow. The kit supplies the rule; the host supplies available models and executes the choice. This is instruction policy, not a model router, provider SDK or Graph CLI flag. Jev is not required.
 
+## Kit defaults
+
+With subagents (Claude Code), the work is split by role:
+
+| Role | Model |
+|---|---|
+| Intake, Story, G1 explanation, lane, plan, G4 summary | The main model (the user's session) |
+| Intake exploration, implementation, review | The host's **mid tier**, for example Sonnet under an Opus session: the Agent tool's `model: "sonnet"` |
+| Review of a Story that needs G3 | Two reviewers on the main model |
+| Verification | The CLI, no model |
+
+After **two failed attempts** on the same node, the next implementation attempt runs on the main model. Hosts without subagents keep everything in the main session. The rules below apply when these defaults do not fit, for example when the user names other models.
+
 ## Discover once, then choose
 
 1. Honor explicit user model choices, permitted providers, data boundaries, delegation rules and remaining time/cost limits. This policy grants no new permissions.

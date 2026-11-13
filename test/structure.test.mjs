@@ -35,7 +35,7 @@ test('story contract keeps one human-readable source of truth', async () => {
     assert.match(story, new RegExp(heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
   assert.doesNotMatch(story, /Implementation approach|Change surfaces/);
-  assert.ok(nonEmptyLines(story) <= 36, `Story template has ${nonEmptyLines(story)} non-empty lines`);
+  assert.ok(nonEmptyLines(story) <= 37, `Story template has ${nonEmptyLines(story)} non-empty lines`);
 });
 
 test('task is one-screen and does not duplicate the implementation plan', async () => {
@@ -197,4 +197,47 @@ test('the shipped Story template uses the v2 layout and a record footer', async 
   const footer = story.slice(story.lastIndexOf('\n---\n'));
   assert.match(footer, /^Status:/mu);
   assert.match(footer, /^Understanding gate \(G4\):/mu);
+  assert.match(footer, /^Lane: /mu);
+});
+
+const reference = (name) => read(`skills/workflow/references/${name}`);
+
+test('SKILL.md routes light work to light-lane.md and standard work to graph-minimal.md', async () => {
+  const skill = await read('skills/workflow/SKILL.md');
+  const route = skill.split('\n').find((line) => line.includes('Approved, not implemented'));
+  assert.match(route, /light-lane\.md/);
+  assert.match(route, /graph-minimal\.md/);
+  const minimal = await reference('graph-minimal.md');
+  for (const command of ['profile', 'baseline', 'begin', 'complete', 'delivery']) assert.match(minimal, new RegExp(`graph\\.mjs ${command}`));
+  assert.ok(Buffer.byteLength(minimal) <= 4300, `graph-minimal.md has ${Buffer.byteLength(minimal)} bytes`);
+  assert.match(await reference('graph-advanced.md'), /graph\.mjs record/);
+  assert.ok(nonEmptyLines(await reference('graph-engineering.md')) <= 3);
+  const light = await reference('light-lane.md');
+  for (const command of ['light', 'check', 'review', 'delivery']) assert.match(light, new RegExp(`graph\\.mjs ${command}`));
+  for (const rule of [/reversible/, /one module/, /external contract/, /persistent data/, /domain-risks\.md/]) assert.match(light, rule);
+});
+
+test('light lane reading is small', async () => {
+  const files = ['skills/workflow/references/intake.md', 'skills/workflow/assets/STORY.md', 'skills/workflow/references/light-lane.md'];
+  const bytes = (await Promise.all(files.map(read))).reduce((sum, text) => sum + Buffer.byteLength(text), 0);
+  assert.ok(bytes < 12000, `light lane reading is ${bytes} bytes`);
+});
+
+test('model-selection names the implementer tier and escalation', async () => {
+  const text = await reference('model-selection.md');
+  for (const phrase of [/mid tier/, /two failed attempts/, /main model/]) assert.match(text, phrase);
+});
+
+test('execution limits tests to one per Verify item', async () => {
+  const text = await reference('execution.md');
+  assert.match(text, /one focused test per Verify item/i);
+  assert.match(text, /second[^.]*distinct failure path/i);
+});
+
+test('intake delegates code reading to an exploration subagent', async () => {
+  const text = await reference('intake.md');
+  assert.match(text, /exploration subagent/);
+  assert.match(text, /cheaper/);
+  assert.match(text, /\bmap\b/);
+  assert.match(text, /Lane: light/);
 });

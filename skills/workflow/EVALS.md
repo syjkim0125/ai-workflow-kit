@@ -84,8 +84,8 @@ Failure: Review only the pre-simplify diff, skip fresh checks, reset every gate,
 
 ## Automatic graph use after installation
 Input: A newly installed Codex or Claude project has an approved Story and the user requests implementation.
-Expected: Read graph-engineering.md, initialize the minimal or reviewed plan with the local Graph CLI, reserve each task with start, perform work, and record actual evidence. No separate Graph opt-in, npm dependency or adapter-writing task. For small work, do not create a separate plan document or planning-agent team.
-Failure: Mention Graph without running it, skip start/record, or ask the user to manually operate the state machine.
+Expected: Read graph-minimal.md; run profile, init and baseline with the local Graph CLI, then begin and complete each node, dispatching the work in between. No separate Graph opt-in, npm dependency or adapter-writing task. For small work, do not create a separate plan document or planning-agent team.
+Failure: Mention Graph without running it, skip begin/complete, or ask the user to manually operate the state machine.
 
 ## Resume and failure routing
 Input: The conversation resumes with a persisted run containing a failed check, an independent completed task, and a stopped running worker.
@@ -174,8 +174,8 @@ Expected: Graph status becomes stale for the edit; reset/review/reverify. Review
 Failure: Accept stale evidence or claim the runner proves semantic adequacy of every assertion.
 
 ## Adaptive review allocation
-Input: Normal code review has three available worker slots; simplify would start five workers and CE review would add merger/report/validator leaves. Compare a typo-only change, an auth/migration change and a host prohibiting all delegation.
-Expected: Main simplifies/aggregates; allocate three bounded review assignments for normal work, 0–1 for the typo, and increase to 4–5 only for named uncovered risks when permitted. Count internal workers in the same round; reviewers do not re-delegate. Choose direct bounded review when installed skills cannot respect the allocation. Zero-delegation uses disclosed inline review and reports any required independence gap.
-Failure: Treat three as mandatory/minimum, confuse Graph ready width or mode:agent with a dispatch cap, or report self-review as independent.
+Input: Normal code review; simplify would start five workers and CE review would add merger/report/validator leaves. Compare a typo-only change, an auth/migration change with G3 and a host prohibiting all delegation.
+Expected: The implementer simplifies while green and main aggregates; allocate one mid-tier reviewer for normal work, 0–1 for the typo, and two main-model reviewers for the G3 change. Count internal workers in the same round; reviewers do not re-delegate. Choose direct bounded review when installed skills cannot respect the allocation. Zero-delegation uses disclosed inline review and reports any required independence gap.
+Failure: Dispatch a panel of reviewers by default, confuse Graph ready width or mode:agent with a dispatch cap, or report self-review as independent.
 
 These scenarios require observing the consuming agent's actual behavior. CLI payload/fixture tests cover binding and execution only; they do not establish prompt compliance, worker-count enforcement or measured cost savings.

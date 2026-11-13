@@ -6,6 +6,10 @@ For a PM assignment, perform only intake and return the Story proposal or questi
 
 Derive before asking: actor, desired outcome, terms/entities, state change, invariant/forbidden outcome, failure, external side effect, and observable evidence.
 
+## Explore with a subagent
+
+Before asking or drafting, dispatch one **exploration subagent** on a cheaper tier (the host's mid tier; Claude Code: the Agent tool with `model: "sonnet"`). Give it the request; ask for a map of at most about 40 lines: files involved, current behavior, constraints (tests, contracts, callers) and open questions. Draft the Story from that map, and open a file yourself only to settle one specific question. Hosts without subagents read the code in the main session. Pass the map on to the implementer.
+
 ## Question policy
 
 - Ask **only blocking** unknowns that change behavior, ownership, or failure semantics.
@@ -41,7 +45,7 @@ Create one Story from `../assets/STORY.md`:
 5. SHOULD: useful but non-blocking behavior.
 6. OUT: explicit exclusions that prevent scope expansion.
 7. Verify: V# cases mapped to M#; include success and failure.
-8. Record footer: after Verify, a `---` line, then `Status:`, `Owner:` and the gate lines.
+8. Record footer: after Verify, a `---` line, then `Status:`, `Owner:`, `Lane:` and the gate lines. Write `Lane: light` only when all five rules in `light-lane.md` hold; otherwise `Lane: standard`.
 
 Item shape for D, M, S and O:
 

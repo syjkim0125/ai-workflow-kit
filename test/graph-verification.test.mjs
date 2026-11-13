@@ -56,7 +56,8 @@ test('review budget is passed only to delivery and role review tasks', async t =
   assert.equal(initial.ready[0].input.reviewBudget, undefined);
   const reviewed = await f.record('implement');
   const budget = reviewed.ready[0].input.reviewBudget;
-  assert.equal(budget.defaultAgents, 3);
+  assert.equal(budget.defaultAgents, 1);
+  assert.deepEqual(budget.highRiskAgents, [2, 2]);
   assert.equal(budget.scope, 'whole-review-round');
   assert.equal(budget.nestedDelegation, false);
   assert.equal(budget.dispatchOwner, 'host');

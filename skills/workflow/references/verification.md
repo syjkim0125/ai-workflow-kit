@@ -15,7 +15,7 @@ For each Story V ID, describe the real user entry point, preconditions, action, 
 
 ## Project profile
 
-Create `.ai-workflow/verification.json` (review it like executable code):
+Run `node .ai-workflow/bin/graph.mjs profile <story.md>` first: it writes this file from `package.json`, `tsconfig.json` or `gradlew` and never overwrites one. Edit it, or create `.ai-workflow/verification.json` by hand when detection fails (review it like executable code):
 
 ```json
 {

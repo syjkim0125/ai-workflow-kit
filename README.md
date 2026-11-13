@@ -230,7 +230,7 @@ node .ai-workflow/bin/graph.mjs status .ai-workflow/runs/change.json
 
 Use your actual Story and run paths. `check story` checks the document; a valid Draft is not an approval. Use the gate commands to check approval records.
 
-The agent uses `init`, `start`, `record`, `status`, and `reset` for graph work. Full inputs and examples are in the [graph guide](https://github.com/syjkim0125/ai-workflow-kit/blob/main/skills/workflow/references/graph-engineering.md).
+The agent uses `profile`, `init`, `baseline`, then `begin` and `complete` for each step, and `delivery` at the end. A small change on the light lane uses `light`, `check`, `review` and `delivery` instead. Full inputs and examples are in the [graph guide](https://github.com/syjkim0125/ai-workflow-kit/blob/main/skills/workflow/references/graph-minimal.md).
 
 **Jira is optional.** `npx @pazmo/ai-workflow-kit jira preview docs/STORY.md` prints a local preview. Publishing needs an authorized host adapter. The kit includes no Jira credentials or client.
 

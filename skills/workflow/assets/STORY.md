@@ -40,5 +40,6 @@
 ---
 Status: Draft
 Owner: <human owner>
+Lane: <light | standard>
 Understanding gate (G1): <pending>
 Understanding gate (G4): <pending>

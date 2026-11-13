@@ -52,11 +52,11 @@ Office/host assigns roles, runs agents, transports messages and owns global exec
 
 ### One review allocation
 
-Before dispatch, the caller chooses the round's allocation and records the reason in existing review evidence. Graph review task input supplies `reviewBudget`: **default 3 agents**, 0–2 for small changes, 4–5 for specific high-risk seams. Host/user limits take precedence, including zero delegation. This is an operating default, not a measured optimum or a CLI-enforced scheduler.
+Before dispatch, the caller chooses the round's allocation and records the reason in existing review evidence. Graph review task input supplies `reviewBudget`: **default 1 agent** on the host's mid tier (`model-selection.md`), 1 for small changes, 2 on the main model for a Story that needs G3. Host/user limits take precedence, including zero delegation. This is an operating default, not a measured optimum or a CLI-enforced scheduler.
 
-- Normal round: combine correctness/security, tests/spec/runtime evidence, and maintainability/performance into three bounded assignments. Give each only the relevant diff, requirements and evidence references.
-- Docs/mechanical changes: 0–1; a small behavioral change: 1–2. Add a specialist only for a named uncovered risk such as authorization or migration recovery; state why 4–5 is needed.
-- Count **all** simplify/review/validation/report workers in the same round. Main performs simplification and aggregation by default. Reviewers return findings directly and do not re-delegate. New rounds need changed code or a named unresolved concern; unchanged work does not earn another full panel.
+- Normal round: one reviewer covers correctness/security, tests against the Story's Verify items, and maintainability. Give it only the Story's MUST/Verify, the diff and evidence references.
+- Docs/mechanical changes: 0–1. A G3 Story gets a second reviewer for its named risk, such as authorization or migration recovery.
+- Count **all** simplify/review/validation/report workers in the same round. The implementer simplifies while green; main aggregates findings. Reviewers return findings directly and do not re-delegate. New rounds need changed code or a named unresolved concern; unchanged work does not earn another full panel.
 - Check the installed skill before invoking it. `requesting-code-review` dispatches one reviewer per filled template, so each assignment counts as one worker. For a selected `ce-code-review`, `mode:agent` selects output, not a worker cap. If its internal fan-out cannot fit the allocation, use the direct bounded review instead of launching it and hoping. Do not invent `max_reviewers` flags. Preserve any required independent-review coverage; report a gap if host limits prevent it.
 
 The host enforces actual dispatch counts. Graph's ready-node width is a separate DAG limit and does not cap nested skill workers. Model choice follows `model-selection.md`; extra personas on one model are not the multi-model evidence of Pstack `interrogate`. Do not automatically append interrogate to CE review.
