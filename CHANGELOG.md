@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+### Story template v2
+
+- The Story template follows Goal, Domain, Decisions, MUST, SHOULD, OUT, Verify, then a record footer:
+  - Goal is three numbered lines: As-is, To-be, Unchanged.
+  - Terms and Invariant are numbered lists.
+  - D/M/S/O items use a title line with nested numbers; results that happen together join with `+`.
+  - `Status:`, `Owner:` and the gate lines sit below Verify after a `---` line.
+- The checker and the Jira preview accept both the 5.3.0 order and v2, so in-flight Stories keep passing.
+  - A v2 Story needs the three Goal labels.
+  - `Status:` and `Owner:` must appear once in the preamble and footer. Prose that starts with those words inside a section stays content.
+
+### G4 with an AI summary
+
+- New default mode `ai-summary`:
+  - The agent writes four numbered lines: user-facing change, rules kept and failure behavior, tests that verified it, what is unverified.
+  - The human approves explicitly.
+  - The record is `Understanding gate (G4): … · Mode: ai-summary` plus `G4: APPROVED — <owner> approved the AI summary`.
+- `human-restatement` (the previous gate) stays available, and it is required for Stories with a G3 decision. The checker and `graph delivery` reject `ai-summary` for them.
+
 ## 5.3.0 — 2026-11-05
 
 ### Upgrade checks

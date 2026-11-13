@@ -20,7 +20,7 @@ Before model dispatch, apply `references/model-selection.md` using the host's av
 
 ## Explain before asking
 
-Before G1/G3, explain the problem, change, safety rule and verification plainly. Keep G4 prediction-before-reveal intact.
+Before G1/G3, explain the problem, change, safety rule and verification plainly. G4: `ai-summary`; G3 needs `human-restatement`.
 
 ## Route by current state
 

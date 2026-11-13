@@ -120,15 +120,28 @@ test('payment lens asks how a changed charge is rolled back', async () => {
 
 test('G4 forces prediction before explanation and checks evidence boundaries', async () => {
   const gate = await read('skills/workflow/references/understanding-gate.md');
-  const rawIndex = gate.indexOf('raw diff');
-  const askIndex = gate.indexOf('END THE TURN');
-  const revealIndex = gate.indexOf('compare');
+  // Prediction before reveal is the human-restatement procedure; check its order inside that section.
+  const restatement = gate.slice(gate.indexOf('## Mode `human-restatement`'));
+  const rawIndex = restatement.indexOf('raw diff');
+  const askIndex = restatement.indexOf('END THE TURN');
+  const revealIndex = restatement.indexOf('compare');
   assert.ok(rawIndex >= 0 && askIndex > rawIndex && revealIndex > askIndex);
   assert.match(gate, /behavior/i);
   assert.match(gate, /invariant|failure path/i);
   assert.match(gate, /unproven|evidence boundary/i);
   assert.match(gate, /restatement/i);
   assert.match(gate, /G4: PASS/);
+  // Two modes: an AI summary the human approves by default, human restatement on request and for G3 work.
+  assert.match(gate, /## Mode `ai-summary`/);
+  assert.match(gate, /## Mode `human-restatement`/);
+  for (const label of ['사용자가 겪는 변화', '지킨 규칙과 실패할 때 동작', '확인한 테스트', '확인하지 못한 것']) {
+    assert.ok(gate.includes(label), label);
+  }
+  assert.match(gate, /G4: APPROVED/);
+  assert.match(gate, /G3[^\n]*human-restatement|human-restatement[^\n]*G3/);
+  const skill = await read('skills/workflow/SKILL.md');
+  assert.match(skill, /ai-summary/);
+  assert.doesNotMatch(skill, /Keep G4 prediction-before-reveal intact/);
 });
 
 test('distribution manifests point at the canonical skill', async () => {

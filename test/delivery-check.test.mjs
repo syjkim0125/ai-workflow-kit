@@ -36,3 +36,20 @@ test('delivery requires Graph proof plus G4 bound to the final snapshot; gate me
   await f.put('app.mjs', 'export const add = () => 0;');
   assert.match(f.cli('delivery', 'run.json').stderr, /fresh/);
 });
+
+test('delivery rejects an ai-summary G4 when the run requires G3', async t => {
+  const f = await graphProject(t, { profile: { requiresG3: true, design: 'design.md' } });
+  await f.put('design.md', 'Preserve rollback safety.');
+  const withG3 = story + '\nUnderstanding gate (G3): design-approval.json · 2026-10-21 · Check-in: accepted\n';
+  await f.put('story.md', withG3);
+  await f.put('design-approval.json', { gate: 'G3', storyHash: storyContract(story).fingerprint,
+    decisionHash: digest('Preserve rollback safety.'), responseRef: 'fixture:design-accepted' });
+  f.ok('init', '-', 'run.json', 'story.md');
+  await f.record('implement'); await f.record('workflow-review');
+  const done = await f.record('workflow-verify');
+  await f.put('story.md', withG3.replace('Approved', 'Delivered')
+    + 'Understanding gate (G4): final.json · 2026-11-12 · Check-in: accepted · Mode: ai-summary\nG4: APPROVED — owner approved the AI summary\n');
+  await f.put('final.json', { gate: 'G4', mode: 'ai-summary', storyHash: storyContract(story).fingerprint,
+    snapshot: done.snapshot, runId: done.runId, responseRef: 'fixture:approval' });
+  assert.match(f.cli('delivery', 'run.json').stderr, /G3.*human restatement/);
+});
