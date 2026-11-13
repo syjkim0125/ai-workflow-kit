@@ -5,7 +5,7 @@ import { descendantIds, nodeById } from './task-graph.mjs';
 import { resetAffectedSubgraph } from './scheduler.mjs';
 import { digest, readJson, readProjectFile, updateRun } from './storage.mjs';
 import { assertAssignment, assertRoleOutput, createRoleGraph } from './roles.mjs';
-import { approvalPath, boundApproval } from './approvals.mjs';
+import { approvalPath, boundApproval, checkG4Record, storyG4Mode } from './approvals.mjs';
 import { createSnapshot } from './snapshot.mjs';
 import { PROFILE, checkExecutions, needsExecution, runVerification, verificationProfile } from './verification.mjs';
 import { normalizeExecutionMetadata } from './execution-metadata.mjs';
@@ -147,9 +147,10 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
     const current = await status(run);
     if (command === 'status') return current;
     if (current.action !== 'g4' || run.kind !== 'delivery') throw new Error('Delivery requires fresh, completed v3 Graph verification.');
+    const mode = storyG4Mode(await readProjectFile(root, run.story.path));
     await boundApproval({ root, story: run.story.path, gate: 'G4', expected: {
       storyHash: run.story.fingerprint, snapshot: current.snapshot, runId: run.runId,
-    }, checkGate });
+    }, checkGate, validate: value => checkG4Record(value, { mode, requiresG3: Boolean(run.verification?.value.requiresG3) }) });
     return { ...current, action: 'delivered' };
   }
   if (command === 'verify') {

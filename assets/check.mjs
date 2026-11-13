@@ -38,7 +38,30 @@ function hasG4Pass(text) {
 }
 
 function hasG4Approved(text) {
-  return /^G4:\s*APPROVED\s*[—-]\s*\S.+$/imu.test(text);
+  return /^G4:\s*APPROVED\s*[—-]\s*(?!<)\S.+$/imu.test(text);
+}
+
+const FENCE = /^\s*(?:`{3,}|~{3,})/u;
+
+/** Lines outside code fences. */
+function unfencedLines(text) {
+  const lines = [];
+  let fenced = false;
+  for (const line of text.split(/\r?\n/u)) {
+    if (FENCE.test(line)) { fenced = !fenced; continue; }
+    if (!fenced) lines.push(line);
+  }
+  return lines;
+}
+
+/** Every record of one gate outside code fences. */
+function gateLines(text, gate) {
+  return unfencedLines(text).map((line) => gateLine(line, gate)).filter(Boolean);
+}
+
+function duplicateGateErrors(text, gates) {
+  return gates.filter((gate) => gateLines(text, gate).length > 1)
+    .map((gate) => `Understanding gate (${gate}) must appear once; replace the existing line instead of adding another.`);
 }
 
 /** G4 mode from its gate record; a record without "Mode:" is the original human restatement. */
@@ -50,7 +73,7 @@ export function g4Mode(record) {
 // The publisher must recognize the same gate spelling/spacing as validation.
 export function isGateMetadataLine(line) {
   return ['G1', 'G3', 'G4'].some((gate) => Boolean(gateLine(line, gate)))
-    || /^Understanding gate \(G[134]\):\s*$/iu.test(line) || hasG4Pass(line);
+    || /^Understanding gate \(G[134]\):\s*$/iu.test(line) || hasG4Pass(line) || hasG4Approved(line);
 }
 
 function parseArtifact(record) {
@@ -122,6 +145,8 @@ export async function checkGate({ root = process.cwd(), file, gate }) {
     return { ok: false, errors: [`Cannot read Story: ${error.message}`] };
   }
 
+  const duplicates = duplicateGateErrors(text, [gate]);
+  if (duplicates.length) return { ok: false, errors: duplicates };
   const record = gateLine(text, gate);
   if (!record) {
     return { ok: false, errors: [`Missing Understanding gate (${gate}) record.`] };
@@ -152,8 +177,7 @@ export async function checkGate({ root = process.cwd(), file, gate }) {
   if (resolved.error) return { ok: false, errors: [resolved.error] };
 
   if (gate === 'G4' && g4Mode(record) === 'ai-summary') {
-    const g3 = gateLine(text, 'G3');
-    if (g3 && !/^<?pending\b/iu.test(g3)) {
+    if (gateLines(text, 'G3').some((g3) => !/^<?pending\b/iu.test(g3))) {
       return { ok: false, errors: ['A Story with a G3 decision needs G4 by human restatement (G4: PASS — …).'] };
     }
     if (!hasG4Approved(text)) {
@@ -216,29 +240,37 @@ export function isStoryRecordLine(line) {
   return RECORD_LINE.test(line.trim());
 }
 
-/** Lines outside the sections: the preamble before the first "##" and the footer after Verify's "---". */
-function recordZoneLines(text) {
+/**
+ * Story record zones, fence-aware: the preamble before the first "##", and the
+ * footer — the final run of record and blank lines after Verify, optionally
+ * opened by "---". footerStart is the line index where the footer (with its
+ * "---") begins, or the line count when there is none.
+ */
+export function storyRecordZones(text) {
   const lines = text.split(/\r?\n/u);
-  const zone = [];
-  let inSections = false;
+  const preamble = [];
+  const fencedAt = [];
   let fenced = false;
-  let afterVerify = false;
-  let footer = false;
-  for (const line of lines) {
-    if (/^\s*(?:`{3,}|~{3,})/u.test(line)) fenced = !fenced;
-    if (!fenced && /^##\s+/u.test(line)) {
+  let inSections = false;
+  let verifyStart = -1;
+  lines.forEach((line, index) => {
+    const marker = FENCE.test(line);
+    if (marker) fenced = !fenced;
+    fencedAt[index] = fenced || marker;
+    if (!fencedAt[index] && /^##\s+/u.test(line)) {
       inSections = true;
-      afterVerify = /^##\s+Verify\s*$/iu.test(line);
-      footer = false;
-      continue;
-    }
-    if (!fenced && afterVerify && /^---\s*$/u.test(line)) {
-      footer = true;
-      continue;
-    }
-    if (!inSections || footer) zone.push(line);
+      verifyStart = /^##\s+Verify\s*$/iu.test(line) ? index + 1 : -1;
+    } else if (!inSections) preamble.push(line);
+  });
+  let start = lines.length;
+  if (verifyStart >= 0) {
+    const plain = (index) => !fencedAt[index] && (isStoryRecordLine(lines[index]) || !lines[index].trim());
+    while (start > verifyStart && plain(start - 1)) start -= 1;
+    if (!lines.slice(start).some((line) => isStoryRecordLine(line))) start = lines.length;
+    else if (start > verifyStart && !fencedAt[start - 1] && /^---\s*$/u.test(lines[start - 1])) start -= 1;
   }
-  return zone;
+  const footer = lines.slice(start).filter((line) => !/^---\s*$/u.test(line));
+  return { preamble, footer, footerStart: start };
 }
 
 function requireStoryLayout(text, errors) {
@@ -287,17 +319,19 @@ function checkStoryShape(text) {
   if (storyLayout(text) === 'v2') {
     const goal = sectionBody(text, 'Goal');
     for (const [number, label] of [[1, 'As-is'], [2, 'To-be'], [3, 'Unchanged']]) {
-      if (!new RegExp(`^${number}\\.\\s*${label}:\\s*\\S`, 'imu').test(goal)) {
+      if (!new RegExp(`^${number}\\.[\\t ]*${label}:[\\t ]*(?!<)\\S`, 'imu').test(goal)) {
         errors.push(`Goal needs a "${number}. ${label}:" line.`);
       }
     }
   }
-  const records = recordZoneLines(text);
+  const { preamble, footer } = storyRecordZones(text);
+  const records = [...preamble, ...footer];
   for (const record of ['Status', 'Owner']) {
     if (records.filter((line) => new RegExp(`^${record}:`, 'iu').test(line.trim())).length > 1) {
       errors.push(`${record} must appear once; keep the record lines in the footer.`);
     }
   }
+  errors.push(...duplicateGateErrors(text, ['G1', 'G3', 'G4']));
 
   if (!/^#\s+Story:\s*(?!<|pending\b)\S.+$/imu.test(text)) errors.push('Story needs a descriptive “# Story:” title.');
   if (!/^Status:\s*(Draft|Approved|Delivered)\s*$/imu.test(text)) {

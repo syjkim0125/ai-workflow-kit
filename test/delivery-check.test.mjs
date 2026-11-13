@@ -53,3 +53,35 @@ test('delivery rejects an ai-summary G4 when the run requires G3', async t => {
     snapshot: done.snapshot, runId: done.runId, responseRef: 'fixture:approval' });
   assert.match(f.cli('delivery', 'run.json').stderr, /G3.*human restatement/);
 });
+
+const aiSummaryFooter = 'Understanding gate (G4): final.json · 2026-11-13 · Check-in: accepted · Mode: ai-summary\nG4: APPROVED — owner approved the AI summary\n';
+const fourLines = ['1. change', '2. rule and failure', '3. tests', '4. unproven'];
+
+test('delivery checks the ai-summary approval record itself', async t => {
+  const f = await graphProject(t);
+  f.ok('init', '-', 'run.json', 'story.md');
+  await f.record('implement'); await f.record('workflow-review');
+  const done = await f.record('workflow-verify');
+  await f.put('story.md', story.replace('Approved', 'Delivered') + '\n' + aiSummaryFooter);
+  const bound = { gate: 'G4', storyHash: storyContract(story).fingerprint, snapshot: done.snapshot, runId: done.runId, responseRef: 'fixture:approval' };
+  await f.put('final.json', bound);
+  assert.match(f.cli('delivery', 'run.json').stderr, /ai-summary/);
+  await f.put('final.json', { ...bound, mode: 'ai-summary', summary: fourLines.slice(0, 3), approvalText: '승인' });
+  assert.match(f.cli('delivery', 'run.json').stderr, /summary/);
+  await f.put('final.json', { ...bound, mode: 'ai-summary', summary: fourLines, approvalText: ' ' });
+  assert.match(f.cli('delivery', 'run.json').stderr, /approvalText/);
+  await f.put('final.json', { ...bound, mode: 'ai-summary', summary: fourLines, approvalText: '승인' });
+  assert.equal(f.ok('delivery', 'run.json').action, 'delivered');
+});
+
+test('delivery rejects a G4 record whose mode differs from the Story', async t => {
+  const f = await graphProject(t);
+  f.ok('init', '-', 'run.json', 'story.md');
+  await f.record('implement'); await f.record('workflow-review');
+  const done = await f.record('workflow-verify');
+  await f.put('story.md', story.replace('Approved', 'Delivered')
+    + '\nUnderstanding gate (G4): final.json · 2026-11-13 · Check-in: accepted\nG4: PASS — owner restated behavior and evidence\n');
+  await f.put('final.json', { gate: 'G4', mode: 'ai-summary', summary: fourLines, approvalText: '승인',
+    storyHash: storyContract(story).fingerprint, snapshot: done.snapshot, runId: done.runId, responseRef: 'fixture:approval' });
+  assert.match(f.cli('delivery', 'run.json').stderr, /mode/);
+});

@@ -471,3 +471,39 @@ test('human-restatement G4 is unchanged', async () => {
     'G4: PASS — owner restated behavior, failure path, and evidence boundary']);
   assert.equal(result.ok, true, result.errors.join('\n'));
 });
+
+test('ai-summary is blocked by any accepted G3 line, not only the first', async () => {
+  const result = await g4Result(['Understanding gate (G3): <pending>',
+    'Understanding gate (G3): <artifact> · 2026-11-12 · Check-in: accepted', aiSummaryLine, approvedLine]);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('G3')), result.errors.join('\n'));
+});
+
+test('a gate line recorded twice is rejected', async () => {
+  const story = await storyResult(v2Story.replace('Understanding gate (G4): <pending>\n',
+    'Understanding gate (G4): <pending>\nUnderstanding gate (G4): <pending>\n'));
+  assert.equal(story.ok, false);
+  assert.ok(story.errors.some((error) => error.includes('Understanding gate (G4)') && error.includes('once')), story.errors.join('\n'));
+  const gate = await g4Result(['Understanding gate (G4): <pending>', aiSummaryLine, approvedLine]);
+  assert.equal(gate.ok, false);
+  assert.ok(gate.errors.some((error) => error.includes('once')), gate.errors.join('\n'));
+});
+
+test('trailing record lines after Verify without --- count as the footer', async () => {
+  const result = await storyResult(`${baseStory}\nStatus: Approved\n`);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('Status') && error.includes('once')), result.errors.join('\n'));
+});
+
+test('a placeholder owner does not approve the AI summary', async () => {
+  const result = await g4Result([aiSummaryLine, 'G4: APPROVED — <owner> approved the AI summary']);
+  assert.equal(result.ok, false);
+});
+
+test('v2 Goal labels need text on the same line and no placeholder', async () => {
+  for (const goal of ['3. Unchanged:\nrefund flow and receipts.', '3. Unchanged: <what must stay exactly as it is>']) {
+    const result = await storyResult(v2Story.replace('3. Unchanged: refund flow and receipts.', goal));
+    assert.equal(result.ok, false, goal);
+    assert.ok(result.errors.some((error) => error.includes('Unchanged')), result.errors.join('\n'));
+  }
+});
