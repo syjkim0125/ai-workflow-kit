@@ -331,3 +331,50 @@ This gets a separate design after 5.4.0. One thing is already known: in the 5.3.
 - Wording of the lane rule in intake, within §4.2.
 - Prompt wording for the implementation and review subagents.
 - Test structure for the checker's dual layout support and the new CLI commands.
+
+## 9. Release candidate 2: a Sonnet-main fast path (owner direction, 2026-11-13)
+
+### 9.1 What arm D showed
+
+The first release candidate failed every cost and time target. On the large task it cost 6.8× vanilla Opus and took 15× as long; on the medium task, 2.5× and 5×. Its behavior-test result matched vanilla Opus, and vanilla Sonnet failed a business behavior that the kit caught.
+
+Where it went, measured per agent and activity on the large task:
+
+| Part | Share of cost | Model time | Cause |
+|---|---|---|---|
+| Main session (Opus) | 44% | 21% | 74 turns at about twice vanilla's context per turn: 16 Graph calls, 21 code reads, 12 build attempts, 7 reads of the kit's own source to compute the approval hash |
+| Review loop (four reviews, one fix round) | 28% | 35% | The reviewer returned `fix` three times; the node ran out of attempts |
+| Implementer | 15% | 17% | |
+| Explorer | 13% | 8% | 35 messages for a map |
+
+Cost follows turns × context size (cache reads). Time follows model time, and every subagent ran in sequence. Build commands that fail in the environment add tool time.
+
+### 9.2 Targets
+
+The owner sets the same three targets for the kit with a Sonnet main session (arm F): checklist and behavior tests at least vanilla Opus's, cost below vanilla Opus's, and wall time at most 1.3× vanilla Opus's on large tasks.
+
+### 9.3 Changes
+
+1. **A thin main session.**
+   - It reads one compact playbook (`references/fast-path.md`) instead of five references. The playbook is written for the model, not for people: exact commands and limits, no explanations.
+   - It never reads code, full test logs or the kit's source. It reads CLI JSON, subagent summaries and `git diff --stat`.
+   - Human-facing artifacts (the Story, the G4 summary) keep their readable formats.
+2. **Fewer, larger CLI commands.** *(Builder's call on names.)*
+   - `approve G1 <story> --response <file>`: writes the bound approval JSON, the footer gate line and `Status: Approved`, then runs the Story and G1 checks.
+   - `go <story> <run> [--scope <module-or-path>]`: writes the check profile if missing, initializes or resumes the run, and begins the first node.
+   - `complete` begins the next node itself and returns its brief.
+   - `approve G4 <run> --summary <file> --response <file>`: writes the bound G4 JSON and footer lines, sets `Status: Delivered`, then runs the delivery check.
+3. **Fan-out and join where work is independent.**
+   - Intake: up to two exploration subagents in parallel on separate areas, each bounded to a few tool calls and a short map.
+   - After implementation: the reviewer runs while `complete implement` runs the checks; the main session joins both.
+   - Writers stay exclusive. Parallel implementers on disjoint files are left for later.
+4. **One review round.** The CLI refuses a second review `fix` in the same run. Remaining findings go into the G4 summary's unverified line, or the reviewer escalates with `human`.
+5. **Checks that fit the critical path.**
+   - `profile --scope` limits detected checks to the touched module or path.
+   - The baseline no longer gates implementation; it stays available for repositories with known failures.
+   - When a check cannot run in the environment, narrow it. Never write a substitute test runner.
+6. **Models.** Exploration: the cheapest tier. Implementation and review: the mid tier. Escalation after two failed attempts: a stronger tier.
+
+### 9.4 Validation
+
+Arm F (kit RC 2, Sonnet main session) runs on the same large and medium tasks as arm D, after the weekly usage reset. The per-agent breakdown is measured again so each change can be checked against its target.
