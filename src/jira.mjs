@@ -2,10 +2,9 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
-import { checkArtifact, checkGate, isGateMetadataLine } from '../assets/check.mjs';
+import { STORY_LAYOUTS, checkArtifact, checkGate, isGateMetadataLine, isStoryRecordLine } from '../assets/check.mjs';
 import { safePath } from './install-transaction.mjs';
 
-const HEADINGS = ['Goal', 'Domain', 'MUST', 'SHOULD', 'OUT', 'Decisions', 'Verify'];
 const hash = (value) => createHash('sha256').update(value).digest('hex');
 const textNode = (text) => ({ type: 'text', text });
 const paragraph = (text) => ({ type: 'paragraph', content: [textNode(text)] });
@@ -19,18 +18,24 @@ export function formatStory(text) {
   let trailingGates = false;
   for (const line of text.replace(/\r\n/g, '\n').split('\n')) {
     if (/^\s*(?:`{3,}|~{3,})/.test(line)) fenced = !fenced;
-    // Only a trailing gate block after Verify is metadata, not similarly named prose.
+    // Only a trailing record block after Verify is metadata, not similarly named prose:
+    // the v2 footer starts at "---"; a v1 Story may end with bare gate lines.
     const gateLine = isGateMetadataLine(line);
-    if (!fenced && sections.at(-1)?.heading === 'Verify' && gateLine) trailingGates = true;
+    const afterVerify = !fenced && sections.at(-1)?.heading === 'Verify';
+    if (afterVerify && !trailingGates && (/^---\s*$/.test(line) || gateLine)) {
+      trailingGates = true;
+      if (!gateLine) continue;
+    }
     if (trailingGates) {
-      if (gateLine || !line.trim()) continue;
+      if (gateLine || isStoryRecordLine(line) || !line.trim()) continue;
       throw new Error('Gate metadata must follow all Verify content or move to the Story preamble.');
     }
     const heading = !fenced && line.match(/^##\s+(.+?)\s*$/);
     if (heading) sections.push({ heading: heading[1], lines: [] });
     else if (sections.length) sections.at(-1).lines.push(line);
   }
-  if (!isDeepStrictEqual(sections.map((section) => section.heading), HEADINGS) || fenced) {
+  const headings = sections.map((section) => section.heading);
+  if (!Object.values(STORY_LAYOUTS).some((layout) => isDeepStrictEqual(headings, [...layout])) || fenced) {
     throw new Error('Story needs exactly the seven canonical sections in order and closed code fences.');
   }
   const content = [];

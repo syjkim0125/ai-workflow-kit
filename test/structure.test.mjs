@@ -174,3 +174,14 @@ test('gate references and the managed block name the checker command, not just t
   const { MANAGED_BLOCK } = await import('../src/managed-block.mjs');
   assert.match(MANAGED_BLOCK, command, 'the managed block must name the checker command');
 });
+
+test('the shipped Story template uses the v2 layout and a record footer', async () => {
+  const { STORY_LAYOUTS } = await import('../assets/check.mjs');
+  const story = await read('skills/workflow/assets/STORY.md');
+  const headings = [...story.matchAll(/^##\s+(.+?)\s*$/gmu)].map((match) => match[1]);
+  assert.deepEqual(headings, [...STORY_LAYOUTS.v2]);
+  for (const label of ['1. As-is:', '2. To-be:', '3. Unchanged:']) assert.ok(story.includes(label), label);
+  const footer = story.slice(story.lastIndexOf('\n---\n'));
+  assert.match(footer, /^Status:/mu);
+  assert.match(footer, /^Understanding gate \(G4\):/mu);
+});

@@ -386,3 +386,55 @@ test('mixed-case duplicate approval or status metadata is rejected', async () =>
     assert.equal(adapter.creates, 0);
   }
 });
+
+const v2Body = `# Story: readable publication
+
+## Goal
+1. As-is: publication is manual.
+2. To-be: the approved Story is published once.
+3. Unchanged: the Story file stays canonical.
+
+## Domain
+- Terms:
+  1. publication = one Jira issue per Story
+
+## Decisions
+- D1. ASSUMED: adapter
+  1. the adapter is supplied by the host
+
+## MUST
+- M1. original
+  1. preserve the original + keep its hash
+
+## SHOULD
+- S1. failures
+  1. explain failures
+
+## OUT
+- O1. no credentials in artifacts
+
+## Verify
+- V1 [M1]. Compare the original bytes.
+
+---
+Status: Approved
+Owner: fixture owner
+Understanding gate (G1): approval.md · 2026-09-08 · Check-in: accepted
+`;
+
+test('Jira preview accepts a v2 Story and drops the record footer', async () => {
+  const { formatStory } = await import('../src/jira.mjs');
+  const { preview } = formatStory(v2Body);
+  const order = [...preview.matchAll(/^##\s+(.+)$/gmu)].map((match) => match[1]);
+  assert.deepEqual(order, ['Goal', 'Domain', 'Decisions', 'MUST', 'SHOULD', 'OUT', 'Verify']);
+  assert.doesNotMatch(preview, /Status:|Owner:|Understanding gate/u);
+});
+
+test('footer inside a code fence is content', async () => {
+  const { formatStory } = await import('../src/jira.mjs');
+  const fenced = v2Body.replace('- V1 [M1]. Compare the original bytes.\n',
+    '- V1 [M1]. Compare the original bytes.\n```\n---\nStatus: sample output\n```\n');
+  const { preview } = formatStory(fenced);
+  assert.match(preview, /---\nStatus: sample output/u);
+  assert.doesNotMatch(preview, /Owner: fixture owner/u);
+});

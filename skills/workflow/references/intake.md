@@ -34,13 +34,23 @@ Put this explanation at the start of the Story's Goal section, with the formal c
 
 Create one Story from `../assets/STORY.md`:
 
-1. Goal: actor + observable outcome.
-2. Domain: terms and business invariants only.
-3. MUST: numbered positive and negative behavior.
-4. SHOULD: useful but non-blocking behavior.
-5. OUT: explicit exclusions that prevent scope expansion.
-6. Decisions: human choices, `ASSUMED`, and material open items.
+1. Goal: exactly three numbered lines — `1. As-is:` (what happens today and why it hurts), `2. To-be:` (what happens after), `3. Unchanged:` (what must stay as it is).
+2. Domain: `Terms:` and `Invariant:` as numbered lists, one item per line, never comma-joined. Code identifiers are fine.
+3. Decisions: human choices, `ASSUMED`, and material open items. They sit above MUST so the reader judges them first.
+4. MUST: numbered positive and negative behavior.
+5. SHOULD: useful but non-blocking behavior.
+6. OUT: explicit exclusions that prevent scope expansion.
 7. Verify: V# cases mapped to M#; include success and failure.
+8. Record footer: after Verify, a `---` line, then `Status:`, `Owner:` and the gate lines.
+
+Item shape for D, M, S and O:
+
+- The item line is a short title: the condition, case or area.
+- Details go in nested numbers under it.
+- Results that happen together share one line, joined with `+`.
+- A new nested number means a different action or a different result.
+- A purpose, explanation or evidence goes in parentheses on the title line or on the same line. It is not its own number.
+- An item that its title says completely has no nested numbers.
 
 Keep it one-screen by default. Do not copy it into an “AI spec.”
 
