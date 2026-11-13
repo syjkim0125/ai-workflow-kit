@@ -28,7 +28,7 @@
   - `Lane:` is excluded from the G1 Story hash.
 - Reviewers: `reviewBudget.defaultAgents` is 1. For a Story that needs G3 it is 2.
 - Implementation and review subagents: the host's mid tier by default (for example Sonnet under an Opus main session). Escalate implementation to the main model after two failed attempts on the same node. A Story that needs G3 keeps main-model reviewers.
-- Intake exploration (spec §4.3, 2026-11-13): before the Story, a cheaper-tier subagent reads the code the request touches and returns a short map (files, current behavior, constraints). The main session writes the Story from the map, not by reading the code itself.
+- Intake exploration (spec §4.4, 2026-11-13): before the Story, a cheaper-tier subagent reads the code the request touches and returns a short map (files, current behavior, constraints). The main session writes the Story from the map, not by reading the code itself.
 - Test volume: one focused test per Verify item; a second only for a distinct failure path in its MUST.
 - PR 2 merges to main only after arm D passes (spec §6). PR 1 is independent.
 - Report test results as passed/total.
