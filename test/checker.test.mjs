@@ -337,3 +337,90 @@ test('a placeholder Story title is not a title', async () => {
   assert.equal(result.ok, false);
   assert.ok(result.errors.some((error) => error.includes('title')));
 });
+
+const v2Story = `# Story: payment
+
+## Goal
+1. As-is: a retried payment can be charged twice.
+2. To-be: one order is charged at most once, even when retried.
+3. Unchanged: refund flow and receipts.
+
+## Domain
+- Terms:
+  1. paid = order.status === 'Paid'
+- Invariant:
+  1. one order is paid once.
+
+## Decisions
+- D1. ASSUMED: retry key
+  1. retry reuses the idempotency key
+
+## MUST
+- M1. approved payment
+  1. order becomes Paid + receipt is sent
+- M2. failed payment
+  1. order never becomes Paid
+
+## SHOULD
+- S1. failure reason (helps support)
+  1. failure reason is visible
+
+## OUT
+- O1. refunds
+  1. partial refund
+  2. full refund
+
+## Verify
+- V1 [M1]. Approval => Paid.
+- V2 [M2]. Failure => not Paid.
+
+---
+Status: Approved
+Owner: human owner
+Understanding gate (G1): <pending>
+Understanding gate (G4): <pending>
+`;
+
+async function storyResult(text) {
+  const { checkArtifact } = await import('../assets/check.mjs');
+  const root = await fixture();
+  const file = path.join(root, 'story.md');
+  await writeFile(file, text.replace('Status: Approved', 'Status: Draft'));
+  return checkArtifact({ root, file, kind: 'story' });
+}
+
+test('Story checker accepts the v2 layout with a record footer', async () => {
+  const result = await storyResult(v2Story);
+  assert.equal(result.ok, true, result.errors.join('\n'));
+});
+
+test('Story checker keeps accepting the v1 layout', async () => {
+  const result = await storyResult(baseStory);
+  assert.equal(result.ok, true, result.errors.join('\n'));
+});
+
+test('a Story mixing v1 and v2 order is rejected', async () => {
+  const mixed = v2Story.replace(/## OUT\n- O1\. refunds\n  1\. partial refund\n  2\. full refund\n\n/u, '')
+    .replace('## Decisions', '## OUT\n- O1. refunds\n\n## Decisions');
+  const result = await storyResult(mixed);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('out of order')), result.errors.join('\n'));
+});
+
+test('v2 Goal needs As-is, To-be and Unchanged lines', async () => {
+  const result = await storyResult(v2Story.replace('3. Unchanged: refund flow and receipts.\n', ''));
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('Unchanged')), result.errors.join('\n'));
+});
+
+test('nested items are content not IDs', async () => {
+  const result = await storyResult(v2Story.replace('  1. order becomes Paid + receipt is sent', '  1. same as M1 + logged\n  2. V1 covers it'));
+  assert.equal(result.ok, true, result.errors.join('\n'));
+  assert.ok(!result.errors.some((error) => error.includes('Duplicate')));
+});
+
+test('duplicate record lines are rejected', async () => {
+  const result = await storyResult(v2Story.replace('# Story: payment\n', '# Story: payment\nStatus: Approved\n'));
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('Status') && error.includes('once')), result.errors.join('\n'));
+});

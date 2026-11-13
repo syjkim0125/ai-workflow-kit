@@ -3,7 +3,12 @@ import { access, readFile, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const REQUIRED_STORY_HEADINGS = ['Goal', 'Domain', 'MUST', 'SHOULD', 'OUT', 'Decisions', 'Verify'];
+export const STORY_LAYOUTS = Object.freeze({
+  v1: Object.freeze(['Goal', 'Domain', 'MUST', 'SHOULD', 'OUT', 'Decisions', 'Verify']),
+  v2: Object.freeze(['Goal', 'Domain', 'Decisions', 'MUST', 'SHOULD', 'OUT', 'Verify']),
+});
+const REQUIRED_STORY_HEADINGS = STORY_LAYOUTS.v2;
+const RECORD_LINE = /^(?:(?:Status|Owner|Lane):|Understanding gate \(G[134]\):|G4:)/iu;
 const REQUIRED_TASK_HEADINGS = ['Outcome', 'Covers — Story M/V IDs', 'Scope', 'Constraints', 'Verify'];
 
 async function exists(file) {
@@ -179,6 +184,28 @@ function verifyMappings(text) {
   return { lines, mapped };
 }
 
+/** Which Story layout the present headings follow: 'v1', 'v2', or null. */
+export function storyLayout(text) {
+  for (const [name, headings] of Object.entries(STORY_LAYOUTS)) {
+    const indexes = headings.map((heading) => headingIndex(text, heading));
+    if (indexes.every((value, index) => value >= 0 && (index === 0 || value > indexes[index - 1]))) return name;
+  }
+  return null;
+}
+
+/** Status, Owner, Lane, gate and G4 lines: Story records, not content. */
+export function isStoryRecordLine(line) {
+  return RECORD_LINE.test(line.trim());
+}
+
+function requireStoryLayout(text, errors) {
+  const missing = REQUIRED_STORY_HEADINGS.filter((heading) => !hasHeading(text, heading));
+  for (const heading of missing) errors.push(`Missing Story section: ${heading}.`);
+  if (!missing.length && !storyLayout(text)) {
+    errors.push('Story sections are out of order; keep the canonical template order (Goal, Domain, Decisions, MUST, SHOULD, OUT, Verify).');
+  }
+}
+
 function requireOrderedHeadings(text, headings, errors, label) {
   const indexes = headings.map((heading) => headingIndex(text, heading));
   for (let index = 0; index < headings.length; index += 1) {
@@ -213,7 +240,20 @@ function checkTask(text) {
 
 function checkStoryShape(text) {
   const errors = [];
-  requireOrderedHeadings(text, REQUIRED_STORY_HEADINGS, errors, 'Story');
+  requireStoryLayout(text, errors);
+  if (storyLayout(text) === 'v2') {
+    const goal = sectionBody(text, 'Goal');
+    for (const [number, label] of [[1, 'As-is'], [2, 'To-be'], [3, 'Unchanged']]) {
+      if (!new RegExp(`^${number}\\.\\s*${label}:\\s*\\S`, 'imu').test(goal)) {
+        errors.push(`Goal needs a "${number}. ${label}:" line.`);
+      }
+    }
+  }
+  for (const record of ['Status', 'Owner']) {
+    if ((text.match(new RegExp(`^${record}:`, 'gimu')) ?? []).length > 1) {
+      errors.push(`${record} must appear once; keep the record lines in the footer.`);
+    }
+  }
 
   if (!/^#\s+Story:\s*(?!<|pending\b)\S.+$/imu.test(text)) errors.push('Story needs a descriptive “# Story:” title.');
   if (!/^Status:\s*(Draft|Approved|Delivered)\s*$/imu.test(text)) {
