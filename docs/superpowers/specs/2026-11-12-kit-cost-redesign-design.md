@@ -314,6 +314,7 @@ The 5.3.0 comparison stops at the 21 runs already graded *(owner decision, 2026-
 - **Scale.** One repetition per task first. The rest follows only if the gate below passes.
 - **Pass gate.**
   - Large tasks: D costs less than A.
+  - Large tasks: D's wall time is at most 1.3× A's *(restored 2026-11-13 at the owner's request; the earlier rewrite dropped it by mistake)*. Time follows the output tokens a run generates, so the same cuts serve both.
   - D's checklist pass rate is at least A's and at least 92%. D has no drop against A in behavior-test or hidden-test results, and no new test failures.
   - D beats E: more pairwise wins than losses, and a higher checklist pass rate.
   - D's cost is within about 1.5× of E's.
