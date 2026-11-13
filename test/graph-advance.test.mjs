@@ -110,3 +110,15 @@ test('evidence and approval files do not make results stale', async t => {
   assert.equal(done.out.status, 'completed');
   assert.equal(done.out.next, 'g4');
 });
+
+test('verify reuses the implement check when the code did not change', async t => {
+  const { readdir } = await import('node:fs/promises');
+  const path = await import('node:path');
+  const f = await prepared(t);
+  const { runId } = f.ok('status', 'run.json');
+  await through(f);
+  const runs = (await readdir(path.join(f.root, '.ai-workflow/evidence', runId), { withFileTypes: true }))
+    .filter(entry => entry.isDirectory() && entry.name !== 'complete');
+  assert.equal(runs.length, 1);
+  assert.equal(f.ok('status', 'run.json').action, 'g4');
+});

@@ -8,7 +8,7 @@ import { assertAssignment, assertRoleOutput, createRoleGraph } from './roles.mjs
 import { approvalPath, boundApproval, checkG4Record, storyG4Mode } from './approvals.mjs';
 import { createSnapshot } from './snapshot.mjs';
 import { begin, complete } from './advance.mjs';
-import { PROFILE, checkExecutions, needsExecution, runVerification, verificationProfile } from './verification.mjs';
+import { PROFILE, checkExecutions, findReusableReceipt, indexReceipt, needsExecution, runVerification, verificationProfile } from './verification.mjs';
 import { normalizeExecutionMetadata } from './execution-metadata.mjs';
 import {
   MAX_ATTEMPTS, MAX_QUESTIONS, assertWorkflowRun, checkRunEvidence, createWorkflowGraph, evidenceHashes,
@@ -183,7 +183,9 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
   if (command === 'begin') return begin({ root, runFile: values[0], nodeId: values[1], call });
   if (command === 'complete') {
     return complete({ root, runFile: values[0], nodeId: values[1], verdict: flags.verdict, notesFile: flags.notes, call, snapshot,
-      loadRun: async () => validate(await readJson(root, values[0])) });
+      loadRun: async () => validate(await readJson(root, values[0])),
+      indexReceipt: (check, receipt, file) => indexReceipt(root, values[0], check, receipt, file),
+      reuseReceipt: (run, check, code) => findReusableReceipt(root, run, check, code) });
   }
 
   const [runFile, nodeId, argument] = values;

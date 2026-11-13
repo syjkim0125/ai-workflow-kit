@@ -5,6 +5,10 @@ import { digest, projectFile, readJson, updateRun } from './storage.mjs';
 import { taskToken } from './workflow.mjs';
 
 export const PROFILE = '.ai-workflow/verification.json';
+/** Reuse key: the same check (id, argv, timeout) on the same code snapshot. */
+export const receiptKey = (check, snapshot) =>
+  `${check.id}:${digest(JSON.stringify({ argv: check.argv, timeoutMs: check.timeoutMs ?? null }))}:${snapshot}`;
+
 export const needsExecution = (run, nodeId) => nodeId === 'workflow-verify'
   || (run.kind === 'role' && run.assignment.value.role === 'developer' && nodeId === 'self-check');
 
@@ -81,10 +85,15 @@ async function execute(argv, root, timeoutMs) {
 export async function checkExecutions(root, run, nodeId, { requirePass = false } = {}) {
   const state = run.state.nodes[nodeId];
   const receipts = [];
-  for (const binding of Object.values(state.executions ?? {})) {
+  for (const [checkId, binding] of Object.entries(state.executions ?? {})) {
     if (binding.pending) { if (requirePass) throw new Error('Verification execution is still running.'); continue; }
     const receipt = await readJson(root, binding.file);
-    if (digest(JSON.stringify(receipt)) !== binding.hash || receipt.token !== taskToken(run, nodeId)
+    // A reused receipt was produced earlier in this run for the same check and snapshot.
+    const owned = binding.reused
+      ? run.receipts?.[binding.reused]?.file === binding.file && run.receipts[binding.reused].hash === binding.hash
+        && receipt.checkId === checkId && receipt.passed === true
+      : receipt.token === taskToken(run, nodeId);
+    if (digest(JSON.stringify(receipt)) !== binding.hash || !owned
       || receipt.runId !== run.runId || receipt.storyHash !== run.story.fingerprint) throw new Error('Verification receipt changed or belongs to stale work.');
     for (const stream of ['stdout', 'stderr']) {
       const bytes = await fs.readFile(await projectFile(root, receipt[stream]));
@@ -103,6 +112,26 @@ export async function checkExecutions(root, run, nodeId, { requirePass = false }
     }
   }
   return receipts;
+}
+
+/** A passing receipt from this run for the same check and snapshot, if its file is intact. */
+export async function findReusableReceipt(root, run, check, snapshot) {
+  const indexed = run.receipts?.[receiptKey(check, snapshot)];
+  if (!indexed) return null;
+  const receipt = await readJson(root, indexed.file);
+  if (digest(JSON.stringify(receipt)) !== indexed.hash || !receipt.passed || receipt.runId !== run.runId
+    || receipt.snapshotBefore !== snapshot || receipt.snapshotAfter !== snapshot) return null;
+  return { receipt, file: indexed.file, hash: indexed.hash };
+}
+
+/** Index a passing receipt so later nodes on the same snapshot reuse it. */
+export async function indexReceipt(root, runFile, check, receipt, file) {
+  if (!receipt.passed) return;
+  await updateRun(root, runFile, async previous => {
+    if (previous.runId !== receipt.runId) throw new Error('Receipt belongs to another run.');
+    return { ...structuredClone(previous), receipts: { ...previous.receipts,
+      [receiptKey(check, receipt.snapshotBefore)]: { file, hash: digest(JSON.stringify(receipt)) } } };
+  });
 }
 
 /** Run one profile check against the current code and write its receipt and raw logs. */
@@ -137,6 +166,7 @@ export async function receiptTail(root, receipt, lines = 20) {
 
 export async function runVerification({ root, runFile, nodeId, token, checkId, validate, snapshot }) {
   const executionId = randomUUID();
+  let reused;
   const reserved = await updateRun(root, runFile, async previous => {
     const run = structuredClone(previous);
     await validate(run);
@@ -148,9 +178,13 @@ export async function runVerification({ root, runFile, nodeId, token, checkId, v
     const before = (await snapshot(run)).fingerprint;
     if (before !== run.state.nodes[nodeId].snapshot) throw new Error('Verification snapshot is stale; reset affected work.');
     run.state.nodes[nodeId].executions ??= {};
-    run.state.nodes[nodeId].executions[checkId] = { pending: executionId };
+    reused = await findReusableReceipt(root, run, check, before);
+    run.state.nodes[nodeId].executions[checkId] = reused
+      ? { file: reused.file, hash: reused.hash, reused: receiptKey(check, before) }
+      : { pending: executionId };
     return run;
   });
+  if (reused) return { run: reserved, verification: { ...reused.receipt, receipt: reused.file, reused: true } };
   const check = reserved.verification.value.checks.find(check => check.id === checkId);
   const { receipt, file } = await executeCheck({ root, run: reserved, nodeId, token, check, executionId,
     snapshotBefore: reserved.state.nodes[nodeId].snapshot, snapshot });
@@ -160,6 +194,7 @@ export async function runVerification({ root, runFile, nodeId, token, checkId, v
     if (token !== taskToken(next, nodeId) || next.state.nodes[nodeId].status !== 'running'
       || next.state.nodes[nodeId].executions?.[checkId]?.pending !== executionId) throw new Error('Late verification result rejected after reset/answer.');
     next.state.nodes[nodeId].executions[checkId] = { file, hash: digest(JSON.stringify(receipt)) };
+    if (receipt.passed) next.receipts = { ...next.receipts, [receiptKey(check, receipt.snapshotBefore)]: next.state.nodes[nodeId].executions[checkId] };
     return next;
   });
   return { run, verification: { ...receipt, receipt: file } };

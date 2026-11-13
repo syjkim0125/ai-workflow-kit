@@ -147,3 +147,49 @@ test('legacy recorded success remains readable but cannot start new work or clai
   assert.equal(status.action, 'upgrade-required');
   assert.equal(f.cli('start', 'legacy.json', 'implement', 'old-token').status, 1);
 });
+
+const evidenceDirs = async (f, runId) => (await fs.readdir(path.join(f.root, '.ai-workflow/evidence', runId), { withFileTypes: true }))
+  .filter(entry => entry.isDirectory() && entry.name !== 'complete').length;
+
+test('a passing check on an unchanged snapshot is reused', async t => {
+  const f = await graphProject(t);
+  const { runId } = f.ok('init', '-', 'run.json', 'story.md');
+  await f.record('implement'); await f.record('workflow-review');
+  const first = f.start('workflow-verify');
+  assert.equal(f.ok('verify', 'run.json', first.id, first.token, 'addition').verification.passed, true);
+  const before = await evidenceDirs(f, runId);
+  f.ok('reset', 'run.json', 'workflow-verify', 'Rerun verification on the same code');
+  const second = f.start('workflow-verify');
+  const reused = f.ok('verify', 'run.json', second.id, second.token, 'addition').verification;
+  assert.equal(reused.passed, true);
+  assert.equal(reused.reused, true);
+  assert.equal(await evidenceDirs(f, runId), before);
+  assert.equal((await f.result(second)).status, 0);
+  assert.equal(f.ok('status', 'run.json').action, 'g4');
+});
+
+test('receipt reuse requires the same check definition', async () => {
+  const { receiptKey } = await import('../src/graph/verification.mjs');
+  const check = { id: 'addition', covers: ['V1'], argv: ['node', 'check.mjs'] };
+  const key = receiptKey(check, 'snapshot-1');
+  assert.equal(receiptKey({ ...check, covers: ['V1', 'V2'] }, 'snapshot-1'), key);
+  assert.notEqual(receiptKey({ ...check, argv: ['node', 'other.mjs'] }, 'snapshot-1'), key);
+  assert.notEqual(receiptKey({ ...check, timeoutMs: 1000 }, 'snapshot-1'), key);
+  assert.notEqual(receiptKey({ ...check, id: 'renamed' }, 'snapshot-1'), key);
+  assert.notEqual(receiptKey(check, 'snapshot-2'), key);
+});
+
+test('a failed receipt is never reused', async t => {
+  const f = await graphProject(t, { broken: true });
+  const { runId } = f.ok('init', '-', 'run.json', 'story.md');
+  await f.record('implement'); await f.record('workflow-review');
+  const first = f.start('workflow-verify');
+  assert.equal(f.ok('verify', 'run.json', first.id, first.token, 'addition').verification.passed, false);
+  const before = await evidenceDirs(f, runId);
+  f.ok('reset', 'run.json', 'workflow-verify', 'Retry the failed check');
+  const second = f.start('workflow-verify');
+  const rerun = f.ok('verify', 'run.json', second.id, second.token, 'addition').verification;
+  assert.equal(rerun.passed, false);
+  assert.notEqual(rerun.reused, true);
+  assert.equal(await evidenceDirs(f, runId), before + 1);
+});
