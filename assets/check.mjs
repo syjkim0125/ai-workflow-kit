@@ -37,6 +37,16 @@ function hasG4Pass(text) {
   return /^G4:\s*PASS\s*[—-]\s*\S.+$/imu.test(text);
 }
 
+function hasG4Approved(text) {
+  return /^G4:\s*APPROVED\s*[—-]\s*\S.+$/imu.test(text);
+}
+
+/** G4 mode from its gate record; a record without "Mode:" is the original human restatement. */
+export function g4Mode(record) {
+  const mode = record?.match(/\bMode:\s*([\w-]+)/iu)?.[1]?.toLowerCase();
+  return mode === 'ai-summary' ? 'ai-summary' : 'human-restatement';
+}
+
 // The publisher must recognize the same gate spelling/spacing as validation.
 export function isGateMetadataLine(line) {
   return ['G1', 'G3', 'G4'].some((gate) => Boolean(gateLine(line, gate)))
@@ -141,7 +151,15 @@ export async function checkGate({ root = process.cwd(), file, gate }) {
   const resolved = await evidencePath({ root, artifact, gate });
   if (resolved.error) return { ok: false, errors: [resolved.error] };
 
-  if (gate === 'G4' && !hasG4Pass(text)) {
+  if (gate === 'G4' && g4Mode(record) === 'ai-summary') {
+    const g3 = gateLine(text, 'G3');
+    if (g3 && !/^<?pending\b/iu.test(g3)) {
+      return { ok: false, errors: ['A Story with a G3 decision needs G4 by human restatement (G4: PASS — …).'] };
+    }
+    if (!hasG4Approved(text)) {
+      return { ok: false, errors: ['G4 ai-summary needs the human approval record “G4: APPROVED — <owner> approved the AI summary”.'] };
+    }
+  } else if (gate === 'G4' && !hasG4Pass(text)) {
     return { ok: false, errors: ['G4 evidence exists, but the Story is missing an explicit “G4: PASS — <human restatement evidence>” record.'] };
   }
 

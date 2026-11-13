@@ -424,3 +424,50 @@ test('duplicate record lines are rejected', async () => {
   assert.equal(result.ok, false);
   assert.ok(result.errors.some((error) => error.includes('Status') && error.includes('once')), result.errors.join('\n'));
 });
+
+async function g4Result(lines) {
+  const { checkGate } = await import('../assets/check.mjs');
+  const root = await fixture();
+  const artifact = 'docs/understanding/g4.json';
+  await addGateArtifact(root, artifact, '{"gate":"G4"}\n');
+  const contract = path.join(root, 'story.md');
+  await writeFile(contract, `${baseStory}\n${lines.join('\n').replaceAll('<artifact>', artifact)}\n`);
+  return checkGate({ root, file: contract, gate: 'G4' });
+}
+
+const aiSummaryLine = 'Understanding gate (G4): <artifact> · 2026-11-12 · Check-in: accepted · Mode: ai-summary';
+const approvedLine = 'G4: APPROVED — human owner approved the AI summary';
+
+test('ai-summary G4 passes with an APPROVED line', async () => {
+  const result = await g4Result([aiSummaryLine, approvedLine]);
+  assert.equal(result.ok, true, result.errors.join('\n'));
+});
+
+test('ai-summary G4 without APPROVED fails', async () => {
+  const result = await g4Result([aiSummaryLine]);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('G4: APPROVED')), result.errors.join('\n'));
+});
+
+test('APPROVED without ai-summary mode does not pass', async () => {
+  const result = await g4Result(['Understanding gate (G4): <artifact> · 2026-11-12 · Check-in: accepted', approvedLine]);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('G4: PASS')), result.errors.join('\n'));
+});
+
+test('mode is read case-insensitively', async () => {
+  const result = await g4Result([aiSummaryLine.replace('Mode: ai-summary', 'mode: AI-Summary'), approvedLine]);
+  assert.equal(result.ok, true, result.errors.join('\n'));
+});
+
+test('a Story with a G3 record cannot use ai-summary G4', async () => {
+  const result = await g4Result(['Understanding gate (G3): <artifact> · 2026-11-12 · Check-in: accepted', aiSummaryLine, approvedLine]);
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes('G3') && error.includes('human restatement')), result.errors.join('\n'));
+});
+
+test('human-restatement G4 is unchanged', async () => {
+  const result = await g4Result(['Understanding gate (G4): <artifact> · 2026-11-12 · Check-in: accepted',
+    'G4: PASS — owner restated behavior, failure path, and evidence boundary']);
+  assert.equal(result.ok, true, result.errors.join('\n'));
+});
