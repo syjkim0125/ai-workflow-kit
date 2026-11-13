@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+Release candidate `5.4.0-rc.1` carries everything below. It is for the internal evaluation and is not published to npm.
+
+### Cost and time
+
+- Graph bookkeeping moves into the CLI:
+  - `begin` starts a node and returns a compact brief; `complete` runs its checks, records the result and routes a fix back to the implementation node.
+  - `profile` writes the check profile from `package.json`, `tsconfig.json` or `gradlew`; `baseline` runs the checks once on unchanged code before implementation.
+  - A passing receipt is reused for the same check on the same code, so final verification no longer reruns a check the implementation step already passed.
+- A light lane for small, reversible, single-module work: `light`, `check`, `review` and `delivery`, without a Graph run. `Lane:` sits in the Story footer and stays out of the G1 hash.
+- The main session keeps the Story, G1, the plan and G4. A mid-tier subagent explores the code before the Story, implements (escalating to the main model after two failed attempts) and reviews. One reviewer by default, two for G3 Stories.
+- One focused test per Verify item; a second only for a distinct failure path.
+- `graph-engineering.md` is split into `graph-minimal.md` and `graph-advanced.md`.
+
 ### Story template v2
 
 - The Story template follows Goal, Domain, Decisions, MUST, SHOULD, OUT, Verify, then a record footer:
