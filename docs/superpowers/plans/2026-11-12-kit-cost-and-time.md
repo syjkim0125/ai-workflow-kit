@@ -2,14 +2,14 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Cut the kit's model turns and context so a kit run costs and takes at most 1.1–1.3× vanilla Claude Code on large tasks, without lowering the 92% checklist bar.
+**Goal:** Cut the kit's model turns, context and model tier so that, on large tasks, a kit run with an Opus main session costs less than vanilla Claude Code on Opus at no lower quality, and beats vanilla Claude Code on Sonnet at about its cost (spec §2, raised 2026-11-13). The 92% checklist bar stays.
 
 **Architecture:**
 - Bookkeeping moves from model turns into CLI commands:
   - `begin`, `complete` and `profile` for standard runs;
   - `light`, `check` and `review` for light runs.
 - Receipts are reused when the snapshot and the check definition are unchanged.
-- The skill docs route work by lane. The main session orchestrates, a cheaper-tier subagent implements, and one reviewer reviews.
+- The skill docs route work by lane. The main session orchestrates. Cheaper-tier subagents explore the code before the Story, implement, and review (one reviewer).
 
 **Tech Stack:** Node.js ESM, `node:test`, no new dependencies.
 
@@ -27,7 +27,8 @@
   - A light run may move up to standard at any time, recorded in the footer as `Lane: standard (from light: <reason>)`. Moving down after G1 needs a new G1.
   - `Lane:` is excluded from the G1 Story hash.
 - Reviewers: `reviewBudget.defaultAgents` is 1. For a Story that needs G3 it is 2.
-- Implementation subagent: the host's mid tier by default (for example Sonnet under an Opus main session). Escalate to the main model after two failed attempts on the same node.
+- Implementation and review subagents: the host's mid tier by default (for example Sonnet under an Opus main session). Escalate implementation to the main model after two failed attempts on the same node. A Story that needs G3 keeps main-model reviewers.
+- Intake exploration (spec §4.3, 2026-11-13): before the Story, a cheaper-tier subagent reads the code the request touches and returns a short map (files, current behavior, constraints). The main session writes the Story from the map, not by reading the code itself.
 - Test volume: one focused test per Verify item; a second only for a distinct failure path in its MUST.
 - PR 2 merges to main only after arm D passes (spec §6). PR 1 is independent.
 - Report test results as passed/total.
@@ -218,6 +219,7 @@
   - `skills/workflow/references/model-selection.md`
   - `skills/workflow/references/skill-integration.md:55`
   - `skills/workflow/references/role-graphs.md:17`
+  - `skills/workflow/references/intake.md` (exploration subagent before the Story)
 - Create:
   - `skills/workflow/references/light-lane.md`
   - `skills/workflow/references/graph-minimal.md`: the minimal plan with `profile`, `baseline`, `begin`/`complete`, at most about 4 KB
@@ -232,6 +234,8 @@
   - `model-selection names the implementer tier and escalation`
     - the text contains `mid tier`, `two failed attempts` and `main model`
   - `execution limits tests to one per Verify item`
+  - `intake delegates code reading to an exploration subagent`
+    - the text contains `exploration subagent`, `cheaper` and `map`
   - Update the `reviewBudget` assertions in `graph-verification.test.mjs` to `defaultAgents === 1`.
 
 - [ ] **Step 2: Run them.** `node --test test/structure.test.mjs test/graph-verification.test.mjs`. Expected: FAIL.
@@ -245,6 +249,8 @@
     - Codex, or any host without subagents, does the same steps in the main session.
   - **Test volume.** One test per V#, a second only for a distinct failure path.
   - **`light-lane.md`.** The lane criteria from Global Constraints and the three commands.
+  - **`intake.md` (exploration).** Before drafting, dispatch one cheaper-tier subagent with the request. It returns at most about 40 lines: the files involved, current behavior, constraints and open questions. The main session drafts the Story from that map and opens a file itself only to settle a specific question. Hosts without subagents read the code in the main session.
+  - **Model choice in Claude Code.** Name the concrete control: the Agent tool's `model` parameter (for example `sonnet` under an Opus session).
 
 - [ ] **Step 4: Run the whole suite.** `npm test`. Expected: `# fail 0`. Report passed/total.
 
@@ -256,4 +262,8 @@
 - [ ] **Step 2:** Run `npm pack`. Expected: `pazmo-ai-workflow-kit-5.4.0-rc.1.tgz`.
 - [ ] **Step 3:** Hand the tarball path to the evaluation, which runs arm D (spec §6).
   - Do not publish to npm.
-  - Do not merge PR 2 until D passes: on large tasks, cost and wall time at most 1.3× A, and checklist at least 92% overall.
+  - Do not merge PR 2 until D passes (spec §6, 2026-11-13):
+    - large tasks: D costs less than A;
+    - D checklist at least A's and at least 92%, with no drop in behavior or hidden tests and no new test failures;
+    - D beats E (vanilla Sonnet): more pairwise wins than losses and a higher checklist rate;
+    - D's cost within about 1.5× E's.
