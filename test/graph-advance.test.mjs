@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import test from 'node:test';
 import { graphProject } from './fixtures/graph-project.mjs';
 
@@ -83,8 +85,8 @@ test('review fix resets implement', async t => {
   const f = await prepared(t);
   await through(f, 'implement');
   f.ok('begin', 'run.json', 'workflow-review');
-  await f.put('findings.md', 'M1: the sum ignores negative inputs.\n');
-  const done = complete(f, 'workflow-review', '--verdict', 'fix', '--notes', 'findings.md');
+  await f.put('.ai-workflow/evidence/findings.md', 'M1: the sum ignores negative inputs.\n');
+  const done = complete(f, 'workflow-review', '--verdict', 'fix', '--notes', '.ai-workflow/evidence/findings.md');
   assert.equal(done.status, 0, done.stderr);
   assert.equal(done.out.next, 'implement');
   assert.ok(f.ok('status', 'run.json').ready.some(node => node.id === 'implement'));
@@ -122,8 +124,7 @@ test('evidence and approval files do not make results stale', async t => {
 });
 
 test('verify reuses the implement check when the code did not change', async t => {
-  const { readdir } = await import('node:fs/promises');
-  const path = await import('node:path');
+  const { readdir } = fs;
   const f = await prepared(t);
   const { runId } = f.ok('status', 'run.json');
   await through(f);
@@ -131,4 +132,57 @@ test('verify reuses the implement check when the code did not change', async t =
     .filter(entry => entry.isDirectory() && entry.name !== 'complete');
   assert.equal(runs.length, 1);
   assert.equal(f.ok('status', 'run.json').action, 'g4');
+});
+
+// Real projects are git repositories: every untracked file outside .ai-workflow/{runs,evidence,approvals} is code.
+const gitPrepared = async t => {
+  const { spawnSync } = await import('node:child_process');
+  const f = await graphProject(t);
+  for (const args of [['init', '-q'], ['add', '-A'], ['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'start']]) {
+    spawnSync('git', args, { cwd: f.root });
+  }
+  f.ok('init', '-', 'run.json', 'story.md');
+  f.ok('baseline', 'run.json');
+  return f;
+};
+
+test('review notes must live under .ai-workflow/evidence so they do not change the code', async t => {
+  const f = await gitPrepared(t);
+  await through(f, 'implement');
+  f.ok('begin', 'run.json', 'workflow-review');
+  await f.put('docs/review.md', 'No findings.\n');
+  assert.match(complete(f, 'workflow-review', '--verdict', 'pass', '--notes', 'docs/review.md').stderr, /\.ai-workflow\/evidence/);
+  await fs.rm(path.join(f.root, 'docs'), { recursive: true });
+  await f.put('.ai-workflow/evidence/review.md', 'No findings.\n');
+  const reviewed = complete(f, 'workflow-review', '--verdict', 'pass', '--notes', '.ai-workflow/evidence/review.md');
+  assert.equal(reviewed.status, 0, reviewed.stderr);
+  f.ok('begin', 'run.json', 'workflow-verify');
+  const verified = complete(f, 'workflow-verify');
+  assert.equal(verified.status, 0, verified.stderr);
+  assert.equal(verified.out.next, 'g4');
+  const { runId } = f.ok('status', 'run.json');
+  const runs = (await fs.readdir(path.join(f.root, '.ai-workflow/evidence', runId), { withFileTypes: true }))
+    .filter(entry => entry.isDirectory() && entry.name !== 'complete');
+  assert.equal(runs.length, 1);
+});
+
+test('a stale review can still record a fix', async t => {
+  const f = await gitPrepared(t);
+  await through(f, 'implement');
+  f.ok('begin', 'run.json', 'workflow-review');
+  await f.put('app.mjs', 'export const add = (a, b) => a + b; // edited during review\n');
+  await f.put('.ai-workflow/evidence/review.md', 'M1: needs a negative-number case.\n');
+  assert.match(complete(f, 'workflow-review', '--verdict', 'pass', '--notes', '.ai-workflow/evidence/review.md').stderr, /stale/);
+  const fixed = complete(f, 'workflow-review', '--verdict', 'fix', '--notes', '.ai-workflow/evidence/review.md');
+  assert.equal(fixed.status, 0, fixed.stderr);
+  assert.equal(fixed.out.next, 'implement');
+});
+
+test('the brief keeps the end of a failing check', async t => {
+  const f = await prepared(t, { broken: true });
+  f.ok('begin', 'run.json', 'implement');
+  const failed = complete(f, 'implement');
+  const lastLine = failed.out.failing.tail.split('\n').at(-1);
+  const brief = f.ok('begin', 'run.json', 'implement');
+  assert.ok(brief.feedback.endsWith(lastLine), `${brief.feedback}\n---\n${lastLine}`);
 });

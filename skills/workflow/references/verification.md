@@ -39,7 +39,7 @@ Keep generated run/result/log/approval files under `.ai-workflow/runs/`, `.ai-wo
 
 ## Bind human decisions
 
-Compute the canonical Story hash with installed `storyContract` from `.ai-workflow/graph/workflow.mjs`; it excludes Status and G1/G3/G4 metadata lines. Add the existing gate line pointing to an approval JSON. Populate only after the real human decision:
+Compute the canonical Story hash with installed `storyContract` from `.ai-workflow/graph/workflow.mjs`; it excludes Status, Lane and G1/G3/G4 metadata lines. A light-lane G1 JSON also records `lane: "light"`. Add the existing gate line pointing to an approval JSON. Populate only after the real human decision:
 
 ```json
 {"gate":"G1", "storyHash":"<canonical hash>", "responseRef":"<actual response reference>"}

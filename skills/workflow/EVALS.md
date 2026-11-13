@@ -59,7 +59,7 @@ Failure: SHOULD appears inside MUST's list or paragraph; literal escaped newline
 
 ## Simplify available after green
 Input: The task's related tests pass. ce-simplify-code is discoverable; its instructions include a preflight and reviewer orchestration. Repository/runtime rules constrain agent use.
-Expected: Main simplifies inline by default. Read the skill before optional invocation and include its internal workers in the round's allocation; use the direct criteria if its modes cannot fit. Revalidate edits before the existing G4.
+Expected: The implementer simplifies inline by default. Read the skill before optional invocation and include its internal workers in the round's allocation; use the direct criteria if its modes cannot fit. Revalidate edits before the existing G4.
 Failure: Merely mention execution, simplify failing code, or launch an extra persona panel outside the review allocation.
 
 ## Simplify unavailable

@@ -4,20 +4,52 @@ import { randomUUID } from 'node:crypto';
 import { digest, projectFile, readJson, readProjectFile, updateRun } from './storage.mjs';
 import { executeCheck, findReusableReceipt, indexReceipt, receiptTail, verificationProfile } from './verification.mjs';
 import { boundApproval, checkG4Record, storyG4Mode } from './approvals.mjs';
+import { assertNotesPath } from './advance.mjs';
 
 // The light lane: no Graph. One check run, one review and G4, each bound to the code snapshot.
 // Requirements, G1 binding and the profile are re-validated on every command.
 
-const LANE_LIGHT = /^Lane:[\t ]*light[\t ]*$/im;
+const RECORD = /^(?:Status|Owner|Lane|Understanding gate \(G[134]\)|G4):/i;
+const FENCE = /^\s*(?:`{3,}|~{3,})/;
+
+/**
+ * The Story's lane from its preamble or record footer, outside fences: 'light', 'standard',
+ * 'moved-up' (standard, from light) or null. A Lane line inside a section is content.
+ */
+export function storyLane(text) {
+  const lines = text.split(/\r?\n/);
+  const fencedAt = [];
+  let fenced = false;
+  let firstSection = lines.length;
+  lines.forEach((line, index) => {
+    const marker = FENCE.test(line);
+    if (marker) fenced = !fenced;
+    fencedAt[index] = fenced || marker;
+    if (!fencedAt[index] && firstSection === lines.length && /^##\s+/.test(line)) firstSection = index;
+  });
+  let start = lines.length;
+  const record = index => !fencedAt[index] && (RECORD.test(lines[index].trim()) || !lines[index].trim() || /^---\s*$/.test(lines[index]));
+  while (start > firstSection && record(start - 1)) start -= 1;
+  const lane = [...lines.slice(0, firstSection), ...lines.slice(start)].map(line => line.trim()).filter(line => /^Lane:/i.test(line)).at(-1);
+  const value = lane?.replace(/^Lane:[\t ]*/i, '');
+  if (/^light$/i.test(value ?? '')) return 'light';
+  if (/^standard[\t ]*\(from light:/i.test(value ?? '')) return 'moved-up';
+  if (/^standard$/i.test(value ?? '')) return 'standard';
+  return null;
+}
 
 export function lightCommands({ root, loadStory, checkGate, snapshot }) {
-  const bindG1 = (story, contract) => boundApproval({ root, story, gate: 'G1', expected: { storyHash: contract.fingerprint }, checkGate });
+  // Lane stays out of the Story hash, so the G1 record itself says the human approved the light lane.
+  const bindG1 = (story, contract) => boundApproval({ root, story, gate: 'G1', expected: { storyHash: contract.fingerprint }, checkGate,
+    validate: value => {
+      if (value.lane !== 'light') throw new Error('The light lane needs a G1 that approved Lane: light (lane: "light" in the G1 record); moving down from standard needs a new G1.');
+    } });
 
   const load = async runFile => {
     const run = await readJson(root, runFile);
     if (run?.version !== 3 || run.kind !== 'light' || typeof run.runId !== 'string' || !run.story?.path) throw new Error('Invalid light run.');
     const text = await readProjectFile(root, run.story.path);
-    if (!LANE_LIGHT.test(text)) throw new Error('The Story is no longer on the light lane; continue in the standard Graph with init.');
+    if (storyLane(text) !== 'light') throw new Error('The Story is no longer on the light lane; continue in the standard Graph with init.');
     const contract = await loadStory(run.story.path);
     if (contract.fingerprint !== run.story.fingerprint) throw new Error('Story requirements changed; start a new light run after G1.');
     if (JSON.stringify(await bindG1(run.story.path, contract)) !== JSON.stringify(run.approval)) throw new Error('G1 approval changed; create a new run.');
@@ -36,15 +68,19 @@ export function lightCommands({ root, loadStory, checkGate, snapshot }) {
 
   return {
     async create(story, runFile) {
+      story = path.posix.normalize(story);
       const text = await readProjectFile(root, story);
-      if (!LANE_LIGHT.test(text)) throw new Error('The light lane needs "Lane: light" in the Story footer.');
+      if (storyLane(text) !== 'light') throw new Error('The light lane needs "Lane: light" in the Story footer.');
       const contract = await loadStory(story);
-      const directory = path.dirname(await projectFile(root, runFile));
-      for (const name of await fs.readdir(directory).catch(() => [])) {
-        if (!name.endsWith('.json') || name === path.basename(runFile)) continue;
-        const other = await fs.readFile(path.join(directory, name), 'utf8').then(JSON.parse, () => null);
-        if (other?.kind === 'delivery' && other.story?.path === story) {
-          throw new Error(`A standard run already exists for this Story (${name}); moving down to light needs a new G1.`);
+      const own = await projectFile(root, runFile);
+      const directories = new Set([path.dirname(own), await projectFile(root, '.ai-workflow/runs')]);
+      for (const directory of directories) {
+        for (const name of await fs.readdir(directory).catch(() => [])) {
+          if (!name.endsWith('.json') || path.join(directory, name) === own) continue;
+          const other = await fs.readFile(path.join(directory, name), 'utf8').then(JSON.parse, () => null);
+          if (other?.kind === 'delivery' && path.posix.normalize(other.story?.path ?? '') === story) {
+            throw new Error(`A standard run already exists for this Story (${path.relative(root, path.join(directory, name))}); moving down to light needs a new G1.`);
+          }
         }
       }
       const profile = await verificationProfile(root, contract.ids);
@@ -77,6 +113,7 @@ export function lightCommands({ root, loadStory, checkGate, snapshot }) {
 
     async review(runFile, { verdict, notes }) {
       if (!['pass', 'fix'].includes(verdict)) throw new Error('review needs --verdict pass|fix, and --notes <file> with the findings.');
+      assertNotesPath(notes);
       const text = notes ? (await readProjectFile(root, notes)).trim() : '';
       if (verdict === 'fix' && !text) throw new Error('A fix verdict needs feedback: pass --notes <file> with the findings.');
       const run = await load(runFile);

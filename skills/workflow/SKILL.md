@@ -26,7 +26,7 @@ Before G1/G3, explain the problem, change, safety rule and verification plainly.
 
 1. **No approved Story:** read `references/intake.md` and `references/domain-risks.md`. Use `assets/STORY.md`; ask only missing behavior questions and obtain G1.
 2. **Approved, not implemented:** `Lane: light` → read `references/light-lane.md`. Otherwise read `references/execution.md` and `references/graph-minimal.md`. Read `references/domain-risks.md` for relevant risks. Create a Task only when one PR is not reviewable.
-3. **Implemented or `finish`:** complete pending checks in `references/execution.md`, then follow `references/understanding-gate.md` for G4.
+3. **Implemented or `finish`:** complete pending checks (`references/light-lane.md` or `references/execution.md`), then follow `references/understanding-gate.md` for G4.
 4. **`status`:** run the existing graph's `status` command; report stage, blocking decision, evidence and next action. Without a run, report the Story stage.
 
 Use the user's language. State assumptions, evidence limits and human-owned decisions.

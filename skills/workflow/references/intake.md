@@ -107,4 +107,4 @@ unless both exit 0, and never claim the gate passed without that output.
 
 No approval means no implementation.
 
-For new v3 Graph runs, the G1 artifact must be JSON with `gate: "G1"`, canonical `storyHash`, and `responseRef` to the actual user decision. Store it under `.ai-workflow/approvals/`; `verification.md` gives the binding format. Document shape checks alone do not prove approval binding or delivery.
+For new v3 Graph runs, the G1 artifact must be JSON with `gate: "G1"`, canonical `storyHash`, and `responseRef` to the actual user decision. A `Lane: light` Story's G1 JSON also has `lane: "light"`. Store it under `.ai-workflow/approvals/`; `verification.md` gives the binding format. Document shape checks alone do not prove approval binding or delivery.

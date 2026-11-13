@@ -14,6 +14,16 @@ export const VERDICTS = ['pass', 'fix', 'human', 'replan'];
 const BRIEF_TEXT = 360;
 
 const clip = (text, size) => (text.length > size ? `${text.slice(0, size - 1)}…` : text);
+const clipEnd = (text, size) => (text.length > size ? `…${text.slice(-(size - 1))}` : text);
+
+// Notes elsewhere in a git repository are untracked code to the snapshot: they would make the
+// review stale. .ai-workflow/evidence is outside the snapshot.
+export const NOTES_DIR = '.ai-workflow/evidence/';
+export function assertNotesPath(file) {
+  if (file !== undefined && !path.posix.normalize(file).startsWith(NOTES_DIR)) {
+    throw new Error(`Write review notes under ${NOTES_DIR} (for example ${NOTES_DIR}review-1.md); a notes file elsewhere changes the code snapshot and makes the review stale.`);
+  }
+}
 
 function outItems(text) {
   const body = text.match(/^##\s+OUT\s*$([\s\S]*?)(?=^##\s|(?![\s\S]))/im)?.[1] ?? '';
@@ -39,7 +49,8 @@ export async function begin({ root, runFile, nodeId, call, beforeStart }) {
     area: clip([started.description, ...outItems(story).map(item => `OUT: ${item}`)].join(' | '), BRIEF_TEXT),
     checks: (started.input.verification?.checks ?? []).map(check => check.id),
     token: started.token,
-    ...(feedback ? { feedback: clip(feedback, BRIEF_TEXT), feedbackFile: (failure.output?.evidence ?? failure.evidence)?.[0] } : {}),
+    // A check failure ends in its most useful lines; review notes start with theirs.
+    ...(feedback ? { feedback: (feedback.startsWith('Check ') ? clipEnd : clip)(feedback, BRIEF_TEXT), feedbackFile: (failure.output?.evidence ?? failure.evidence)?.[0] } : {}),
   };
 }
 
@@ -68,6 +79,7 @@ async function writeEvidence(root, runId, name, text) {
 /** Run a node's checks, record its result and route the next step. */
 export async function complete({ root, runFile, nodeId, verdict, notesFile, call, loadRun, snapshot, indexReceipt, reuseReceipt }) {
   if (verdict !== undefined && !VERDICTS.includes(verdict)) throw new Error(`--verdict must be one of ${VERDICTS.join(', ')}.`);
+  assertNotesPath(notesFile);
   const run = await loadRun();
   const node = nodeById(run.graph, nodeId);
   if (run.state.nodes[nodeId].status !== 'running') throw new Error(`Node is not running: ${nodeId}. Start it with: graph.mjs begin ${runFile} ${nodeId}`);
@@ -76,8 +88,10 @@ export async function complete({ root, runFile, nodeId, verdict, notesFile, call
   if (reviews && !verdict) throw new Error('Review nodes need --verdict pass|fix|human|replan, and --notes <file> with the findings.');
   const notes = notesFile ? (await readProjectFile(root, notesFile)).trim() : '';
   if (verdict && verdict !== 'pass' && !notes) throw new Error('Failed evaluation needs feedback: pass --notes <file> with the findings.');
+  // Only a pass is refused on changed code; a fix, human or replan result is still recorded.
+  const wantsPass = (verdict ?? 'pass') === 'pass';
   const state = await call(['status', runFile]);
-  if (state.action === 'stale' && state.stale.includes(nodeId)) {
+  if (wantsPass && state.action === 'stale' && state.stale.includes(nodeId)) {
     throw new Error(`Code changed since ${nodeId} began; its result is stale. Reset it: graph.mjs reset ${runFile} ${nodeId} "<reason>", then begin again.`);
   }
 
@@ -85,7 +99,7 @@ export async function complete({ root, runFile, nodeId, verdict, notesFile, call
   const checks = (run.verification?.value.checks ?? []).filter(check => check.covers.some(id => node.covers.includes(id)));
   const receipts = [];
   let failing;
-  if (!reviews) {
+  if (!reviews && wantsPass) {
     for (const check of checks) {
       let receipt;
       let file;
@@ -114,7 +128,7 @@ export async function complete({ root, runFile, nodeId, verdict, notesFile, call
   const action = failing ? 'fix' : verdict;
   const feedback = failing ? `Check ${failing.check} failed:\n${failing.tail}` : notes;
   const label = `${nodeId}-${run.state.nodes[nodeId].attempts}-${randomUUID().slice(0, 8)}`;
-  const summary = notes.split('\n').find(line => line.trim())?.trim() ?? `${nodeId} completed by complete`;
+  const summary = notes.split('\n').find(line => line.trim())?.trim() ?? `${nodeId} ${passed ? 'passed' : 'failed'} (recorded by complete)`;
   const notesEvidence = await writeEvidence(root, run.runId, `${label}.md`,
     `${summary}\n\n${notes || (failing ? feedback : 'No notes.')}\n`);
   const resultFile = await writeEvidence(root, run.runId, `${label}.json`, JSON.stringify({
@@ -136,7 +150,7 @@ export async function complete({ root, runFile, nodeId, verdict, notesFile, call
     node: nodeId,
     status: passed ? 'completed' : 'failed',
     next: after.ready[0]?.id ?? after.action,
-    ...(failing ? { failing: { check: failing.check, tail: clip(failing.tail, 600) } } : {}),
+    ...(failing ? { failing: { check: failing.check, tail: clipEnd(failing.tail, 600) } } : {}),
     ...(note ? { note: clip(note, 200) } : {}),
   };
 }

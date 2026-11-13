@@ -12,6 +12,7 @@ node .ai-workflow/bin/graph.mjs baseline .ai-workflow/runs/<slug>.json
 
 - `profile` writes `.ai-workflow/verification.json` from `package.json`, `tsconfig.json` or `gradlew` and never overwrites one. Edit it only when detection is wrong ([verification.md](verification.md)).
 - `baseline` runs every check once on the unchanged code. Do not run the test suite yourself first. If a check already fails, narrow it to exclude the pre-existing failure, `init` a new run file and run `baseline` again.
+- A Story moved up from light (`Lane: standard (from light: …)`) skips `baseline`: its code already changed.
 - If the run file exists, run `status` and continue; never replace a run to escape a failure.
 
 ## Three nodes, two calls each
@@ -19,13 +20,13 @@ node .ai-workflow/bin/graph.mjs baseline .ai-workflow/runs/<slug>.json
 The plan is `implement → workflow-review → workflow-verify`.
 
 1. `begin` implement returns a brief: covered M/V IDs, the advisory area, the checks and earlier feedback. Dispatch the implementer with it, then `complete` implement: it runs the checks and records the result.
-2. `begin` workflow-review. Dispatch one reviewer with the Story's MUST/Verify and the diff. Write its findings to a file, then `complete` with `--verdict pass|fix --notes <file>`.
+2. `begin` workflow-review. Dispatch one reviewer with the Story's MUST/Verify and the diff. Write its findings under `.ai-workflow/evidence/` (a file elsewhere counts as a code change and makes the review stale), then `complete` with `--verdict pass|fix --notes <file>`.
 3. `begin` workflow-verify, then `complete`. Passing receipts for unchanged code are reused, not rerun.
 
 ```bash
 node .ai-workflow/bin/graph.mjs begin <run.json> implement
 node .ai-workflow/bin/graph.mjs complete <run.json> implement
-node .ai-workflow/bin/graph.mjs complete <run.json> workflow-review --verdict fix --notes <findings.md>
+node .ai-workflow/bin/graph.mjs complete <run.json> workflow-review --verdict fix --notes .ai-workflow/evidence/review-1.md
 ```
 
 ## Who does what

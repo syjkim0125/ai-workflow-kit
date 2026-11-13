@@ -9,7 +9,7 @@ import { approvalPath, boundApproval, checkG4Record, storyG4Mode } from './appro
 import { createSnapshot } from './snapshot.mjs';
 import { begin, complete } from './advance.mjs';
 import { BASELINE_NARROW, writeProfile } from './profile.mjs';
-import { lightCommands } from './light.mjs';
+import { lightCommands, storyLane } from './light.mjs';
 import { PROFILE, checkExecutions, executeCheck, findReusableReceipt, indexReceipt, needsExecution, receiptTail, runVerification, verificationProfile } from './verification.mjs';
 import { normalizeExecutionMetadata } from './execution-metadata.mjs';
 import {
@@ -198,6 +198,9 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
     const [runFile] = values;
     const run = await validate(await readJson(root, runFile));
     if (run.kind !== 'delivery' || !run.verification) throw new Error('Baseline needs a delivery run with a verification profile.');
+    if (storyLane(await readProjectFile(root, run.story.path)) === 'moved-up') {
+      throw new Error('This Story moved up from light: its code already changed, so there is no baseline to take. begin implement directly.');
+    }
     const code = (await snapshot(run)).fingerprint;
     const receipts = {};
     const failing = [];
@@ -217,8 +220,10 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
   }
   if (command === 'begin') {
     const run = await validate(await readJson(root, values[0]));
+    const movedUp = storyLane(await readProjectFile(root, run.story.path)) === 'moved-up';
     return begin({ root, runFile: values[0], nodeId: values[1], call, beforeStart: async ready => {
-      if (run.kind === 'delivery' && run.verification && ready.access !== 'read' && run.baseline?.profile !== run.verification.fingerprint) {
+      if (run.kind === 'delivery' && run.verification && ready.access !== 'read' && !movedUp
+        && run.baseline?.profile !== run.verification.fingerprint) {
         throw new Error(`Run the baseline before implementation: graph.mjs baseline ${values[0]}`);
       }
     } });
