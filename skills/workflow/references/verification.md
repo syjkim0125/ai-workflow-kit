@@ -47,7 +47,7 @@ Compute the canonical Story hash with installed `storyContract` from `.ai-workfl
 
 For a design requiring G3, set `requiresG3: true` and `design: "docs/design.md"` in the profile; the G3 JSON additionally has `decisionHash` (SHA-256 of design bytes). Obtain the decision before initialization/implementation. Small changes need no G3. Risk declaration belongs to the approved scope and reviewed profile, not a keyword classifier.
 
-G4 JSON additionally has the current Graph `snapshot` and `runId`; preserve prediction-before-reveal in `understanding-gate.md`. These bindings prevent accidental reuse; a host controlling repository files can forge records. They are not human identity authentication.
+G4 JSON additionally has the current Graph `snapshot` and `runId`, and a `mode` that matches the Story's G4 line. An `ai-summary` record also has `summary` (an array of the four lines shown) and `approvalText` (the human's reply). `graph delivery` rejects a missing or mismatched mode, an incomplete summary, and `ai-summary` in a run that requires G3. Follow the mode procedure in `understanding-gate.md`. These bindings prevent accidental reuse; a host controlling repository files can forge records. They are not human identity authentication.
 
 ## Run and inspect
 

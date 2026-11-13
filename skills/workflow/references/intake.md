@@ -28,7 +28,7 @@ Cover these points in a few connected sentences:
 
 Explain observable behavior here, not implementation choices. Label a suspected cause as a hypothesis. Use an analogy only when it clarifies the real behavior, and connect it back to that behavior. For a simple change, one or two sentences are enough. Do not force a diagram, quiz, separate explainer artifact, or another approval round.
 
-Put this explanation at the start of the Story's Goal section, with the formal criteria and technical evidence below it. It is part of the same contract, not a second requirements source. The reader should be able to judge the desired outcome before seeing field names, gate IDs or commands.
+In the Story, this explanation becomes the Goal's three lines (As-is, To-be, Unchanged); the formal criteria and technical evidence follow in the later sections. It is part of the same contract, not a second requirements source. The reader should be able to judge the desired outcome before seeing field names, gate IDs or commands.
 
 ## Output recipe
 

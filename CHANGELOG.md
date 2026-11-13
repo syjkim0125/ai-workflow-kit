@@ -11,7 +11,9 @@
   - `Status:`, `Owner:` and the gate lines sit below Verify after a `---` line.
 - The checker and the Jira preview accept both the 5.3.0 order and v2, so in-flight Stories keep passing.
   - A v2 Story needs the three Goal labels.
-  - `Status:` and `Owner:` must appear once in the preamble and footer. Prose that starts with those words inside a section stays content.
+  - `Status:` and `Owner:` must appear once in the preamble and footer, and each gate line once. Prose that starts with those words inside a section stays content.
+  - The footer is the final run of record lines after Verify, with or without `---`.
+- Jira publication reads Status and G1 from the preamble or the footer, outside fences. The preview drops the footer, including `G4: APPROVED` lines.
 
 ### G4 with an AI summary
 
@@ -20,6 +22,7 @@
   - The human approves explicitly.
   - The record is `Understanding gate (G4): … · Mode: ai-summary` plus `G4: APPROVED — <owner> approved the AI summary`.
 - `human-restatement` (the previous gate) stays available, and it is required for Stories with a G3 decision. The checker and `graph delivery` reject `ai-summary` for them.
+- `graph delivery` checks the G4 JSON: its `mode` must match the Story, and an `ai-summary` record needs `summary` (the four lines) and `approvalText` (the human's reply).
 
 ## 5.3.0 — 2026-11-05
 

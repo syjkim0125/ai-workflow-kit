@@ -262,7 +262,7 @@ Changes:
 - The lines follow the user's language. This repository writes the Korean labels because its users are Korean speakers, and the labels translate for other languages.
 - Approval needs an explicit "approve" (`승인`) or an equivalent reply from the human. A silent continue or another agent's reply never counts.
 - The record keeps `mode: "ai-summary"`, the four lines, and the human's approval text.
-  - Story footer: `Understanding gate (G4): <artifact> · <date> · Mode: ai-summary`
+  - Story footer: `Understanding gate (G4): <artifact> · <date> · Check-in: accepted · Mode: ai-summary`
   - The checker accepts `G4: APPROVED — <owner> approved the AI summary`.
   - `G4: PASS — …` stays valid for the other mode.
 

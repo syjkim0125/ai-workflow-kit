@@ -22,7 +22,7 @@ Lead with the human-visible change and the reason for the chosen approach. Then 
 
 Use one concrete scenario rather than a list of framework names. Explain each proposed Task by the behavior it delivers and how it connects to the next Task, not just the repository or layer it touches. Keep already-approved decisions visible without asking for them again; ask only for a new material decision. This explanation belongs to the existing plan and G3 checkpoint, not an extra document or gate.
 
-This is pre-implementation explanation. It does not reveal the implementation answer during G4; follow that gate's prediction-before-reveal sequence.
+This is pre-implementation explanation, not G4. At G4, follow `understanding-gate.md` for the Story's mode: `ai-summary` by default, `human-restatement` (prediction before reveal) for G3 work.
 
 ## Task rule
 
@@ -57,7 +57,7 @@ Graph execution is installed and used automatically after G1. Small changes use 
 
 Planning is repository-grounded planning → review → deterministic validation. Research code, tests and risks as needed; do not require separate analyzer, advocate or mediator agents. Reuse an existing plan, whichever skill produced it. The host performs agent/tool work and the installed CLI owns readiness, evidence records and recovery; never create a second nested orchestration pipeline for the same task.
 
-The execution graph does not replace human gates. G1 still approves scope before planning/implementation, G3 still protects high-risk choices, and G4 still requires prediction-before-reveal. Superpowers focused skills and CE stage skills provide node behavior as mapped in `skill-integration.md`; the graph owns dependency and retry structure rather than copying those skills.
+The execution graph does not replace human gates. G1 still approves scope before planning/implementation, G3 still protects high-risk choices, and G4 still requires the human's own decision: explicit approval of the AI summary, or prediction-before-reveal restatement for G3 work. Superpowers focused skills and CE stage skills provide node behavior as mapped in `skill-integration.md`; the graph owns dependency and retry structure rather than copying those skills.
 
 After each node, explicitly evaluate and record its evidence. Route failed checks to `fix`, changed assumptions to `replan`, and unresolved human decisions to `human`. For fixes within an unchanged plan, reset the earliest affected node and its descendants, preserving independent completed work. Changed plans/requirements require a new validated run; do not transplant stale evidence. Three attempts exhaust the run's retry allowance. Never silently create a new run to evade a stop. See `graph-engineering.md` for the executable protocol.
 

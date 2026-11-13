@@ -42,14 +42,14 @@ The referenced G4 JSON records:
 
 - `gate: "G4"`
 - `mode`: `"ai-summary"` or `"human-restatement"`
-- for `ai-summary`, `summary` (the four lines) and `approvalText` (the human's reply)
+- for `ai-summary`, `summary` (an array of the four lines shown) and `approvalText` (the human's reply)
 - the canonical `storyHash`
 - the current Graph `snapshot` and `runId`
 - a nonempty `responseRef` pointing to the real response
 
-See `verification.md`. Binding detects reuse; it does not authenticate a person. Never invent a response or obtain it from another agent.
+See `verification.md`. `graph delivery` rejects a record whose mode differs from the Story's G4 line. Binding detects reuse; it does not authenticate a person. Never invent a response or obtain it from another agent.
 
-Then record the gate line in the Story's record footer. For `ai-summary`, add the mode:
+Then replace the existing `Understanding gate (G4)` line in the Story's record footer; each gate line appears once. For `ai-summary`, add the mode:
 
 `Understanding gate (G4): <artifact> · <date> · Check-in: accepted · Mode: ai-summary`
 

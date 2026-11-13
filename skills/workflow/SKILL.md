@@ -15,12 +15,12 @@ Before model dispatch, apply `references/model-selection.md` using the host's av
 ## Non-negotiable gates
 
 - Do not plan implementation or edit production code before the Story is `Approved` and G1 is recorded.
-- Do not declare delivery complete or merge a non-trivial change before G4 passes.
+- Do not declare delivery complete or merge non-trivial changes before G4 passes.
 - Requirements have one source of truth; copies must not diverge.
 
 ## Explain before asking
 
-Before G1/G3, explain the problem, change, safety rule and verification plainly. G4: `ai-summary`; G3 needs `human-restatement`.
+Before G1/G3, explain the problem, change, safety rule and verification plainly. G4: `ai-summary`; `human-restatement` for G3 Stories.
 
 ## Route by current state
 

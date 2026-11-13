@@ -117,7 +117,7 @@ When all nodes pass, the runner returns `action: g4`. **This means ready for hum
 | **G3: design** | Is this approach acceptable? Can we recover if it fails? | For high-risk changes |
 | **G4: understanding** | What changed? Which rules must hold? What do the tests prove? | Before completion |
 
-For G4, you see the changed code and test results before the explanation. You answer first. The agent then points out what you understood, missed, or got wrong. You explain the corrected version in your own words.
+G4 has two modes. By default (`ai-summary`), the agent explains the change in four short numbered lines: what changes for the user, the rule kept and what happens on failure, the tests that proved it, and what is still unproven. You approve it explicitly. For high-risk work that needed G3, G4 uses `human-restatement`: you see the changed code and test results before the explanation and answer first. The agent then points out what you understood, missed, or got wrong, and you explain the corrected version in your own words.
 
 A small change may qualify for a documented G4 exception. The reason must be specific.
 
@@ -129,13 +129,15 @@ The requirements live in one short document called a **Story**.
 
 | Field | Meaning |
 |---|---|
-| Goal | The result you want |
-| Domain | The rules this change must respect |
+| Goal | Three lines: what happens today (As-is), after the change (To-be), and what stays the same (Unchanged) |
+| Domain | Numbered terms and the rules this change must respect |
+| Decisions | Agreed choices and stated assumptions, read before the requirements |
 | MUST | Required behavior |
 | SHOULD | Optional improvements |
 | OUT | Work excluded from this request |
-| Decisions | Agreed choices and stated assumptions |
 | Verify | How to check each required behavior |
+
+`Status`, `Owner` and the gate records sit in a footer below Verify, after a `---` line.
 
 The agent asks at most three questions per round, for up to two rounds. It marks safe defaults as `ASSUMED`. A decision that blocks the work stays `OPEN BLOCKING`; it cannot be hidden by approval.
 
