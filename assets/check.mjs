@@ -198,6 +198,31 @@ export function isStoryRecordLine(line) {
   return RECORD_LINE.test(line.trim());
 }
 
+/** Lines outside the sections: the preamble before the first "##" and the footer after Verify's "---". */
+function recordZoneLines(text) {
+  const lines = text.split(/\r?\n/u);
+  const zone = [];
+  let inSections = false;
+  let fenced = false;
+  let afterVerify = false;
+  let footer = false;
+  for (const line of lines) {
+    if (/^\s*(?:`{3,}|~{3,})/u.test(line)) fenced = !fenced;
+    if (!fenced && /^##\s+/u.test(line)) {
+      inSections = true;
+      afterVerify = /^##\s+Verify\s*$/iu.test(line);
+      footer = false;
+      continue;
+    }
+    if (!fenced && afterVerify && /^---\s*$/u.test(line)) {
+      footer = true;
+      continue;
+    }
+    if (!inSections || footer) zone.push(line);
+  }
+  return zone;
+}
+
 function requireStoryLayout(text, errors) {
   const missing = REQUIRED_STORY_HEADINGS.filter((heading) => !hasHeading(text, heading));
   for (const heading of missing) errors.push(`Missing Story section: ${heading}.`);
@@ -249,8 +274,9 @@ function checkStoryShape(text) {
       }
     }
   }
+  const records = recordZoneLines(text);
   for (const record of ['Status', 'Owner']) {
-    if ((text.match(new RegExp(`^${record}:`, 'gimu')) ?? []).length > 1) {
+    if (records.filter((line) => new RegExp(`^${record}:`, 'iu').test(line.trim())).length > 1) {
       errors.push(`${record} must appear once; keep the record lines in the footer.`);
     }
   }
