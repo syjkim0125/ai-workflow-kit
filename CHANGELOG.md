@@ -2,13 +2,14 @@
 
 ## Unreleased
 
-Release candidates `5.4.0-rc.1` and `5.4.0-rc.2` carry everything below. They are for the internal evaluation and are not published to npm.
+Release candidates `5.4.0-rc.1` to `5.4.0-rc.3` carry everything below. They are for the internal evaluation and are not published to npm.
 
 ### Fast path (rc.2)
 
 - `approve G1|G4` writes the bound approval JSON, the Story's footer lines and Status from the human's saved reply, then runs the checks; G4 ends with the delivery check.
 - `go` turns an approved Story into the first node's brief in one call; `complete` begins the next node itself; `begin` is idempotent.
 - One review round per run. The baseline is optional; `profile --scope` keeps checks on the touched module or path.
+- rc.3: the brief shows each check's command; `--scope` repeats per module; a failing check's tail keeps stdout and drops JVM notices; `approve G1` works when Status already says Approved. The implementer runs only its own tests while iterating, the reviewer writes its findings file, and review plus verify take one call.
 - `references/fast-path.md` is the model-facing playbook for the normal path: two cheap explorers in parallel, a mid-tier implementer, then checks and a mid-tier reviewer in parallel. The main session never reads code.
 
 ### Cost and time

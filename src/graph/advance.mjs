@@ -51,7 +51,14 @@ export async function begin({ root, runFile, nodeId, call, beforeStart }) {
     node: nodeId,
     covers: started.covers,
     area: clip([started.description, ...outItems(story).map(item => `OUT: ${item}`)].join(' | '), BRIEF_TEXT),
-    checks: (started.input.verification?.checks ?? []).map(check => check.id),
+    // Each check as this run executes it, so the host never has to open the profile.
+    checks: await (async () => {
+      const data = await readJson(root, runFile);
+      return (started.input.verification?.checks ?? []).map(({ id }) => {
+        const check = data.verification?.value.checks.find(entry => entry.id === id);
+        return check ? `${id}: ${runCheck(data, check).argv.join(' ')}` : id;
+      });
+    })(),
     ...(state.action === 'stale' && state.stale?.includes(nodeId) ? { stale: true } : {}),
     token: started.token,
     // A check failure ends in its most useful lines; review notes start with theirs.

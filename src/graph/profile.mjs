@@ -10,6 +10,7 @@ export const SCOPE = '{scope}';
 export const GRADLE_TEST = '{gradle-test}';
 
 const cleanScope = scope => (scope ? path.posix.normalize(scope).replace(/^(?:\.\/)+/, '').replace(/^:+/, '').replace(/\/+$/, '') : '');
+const scopeList = scopes => [].concat(scopes ?? []).map(cleanScope).filter(scope => scope && scope !== '.');
 
 /** The Gradle task for a scope: the deepest module directory with a build file, else the root test task. */
 async function gradleTask(root, scope) {
@@ -21,14 +22,17 @@ async function gradleTask(root, scope) {
   return 'test';
 }
 
-/** A check's argv with its placeholders resolved for one run's scope. */
-export async function resolveArgv(root, argv, scope) {
-  const clean = cleanScope(scope);
+/** A check's argv with its placeholders resolved for one run's scopes (a module or path each). */
+export async function resolveArgv(root, argv, scopes) {
+  const list = scopeList(scopes);
   const out = [];
   for (const arg of argv) {
-    if (arg === SCOPE) { if (clean && clean !== '.') out.push(clean); }
-    else if (arg === GRADLE_TEST) out.push(clean ? await gradleTask(root, clean) : 'test');
-    else out.push(arg);
+    if (arg === SCOPE) out.push(...list);
+    else if (arg === GRADLE_TEST) {
+      const tasks = [...new Set(await Promise.all(list.map(scope => gradleTask(root, scope))))];
+      // The root task already covers every module; an unscoped run uses it too.
+      out.push(...(!tasks.length || tasks.includes('test') ? ['test'] : tasks));
+    } else out.push(arg);
   }
   return out;
 }

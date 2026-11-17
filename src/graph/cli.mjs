@@ -54,7 +54,9 @@ function splitFlags(command, raw) {
     const name = raw[index].startsWith('--') ? raw[index].slice(2) : null;
     if (name && allowed.includes(name)) {
       if (index + 1 >= raw.length) throw new Error(`--${name} needs a value.`);
-      flags[name] = raw[++index];
+      // --scope repeats: one module or path per flag.
+      if (name === 'scope') (flags.scope ??= []).push(raw[++index]);
+      else flags[name] = raw[++index];
     } else values.push(raw[index]);
   }
   return { flags, values };
@@ -212,7 +214,7 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
     // One call from an approved Story to the first node's brief, or back to the node in progress.
     const story = path.posix.normalize(values[0]);
     const runFile = values[1];
-    const scope = flags.scope ? ['--scope', flags.scope] : [];
+    const scope = (flags.scope ?? []).flatMap(entry => ['--scope', entry]);
     const exists = await fs.access(await projectFile(root, runFile)).then(() => true, () => false);
     if (exists) {
       const owner = (await readJson(root, runFile)).story?.path;

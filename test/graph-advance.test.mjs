@@ -41,7 +41,8 @@ test('begin returns a compact brief and marks the node running', async t => {
   assert.equal(brief.node, 'implement');
   assert.deepEqual(brief.covers, ['M1', 'V1']);
   assert.match(brief.area, /Other operations/);
-  assert.deepEqual(brief.checks, ['addition']);
+  assert.equal(brief.checks.length, 1);
+  assert.match(brief.checks[0], /^addition: .*check\.mjs$/);
   assert.deepEqual(f.ok('status', 'run.json').running, ['implement']);
 });
 

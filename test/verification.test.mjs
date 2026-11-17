@@ -37,13 +37,14 @@ test('silent successful execution retains empty raw logs; binary log tampering i
 });
 
 test('reset fences a late execution without holding the run lock over the subprocess', async t => {
-  const f = await ready(t, 'import fs from "node:fs"; fs.writeFileSync(".ai-workflow/evidence/started", "yes"); setTimeout(()=>{},1500);');
+  const f = await ready(t, 'import fs from "node:fs"; fs.writeFileSync(".ai-workflow/evidence/started", "yes"); setTimeout(()=>{},5000);');
   const child = spawn(process.execPath, [path.join(f.root, '.ai-workflow/bin/graph.mjs'), 'verify', 'run.json', f.task.id, f.task.token, 'addition'], { cwd: f.root });
   let stderr = ''; child.stderr.on('data', chunk => { stderr += chunk; }); child.stdout.resume();
   const completion = new Promise(resolve => child.on('close', resolve));
-  for (let i = 0; i < 100; i++) {
+  // Generous waits: under a full parallel suite a CLI child can take seconds to reach its check.
+  for (let i = 0; i < 300; i++) {
     try { await fs.access(path.join(f.root, '.ai-workflow/evidence/started')); break; }
-    catch { if (i === 99) assert.fail('child did not start'); await new Promise(resolve => setTimeout(resolve, 30)); }
+    catch { if (i === 299) assert.fail('child did not start'); await new Promise(resolve => setTimeout(resolve, 30)); }
   }
   f.ok('reset', 'run.json', f.task.id, 'Cancelled attempt; inspected child side effects');
   assert.equal(await completion, 1);

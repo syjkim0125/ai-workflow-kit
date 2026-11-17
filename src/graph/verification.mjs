@@ -162,10 +162,14 @@ export async function executeCheck({ root, run, nodeId, token, check, snapshotBe
 
 /** The last lines of a failed check's output, for feedback that fits in a compact result. */
 export async function receiptTail(root, receipt, lines = 20) {
+  // Both streams: Gradle and others print the failure to stdout and only JVM notices to stderr.
   const read = async stream => (await fs.readFile(await projectFile(root, receipt[stream]))).toString('utf8');
-  const text = (await read('stderr')).trim() || (await read('stdout')).trim()
-    || (receipt.timedOut ? 'timed out' : receipt.spawnError ?? `exit ${receipt.exitCode}`);
-  return text.split(/\r?\n/).filter(line => line.trim()).slice(-lines).join('\n').slice(-1500);
+  const noise = /^Picked up (?:JAVA_TOOL_OPTIONS|_JAVA_OPTIONS|JDK_JAVA_OPTIONS)/;
+  const kept = [...(await read('stdout')).split(/\r?\n/), ...(await read('stderr')).split(/\r?\n/)]
+    .filter(line => line.trim() && !noise.test(line.trim()));
+  const text = kept.length ? kept.slice(-lines).join('\n')
+    : (receipt.timedOut ? 'timed out' : receipt.spawnError ?? `exit ${receipt.exitCode}`);
+  return text.slice(-1500);
 }
 
 export async function runVerification({ root, runFile, nodeId, token, checkId, validate, snapshot }) {

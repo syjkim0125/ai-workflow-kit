@@ -209,3 +209,31 @@ test('a light run allows one review round', async t => {
   f.ok('review', 'light.json', '--verdict', 'fix', '--notes', notes);
   assert.match(f.cli('review', 'light.json', '--verdict', 'fix', '--notes', notes).stderr, /one review round/i);
 });
+
+test('approve G1 accepts a Story whose Status was already set to Approved', async t => {
+  const f = await graphProject(t);
+  await f.put('story.md', draft.replace('Status: Draft', 'Status: Approved'));
+  await f.put(reply, '승인\n');
+  assert.equal(f.ok('approve', 'G1', 'story.md', '--response', reply).status, 'Approved');
+});
+
+test('the brief shows each check command, and --scope repeats', async t => {
+  const f = await approved(t);
+  await fs.rm(path.join(f.root, '.ai-workflow/verification.json'));
+  await f.put('package.json', { scripts: { test: 'jest' } });
+  await f.put('gradlew', '#!/bin/sh\n');
+  for (const dir of ['lib-a', 'lib-b']) await f.put(`${dir}/build.gradle`, '\n');
+  gitInit(f);
+  const brief = f.ok('go', 'story.md', 'run.json', '--scope', 'lib-a/src', '--scope', 'lib-b');
+  assert.deepEqual(brief.checks, ['test: npm test -- lib-a/src lib-b', 'gradle-test: ./gradlew :lib-a:test :lib-b:test']);
+});
+
+test('the failing tail keeps stdout when stderr is only noise', async () => {
+  const { receiptTail } = await import('../src/graph/verification.mjs');
+  const dir = await fs.mkdtemp(path.join((await import('node:os')).tmpdir(), 'tail-'));
+  await fs.writeFile(path.join(dir, 'out.log'), 'Task :lib:test FAILED\nRealtimeTest > deadline FAILED\n    AssertionError at RealtimeTest.java:42\n');
+  await fs.writeFile(path.join(dir, 'err.log'), 'Picked up JAVA_TOOL_OPTIONS: -Djava.net.preferIPv4Stack=true\n');
+  const tail = await receiptTail(dir, { stdout: 'out.log', stderr: 'err.log', exitCode: 1 });
+  assert.match(tail, /RealtimeTest\.java:42/);
+  assert.doesNotMatch(tail, /JAVA_TOOL_OPTIONS/);
+});

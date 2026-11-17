@@ -49,9 +49,8 @@ async function transaction(root) {
 export async function approveG1({ root, story, response, checkArtifact, checkGate }) {
   story = path.posix.normalize(story);
   const reply = await approvalFile(root, response, '--response', "the human's actual reply");
+  // No pre-check: the Story may already say Approved; the checks after writing decide, and roll back.
   const original = await readProjectFile(root, story);
-  const shape = await checkArtifact({ root, file: story, kind: 'story' });
-  if (!shape.ok) throw new Error(shape.errors.join('\n'));
   const lane = storyLane(original);
   const record = recordName(story, 'G1');
   const files = await transaction(root);
