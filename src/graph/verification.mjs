@@ -7,7 +7,7 @@ import { taskToken } from './workflow.mjs';
 export const PROFILE = '.ai-workflow/verification.json';
 /** A profile check as this run executes it: its argv with the run's scope resolved. */
 export const runCheck = (run, check) => ({ ...check, argv: run.checkArgv?.[check.id]
-  ?? check.argv.filter(arg => arg !== '{scope}').map(arg => (arg === '{gradle-test}' ? 'test' : arg)) });
+  ?? check.argv.filter(arg => !['{scope}', '{gradle-tests}'].includes(arg)).map(arg => (arg === '{gradle-test}' ? 'test' : arg)) });
 
 /** Reuse key: the same check (id, argv, timeout) on the same code snapshot. */
 export const receiptKey = (check, snapshot) =>

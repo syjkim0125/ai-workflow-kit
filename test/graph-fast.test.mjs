@@ -123,7 +123,7 @@ test('the shared profile keeps scope placeholders and go resolves them per run',
   assert.equal(result.status, 0, result.stderr);
   assert.doesNotMatch(result.stdout.trim(), /\n/);
   const profile = JSON.parse(await read(f, '.ai-workflow/verification.json'));
-  assert.deepEqual(profile.checks.map(check => check.argv), [['npm', 'test', '--', '--watchAll=false', '{scope}'], ['./gradlew', '{gradle-test}']]);
+  assert.deepEqual(profile.checks.map(check => check.argv), [['npm', 'test', '--', '--watchAll=false', '{scope}'], ['./gradlew', '{gradle-test}', '{gradle-tests}']]);
   const run = JSON.parse(await read(f, 'run.json'));
   assert.deepEqual(run.checkArgv, { test: ['npm', 'test', '--', '--watchAll=false', 'lib-core/src/main'], 'gradle-test': ['./gradlew', ':lib-core:test'] });
 });
@@ -236,4 +236,20 @@ test('the failing tail keeps stdout when stderr is only noise', async () => {
   const tail = await receiptTail(dir, { stdout: 'out.log', stderr: 'err.log', exitCode: 1 });
   assert.match(tail, /RealtimeTest\.java:42/);
   assert.doesNotMatch(tail, /JAVA_TOOL_OPTIONS/);
+});
+
+test('complete --tests narrows the checks to the given tests and verify reuses them', async t => {
+  const f = await approved(t);
+  await fs.rm(path.join(f.root, '.ai-workflow/verification.json'));
+  await f.put('package.json', { scripts: { test: 'jest' } });
+  await f.put('gradlew', '#!/bin/sh\n');
+  await f.put('lib-a/build.gradle', '\n');
+  gitInit(f);
+  f.ok('go', 'story.md', 'run.json', '--scope', 'lib-a');
+  const profile = JSON.parse(await read(f, '.ai-workflow/verification.json'));
+  assert.deepEqual(profile.checks.map(check => check.argv), [['npm', 'test', '--', '{scope}'], ['./gradlew', '{gradle-test}', '{gradle-tests}']]);
+  complete(f, 'implement', '--tests', 'lib-a/src/test/FooTest', '--tests', 'BarTest');
+  const run = JSON.parse(await read(f, 'run.json'));
+  assert.deepEqual(run.checkArgv, { test: ['npm', 'test', '--', 'lib-a/src/test/FooTest', 'BarTest'],
+    'gradle-test': ['./gradlew', ':lib-a:test', '--tests', 'lib-a/src/test/FooTest', '--tests', 'BarTest'] });
 });

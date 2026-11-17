@@ -46,8 +46,8 @@ The host executes work; this tool validates state/evidence and routes the next a
 
 // Only these commands take flags; every other argument stays positional.
 function splitFlags(command, raw) {
-  const allowed = { complete: ['verdict', 'notes'], review: ['verdict', 'notes'], approve: ['response', 'summary', 'mode'],
-    go: ['scope'], init: ['scope'], light: ['scope'] }[command] ?? [];
+  const allowed = { complete: ['verdict', 'notes', 'tests'], review: ['verdict', 'notes'], approve: ['response', 'summary', 'mode'],
+    go: ['scope'], init: ['scope'], light: ['scope'], check: ['tests'] }[command] ?? [];
   const flags = {};
   const values = [];
   for (let index = 0; index < raw.length; index += 1) {
@@ -55,7 +55,7 @@ function splitFlags(command, raw) {
     if (name && allowed.includes(name)) {
       if (index + 1 >= raw.length) throw new Error(`--${name} needs a value.`);
       // --scope repeats: one module or path per flag.
-      if (name === 'scope') (flags.scope ??= []).push(raw[++index]);
+      if (name === 'scope' || name === 'tests') (flags[name] ??= []).push(raw[++index]);
       else flags[name] = raw[++index];
     } else values.push(raw[index]);
   }
@@ -184,7 +184,11 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
   }
   const lane = lightCommands({ root, loadStory, checkGate, snapshot });
   if (command === 'light') return lane.create(values[0], values[1], flags.scope);
-  if (command === 'check') return lane.check(values[0]);
+  if (command === 'check') {
+    if (flags.tests) await updateRun(root, values[0], async previous => ({ ...structuredClone(previous), tests: flags.tests,
+      checkArgv: await resolveChecks(root, previous.verification?.value.checks ?? [], previous.scope, flags.tests) }));
+    return lane.check(values[0]);
+  }
   if (command === 'review') return lane.review(values[0], flags);
   if ((command === 'status' || command === 'delivery') && (await readJson(root, values[0]))?.kind === 'light') return lane[command](values[0]);
   if (command === 'status' || command === 'delivery') {
@@ -256,6 +260,11 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
     return begin({ root, runFile: values[0], nodeId: values[1], call });
   }
   if (command === 'complete') {
+    if (flags.tests) {
+      // Narrow the checks to the named tests for this run; later nodes reuse the same argv and receipts.
+      await updateRun(root, values[0], async previous => ({ ...structuredClone(previous), tests: flags.tests,
+        checkArgv: await resolveChecks(root, previous.verification?.value.checks ?? [], previous.scope, flags.tests) }));
+    }
     return complete({ root, runFile: values[0], nodeId: values[1], verdict: flags.verdict, notesFile: flags.notes, call, snapshot,
       loadRun: async () => validate(await readJson(root, values[0])),
       indexReceipt: (check, receipt, file) => indexReceipt(root, values[0], check, receipt, file),

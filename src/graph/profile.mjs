@@ -8,6 +8,7 @@ const TIMEOUT = 300000;
 // profile never carries another Story's scope.
 export const SCOPE = '{scope}';
 export const GRADLE_TEST = '{gradle-test}';
+export const GRADLE_TESTS = '{gradle-tests}';
 
 const cleanScope = scope => (scope ? path.posix.normalize(scope).replace(/^(?:\.\/)+/, '').replace(/^:+/, '').replace(/\/+$/, '') : '');
 const scopeList = scopes => [].concat(scopes ?? []).map(cleanScope).filter(scope => scope && scope !== '.');
@@ -23,11 +24,13 @@ async function gradleTask(root, scope) {
 }
 
 /** A check's argv with its placeholders resolved for one run's scopes (a module or path each). */
-export async function resolveArgv(root, argv, scopes) {
+export async function resolveArgv(root, argv, scopes, tests = []) {
   const list = scopeList(scopes);
   const out = [];
   for (const arg of argv) {
-    if (arg === SCOPE) out.push(...list);
+    // Named tests (complete --tests) replace the scope paths: the check runs only what the change touched.
+    if (arg === SCOPE) out.push(...(tests.length ? tests : list));
+    else if (arg === GRADLE_TESTS) out.push(...tests.flatMap(test => ['--tests', test]));
     else if (arg === GRADLE_TEST) {
       const tasks = [...new Set(await Promise.all(list.map(scope => gradleTask(root, scope))))];
       // The root task already covers every module; an unscoped run uses it too.
@@ -38,8 +41,8 @@ export async function resolveArgv(root, argv, scopes) {
 }
 
 /** Resolved argv for every check of a profile, keyed by check id. */
-export async function resolveChecks(root, checks, scope) {
-  return Object.fromEntries(await Promise.all(checks.map(async check => [check.id, await resolveArgv(root, check.argv, scope)])));
+export async function resolveChecks(root, checks, scope, tests) {
+  return Object.fromEntries(await Promise.all(checks.map(async check => [check.id, await resolveArgv(root, check.argv, scope, tests)])));
 }
 const present = async (root, file) => fs.access(await projectFile(root, file)).then(() => true, () => false);
 
@@ -61,7 +64,7 @@ export async function detectProfile({ root, ids }) {
     if (typeof pkg.scripts?.typecheck === 'string') checks.push({ id: 'typecheck', argv: ['npm', 'run', 'typecheck'] });
     else if (await present(root, 'tsconfig.json')) checks.push({ id: 'typecheck', argv: ['npx', 'tsc', '--noEmit'] });
   }
-  if (await present(root, 'gradlew')) checks.push({ id: 'gradle-test', argv: ['./gradlew', GRADLE_TEST] });
+  if (await present(root, 'gradlew')) checks.push({ id: 'gradle-test', argv: ['./gradlew', GRADLE_TEST, GRADLE_TESTS] });
   if (!checks.length) {
     throw new Error('No test command detected (package.json scripts.test, typecheck/tsconfig.json, or gradlew); '
       + 'write .ai-workflow/verification.json by hand, as references/verification.md describes.');

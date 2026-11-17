@@ -33,7 +33,7 @@ test('profile detects npm test and tsc', async t => {
 test('profile detects gradle', async t => {
   const f = await bare(t);
   await f.put('gradlew', '#!/bin/sh\n');
-  assert.deepEqual(f.ok('profile', 'story.md').checks.map(check => check.argv), [['./gradlew', '{gradle-test}']]);
+  assert.deepEqual(f.ok('profile', 'story.md').checks.map(check => check.argv), [['./gradlew', '{gradle-test}', '{gradle-tests}']]);
 });
 
 test('profile refuses an unknown project type', async t => {
