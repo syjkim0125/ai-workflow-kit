@@ -2,13 +2,14 @@
 
 ## Unreleased
 
-Release candidates `5.4.0-rc.1` to `5.4.0-rc.6` carry everything below. They are for the internal evaluation and are not published to npm.
+Release candidates `5.4.0-rc.1` to `5.4.0-rc.7` carry everything below. They are for the internal evaluation and are not published to npm.
 
 ### Fast path (rc.2)
 
 - `approve G1|G4` writes the bound approval JSON, the Story's footer lines and Status from the human's saved reply, then runs the checks; G4 ends with the delivery check.
 - `go` turns an approved Story into the first node's brief in one call; `complete` begins the next node itself; `begin` is idempotent.
 - One review round per run. The baseline is optional; `profile --scope` keeps checks on the touched module or path.
+- rc.7: the reviewer only reads (no builds or test runs), and the implementer runs its new tests once RED and once GREEN.
 - rc.6: the main session never sleeps or polls for subagent results.
 - rc.5: an Opus subagent drafts the Story (scope judgment); To-be must remove the pain the request describes, and what that needs never goes to OUT.
 - rc.4: `complete implement --tests` (and light `check --tests`) runs the checks on the tests the change wrote or touched, and later nodes reuse that receipt; a failure only in untouched tests is noted, not investigated. The main session never edits code after implementation.
