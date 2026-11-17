@@ -37,7 +37,7 @@ test('silent successful execution retains empty raw logs; binary log tampering i
 });
 
 test('reset fences a late execution without holding the run lock over the subprocess', async t => {
-  const f = await ready(t, 'import fs from "node:fs"; fs.writeFileSync(".ai-workflow/evidence/started", "yes"); setTimeout(()=>{},5000);');
+  const f = await ready(t, 'import fs from "node:fs"; fs.writeFileSync(".ai-workflow/evidence/started", "yes"); setTimeout(()=>{},15000);');
   const child = spawn(process.execPath, [path.join(f.root, '.ai-workflow/bin/graph.mjs'), 'verify', 'run.json', f.task.id, f.task.token, 'addition'], { cwd: f.root });
   let stderr = ''; child.stderr.on('data', chunk => { stderr += chunk; }); child.stdout.resume();
   const completion = new Promise(resolve => child.on('close', resolve));
