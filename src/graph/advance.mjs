@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { projectFile, readJson, readProjectFile } from './storage.mjs';
 import { dependencyIds, nodeById } from './task-graph.mjs';
 import { taskInput, taskToken } from './workflow.mjs';
-import { executeCheck, needsExecution, receiptTail } from './verification.mjs';
+import { executeCheck, needsExecution, receiptTail, runCheck } from './verification.mjs';
 
 // begin/complete wrap the 5.3.0 commands (status, start, verify, record, reset) so a node
 // costs two model calls instead of start → result JSON → verify → record. Every rule of
@@ -52,6 +52,7 @@ export async function begin({ root, runFile, nodeId, call, beforeStart }) {
     covers: started.covers,
     area: clip([started.description, ...outItems(story).map(item => `OUT: ${item}`)].join(' | '), BRIEF_TEXT),
     checks: (started.input.verification?.checks ?? []).map(check => check.id),
+    ...(state.action === 'stale' && state.stale?.includes(nodeId) ? { stale: true } : {}),
     token: started.token,
     // A check failure ends in its most useful lines; review notes start with theirs.
     ...(feedback ? { feedback: (feedback.startsWith('Check ') ? clipEnd : clip)(feedback, BRIEF_TEXT), feedbackFile: (failure.output?.evidence ?? failure.evidence)?.[0] } : {}),
@@ -104,7 +105,8 @@ export async function complete({ root, runFile, nodeId, verdict, notesFile, call
   }
 
   const token = taskToken(run, nodeId);
-  const checks = (run.verification?.value.checks ?? []).filter(check => check.covers.some(id => node.covers.includes(id)));
+  const checks = (run.verification?.value.checks ?? []).filter(check => check.covers.some(id => node.covers.includes(id)))
+    .map(check => runCheck(run, check));
   const receipts = [];
   let failing;
   if (!reviews && wantsPass) {
@@ -156,7 +158,9 @@ export async function complete({ root, runFile, nodeId, verdict, notesFile, call
   const after = await call(['status', runFile]);
   // Begin the next node here: one call fewer per node, and its brief is what the host needs next.
   const nextId = after.running.length === 0 ? after.ready[0]?.id : undefined;
-  const brief = nextId ? await begin({ root, runFile, nodeId: nextId, call }) : undefined;
+  let brief;
+  try { brief = nextId ? await begin({ root, runFile, nodeId: nextId, call }) : undefined; }
+  catch (error) { note ??= `Recorded; begin ${nextId} failed: ${error.message}`; }
   return {
     node: nodeId,
     status: passed ? 'completed' : 'failed',

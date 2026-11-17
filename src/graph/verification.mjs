@@ -5,6 +5,10 @@ import { digest, projectFile, readJson, updateRun } from './storage.mjs';
 import { taskToken } from './workflow.mjs';
 
 export const PROFILE = '.ai-workflow/verification.json';
+/** A profile check as this run executes it: its argv with the run's scope resolved. */
+export const runCheck = (run, check) => ({ ...check, argv: run.checkArgv?.[check.id]
+  ?? check.argv.filter(arg => arg !== '{scope}').map(arg => (arg === '{gradle-test}' ? 'test' : arg)) });
+
 /** Reuse key: the same check (id, argv, timeout) on the same code snapshot. */
 export const receiptKey = (check, snapshot) =>
   `${check.id}:${digest(JSON.stringify({ argv: check.argv, timeoutMs: check.timeoutMs ?? null }))}:${snapshot}`;
@@ -172,8 +176,9 @@ export async function runVerification({ root, runFile, nodeId, token, checkId, v
     await validate(run);
     if (run.version !== 3 || !needsExecution(run, nodeId) || run.question
       || run.state.nodes[nodeId]?.status !== 'running' || token !== taskToken(run, nodeId)) throw new Error('Verification requires the current running verification task token.');
-    const check = run.verification.value.checks.find(check => check.id === checkId);
-    if (!check) throw new Error('Unknown verification check.');
+    const found = run.verification.value.checks.find(check => check.id === checkId);
+    if (!found) throw new Error('Unknown verification check.');
+    const check = runCheck(run, found);
     if (Object.hasOwn(run.state.nodes[nodeId].executions ?? {}, checkId)) throw new Error('Check already executed in this attempt; reset before retrying.');
     const before = (await snapshot(run)).fingerprint;
     if (before !== run.state.nodes[nodeId].snapshot) throw new Error('Verification snapshot is stale; reset affected work.');
@@ -185,7 +190,7 @@ export async function runVerification({ root, runFile, nodeId, token, checkId, v
     return run;
   });
   if (reused) return { run: reserved, verification: { ...reused.receipt, receipt: reused.file, reused: true } };
-  const check = reserved.verification.value.checks.find(check => check.id === checkId);
+  const check = runCheck(reserved, reserved.verification.value.checks.find(check => check.id === checkId));
   const { receipt, file } = await executeCheck({ root, run: reserved, nodeId, token, check, executionId,
     snapshotBefore: reserved.state.nodes[nodeId].snapshot, snapshot });
   const run = await updateRun(root, runFile, async previous => {

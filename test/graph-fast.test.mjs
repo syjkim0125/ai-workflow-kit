@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
+import { spawnSync } from 'node:child_process';
 import { graphProject, story } from './fixtures/graph-project.mjs';
 import { storyContract } from '../src/graph/workflow.mjs';
 
@@ -16,6 +17,10 @@ const approved = async t => {
   await f.put(reply, '승인\n');
   f.ok('approve', 'G1', 'story.md', '--response', reply);
   return f;
+};
+// A detected profile has no explicit inputs, so its project must be a git repository, as real ones are.
+const gitInit = f => {
+  for (const args of [['init', '-q'], ['add', '-A'], ['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'start']]) spawnSync('git', args, { cwd: f.root });
 };
 const complete = (f, node, ...flags) => {
   const result = f.cli('complete', 'run.json', node, ...flags);
@@ -57,15 +62,6 @@ test('go starts the run and begins the first node, and resumes it', async t => {
   assert.equal(brief.node, 'implement');
   assert.deepEqual(f.ok('status', 'run.json').running, ['implement']);
   assert.equal(f.ok('go', 'story.md', 'run.json').token, brief.token);
-});
-
-test('profile --scope narrows detected checks to a module or path', async t => {
-  const f = await graphProject(t);
-  await fs.rm(path.join(f.root, '.ai-workflow/verification.json'));
-  await f.put('package.json', { scripts: { test: 'react-scripts test' }, dependencies: { 'react-scripts': '5.0.1' } });
-  await f.put('gradlew', '#!/bin/sh\n');
-  const checks = f.ok('profile', 'story.md', '--scope', 'lib-core').checks.map(check => check.argv);
-  assert.deepEqual(checks, [['npm', 'test', '--', '--watchAll=false', 'lib-core'], ['./gradlew', ':lib-core:test']]);
 });
 
 test('complete begins the next node and returns its brief; begin is idempotent', async t => {
@@ -113,4 +109,103 @@ test('approve G4 writes the bound record and delivers', async t => {
   assert.match(text, /^Status: Delivered$/m);
   assert.match(text, /^Understanding gate \(G4\): \.ai-workflow\/approvals\/story-G4\.json · .+ · Check-in: accepted · Mode: ai-summary$/m);
   assert.match(text, /^G4: APPROVED — fixture owner approved the AI summary$/m);
+});
+
+test('the shared profile keeps scope placeholders and go resolves them per run', async t => {
+  const f = await approved(t);
+  await fs.rm(path.join(f.root, '.ai-workflow/verification.json'));
+  await f.put('package.json', { scripts: { test: 'react-scripts test' }, dependencies: { 'react-scripts': '5.0.1' } });
+  await f.put('gradlew', '#!/bin/sh\n');
+  await f.put('lib-core/build.gradle', '\n');
+  await f.put('lib-core/src/main/A.java', 'class A {}\n');
+  gitInit(f);
+  const result = f.cli('go', 'story.md', 'run.json', '--scope', './lib-core/src/main');
+  assert.equal(result.status, 0, result.stderr);
+  assert.doesNotMatch(result.stdout.trim(), /\n/);
+  const profile = JSON.parse(await read(f, '.ai-workflow/verification.json'));
+  assert.deepEqual(profile.checks.map(check => check.argv), [['npm', 'test', '--', '--watchAll=false', '{scope}'], ['./gradlew', '{gradle-test}']]);
+  const run = JSON.parse(await read(f, 'run.json'));
+  assert.deepEqual(run.checkArgv, { test: ['npm', 'test', '--', '--watchAll=false', 'lib-core/src/main'], 'gradle-test': ['./gradlew', ':lib-core:test'] });
+});
+
+test('a runner without a path filter and a module-less gradle repo ignore the scope', async t => {
+  const f = await approved(t);
+  await fs.rm(path.join(f.root, '.ai-workflow/verification.json'));
+  await f.put('package.json', { scripts: { test: 'node --test' } });
+  await f.put('gradlew', '#!/bin/sh\n');
+  gitInit(f);
+  f.ok('go', 'story.md', 'run.json', '--scope', 'src/main/java');
+  const run = JSON.parse(await read(f, 'run.json'));
+  assert.deepEqual(run.checkArgv, { test: ['npm', 'test'], 'gradle-test': ['./gradlew', 'test'] });
+});
+
+test('go writes the profile for a light Story too', async t => {
+  const f = await graphProject(t);
+  await f.put('story.md', draft.replace('Owner: fixture owner\n', 'Owner: fixture owner\nLane: light\n'));
+  await f.put(reply, '승인\n');
+  f.ok('approve', 'G1', 'story.md', '--response', reply);
+  await fs.rm(path.join(f.root, '.ai-workflow/verification.json'));
+  await f.put('package.json', { scripts: { test: 'node --test' } });
+  assert.equal(f.ok('go', 'story.md', 'light.json').lane, 'light');
+  assert.ok(JSON.parse(await read(f, '.ai-workflow/verification.json')).checks.length);
+});
+
+test('approval records are named from the full Story path', async t => {
+  const f = await graphProject(t);
+  for (const dir of ['docs/a', 'docs/b']) await f.put(`${dir}/STORY.md`, draft);
+  await f.put(reply, '승인\n');
+  assert.equal(f.ok('approve', 'G1', 'docs/a/STORY.md', '--response', reply).record, '.ai-workflow/approvals/docs-a-STORY-G1.json');
+  assert.equal(f.ok('approve', 'G1', 'docs/b/STORY.md', '--response', reply).record, '.ai-workflow/approvals/docs-b-STORY-G1.json');
+});
+
+test('a failed approve restores the earlier record and the Story', async t => {
+  const f = await graphProject(t);
+  const blocked = draft.replace('- D1. Fixture-only approval.', '- D1. Fixture-only approval.\n- OPEN BLOCKING: choose a rounding rule.');
+  await f.put('story.md', blocked);
+  await f.put('.ai-workflow/approvals/story-G1.json', 'previous\n');
+  await f.put(reply, '승인\n');
+  assert.equal(f.cli('approve', 'G1', 'story.md', '--response', reply).status, 1);
+  assert.equal(await read(f, '.ai-workflow/approvals/story-G1.json'), 'previous\n');
+  assert.equal(await read(f, 'story.md'), blocked);
+});
+
+test('approve keeps CRLF line endings', async t => {
+  const f = await graphProject(t);
+  await f.put('story.md', draft.replace(/\n/g, '\r\n'));
+  await f.put(reply, '승인\n');
+  f.ok('approve', 'G1', 'story.md', '--response', reply);
+  assert.match(await read(f, 'story.md'), /Status: Approved\r\n/);
+});
+
+test('go refuses a run file that belongs to another Story', async t => {
+  const f = await approved(t);
+  f.ok('go', 'story.md', 'run.json');
+  await f.put('other.md', story.replace('addition behavior', 'other behavior'));
+  assert.match(f.cli('go', 'other.md', 'run.json').stderr, /another Story/);
+});
+
+test('approve G4 keeps summary and reply apart and under approvals', async t => {
+  const f = await approved(t);
+  f.ok('go', 'story.md', 'run.json');
+  complete(f, 'implement');
+  await f.put(notes, 'No findings.\n');
+  complete(f, 'workflow-review', '--verdict', 'pass', '--notes', notes);
+  complete(f, 'workflow-verify');
+  await f.put('summary.md', '1. a\n2. b\n3. c\n4. d\n');
+  assert.match(f.cli('approve', 'G4', 'run.json', '--summary', 'summary.md', '--response', reply).stderr, /approvals/);
+  await f.put('.ai-workflow/approvals/both.md', '1. a\n2. b\n3. c\n4. d\n');
+  assert.match(f.cli('approve', 'G4', 'run.json', '--summary', '.ai-workflow/approvals/both.md', '--response', '.ai-workflow/approvals/both.md').stderr, /separate/);
+  await f.put('.ai-workflow/evidence/reply.md', '승인\n');
+  assert.match(f.cli('approve', 'G4', 'run.json', '--summary', '.ai-workflow/approvals/both.md', '--response', '.ai-workflow/evidence/reply.md').stderr, /approvals/);
+});
+
+test('a light run allows one review round', async t => {
+  const f = await graphProject(t);
+  await f.put('story.md', draft.replace('Owner: fixture owner\n', 'Owner: fixture owner\nLane: light\n'));
+  await f.put(reply, '승인\n');
+  f.ok('approve', 'G1', 'story.md', '--response', reply);
+  f.ok('go', 'story.md', 'light.json');
+  await f.put(notes, 'M1: add the failure case.\n');
+  f.ok('review', 'light.json', '--verdict', 'fix', '--notes', notes);
+  assert.match(f.cli('review', 'light.json', '--verdict', 'fix', '--notes', notes).stderr, /one review round/i);
 });

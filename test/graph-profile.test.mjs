@@ -27,13 +27,13 @@ test('profile detects npm test and tsc', async t => {
 
   const cra = await bare(t);
   await cra.put('package.json', { scripts: { test: 'react-scripts test' }, dependencies: { 'react-scripts': '5.0.1' } });
-  assert.deepEqual(cra.ok('profile', 'story.md').checks[0].argv, ['npm', 'test', '--', '--watchAll=false']);
+  assert.deepEqual(cra.ok('profile', 'story.md').checks[0].argv, ['npm', 'test', '--', '--watchAll=false', '{scope}']);
 });
 
 test('profile detects gradle', async t => {
   const f = await bare(t);
   await f.put('gradlew', '#!/bin/sh\n');
-  assert.deepEqual(f.ok('profile', 'story.md').checks.map(check => check.argv), [['./gradlew', 'test']]);
+  assert.deepEqual(f.ok('profile', 'story.md').checks.map(check => check.argv), [['./gradlew', '{gradle-test}']]);
 });
 
 test('profile refuses an unknown project type', async t => {

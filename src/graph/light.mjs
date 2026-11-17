@@ -2,9 +2,10 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { digest, projectFile, readJson, readProjectFile, updateRun } from './storage.mjs';
-import { executeCheck, findReusableReceipt, indexReceipt, receiptTail, verificationProfile } from './verification.mjs';
+import { executeCheck, findReusableReceipt, indexReceipt, receiptTail, runCheck, verificationProfile } from './verification.mjs';
 import { boundApproval, checkG4Record, storyG4Mode } from './approvals.mjs';
 import { assertNotesPath } from './advance.mjs';
+import { resolveChecks } from './profile.mjs';
 
 // The light lane: no Graph. One check run, one review and G4, each bound to the code snapshot.
 // Requirements, G1 binding and the profile are re-validated on every command.
@@ -46,6 +47,7 @@ export function storyLane(text) {
 
 /** Replace the record line matching pattern in the record zone, or add it after the last record line. */
 export function setRecordLine(text, pattern, line) {
+  const eol = text.includes('\r\n') ? '\r\n' : '\n';
   const lines = text.split(/\r?\n/);
   const zone = recordZoneIndexes(text);
   const existing = zone.find(index => pattern.test(lines[index].trim()));
@@ -55,7 +57,7 @@ export function setRecordLine(text, pattern, line) {
     const title = lines.findIndex(entry => /^#\s+Story:/.test(entry));
     lines.splice((after ?? title) + 1, 0, line);
   }
-  return lines.join('\n');
+  return lines.join(eol);
 }
 
 export function lightCommands({ root, loadStory, checkGate, snapshot }) {
@@ -87,7 +89,7 @@ export function lightCommands({ root, loadStory, checkGate, snapshot }) {
   };
 
   return {
-    async create(story, runFile) {
+    async create(story, runFile, scope) {
       story = path.posix.normalize(story);
       const text = await readProjectFile(root, story);
       if (storyLane(text) !== 'light') throw new Error('The light lane needs "Lane: light" in the Story footer.');
@@ -107,7 +109,8 @@ export function lightCommands({ root, loadStory, checkGate, snapshot }) {
       if (profile.value.requiresG3) throw new Error('Work that needs G3 cannot use the light lane.');
       const approval = await bindG1(story, contract);
       const run = await updateRun(root, runFile, async () => ({ version: 3, kind: 'light', runId: randomUUID(),
-        story: { path: story, fingerprint: contract.fingerprint }, approval, verification: profile, receipts: {}, history: [] }), { create: true });
+        story: { path: story, fingerprint: contract.fingerprint }, approval, verification: profile, receipts: {}, history: [],
+        ...(scope ? { scope } : {}), checkArgv: await resolveChecks(root, profile.value.checks, scope) }), { create: true });
       return { runId: run.runId, lane: 'light', checks: profile.value.checks.map(check => check.id), next: 'check' };
     },
 
@@ -116,7 +119,7 @@ export function lightCommands({ root, loadStory, checkGate, snapshot }) {
       const code = (await snapshot(run)).fingerprint;
       const receipts = {};
       let failing;
-      for (const check of run.verification.value.checks) {
+      for (const check of run.verification.value.checks.map(entry => runCheck(run, entry))) {
         let found = await findReusableReceipt(root, run, check, code);
         if (!found) {
           found = await executeCheck({ root, run, nodeId: 'check', token: null, check, snapshotBefore: code, snapshot });
@@ -134,6 +137,10 @@ export function lightCommands({ root, loadStory, checkGate, snapshot }) {
     async review(runFile, { verdict, notes }) {
       if (!['pass', 'fix'].includes(verdict)) throw new Error('review needs --verdict pass|fix, and --notes <file> with the findings.');
       assertNotesPath(notes);
+      const current = await readJson(root, runFile);
+      if (verdict === 'fix' && current.history?.some(entry => entry.event === 'review' && entry.verdict === 'fix')) {
+        throw new Error('One review round per run: record --verdict pass and list the remaining findings in --notes (they go to the G4 summary as unverified).');
+      }
       const text = notes ? (await readProjectFile(root, notes)).trim() : '';
       if (verdict === 'fix' && !text) throw new Error('A fix verdict needs feedback: pass --notes <file> with the findings.');
       const run = await load(runFile);

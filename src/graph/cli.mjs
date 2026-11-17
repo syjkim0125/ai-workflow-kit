@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { normalizeEvaluation } from './executor.mjs';
 import { descendantIds, nodeById } from './task-graph.mjs';
@@ -8,10 +9,10 @@ import { assertAssignment, assertRoleOutput, createRoleGraph } from './roles.mjs
 import { approvalPath, boundApproval, checkG4Record, storyG4Mode } from './approvals.mjs';
 import { createSnapshot } from './snapshot.mjs';
 import { begin, complete } from './advance.mjs';
-import { BASELINE_NARROW, writeProfile } from './profile.mjs';
+import { BASELINE_NARROW, resolveChecks, writeProfile } from './profile.mjs';
 import { lightCommands, storyLane } from './light.mjs';
 import { approveG1, approveG4 } from './approve.mjs';
-import { PROFILE, checkExecutions, executeCheck, findReusableReceipt, indexReceipt, needsExecution, receiptTail, runVerification, verificationProfile } from './verification.mjs';
+import { PROFILE, checkExecutions, executeCheck, findReusableReceipt, indexReceipt, needsExecution, receiptTail, runCheck, runVerification, verificationProfile } from './verification.mjs';
 import { normalizeExecutionMetadata } from './execution-metadata.mjs';
 import {
   MAX_ATTEMPTS, MAX_QUESTIONS, assertWorkflowRun, checkRunEvidence, createWorkflowGraph, evidenceHashes,
@@ -46,7 +47,7 @@ The host executes work; this tool validates state/evidence and routes the next a
 // Only these commands take flags; every other argument stays positional.
 function splitFlags(command, raw) {
   const allowed = { complete: ['verdict', 'notes'], review: ['verdict', 'notes'], approve: ['response', 'summary', 'mode'],
-    go: ['scope'], profile: ['scope'] }[command] ?? [];
+    go: ['scope'], init: ['scope'], light: ['scope'] }[command] ?? [];
   const flags = {};
   const values = [];
   for (let index = 0; index < raw.length; index += 1) {
@@ -170,13 +171,17 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
     const run = await updateRun(root, runFile, async () => {
       const next = newWorkflowRun(graph, story, contract);
       await bindings(next, contract, true);
+      if (next.verification) {
+        if (flags.scope) next.scope = flags.scope;
+        next.checkArgv = await resolveChecks(root, next.verification.value.checks, flags.scope);
+      }
       await snapshot(next);
       return next;
     }, { create: true });
     return status(run);
   }
   const lane = lightCommands({ root, loadStory, checkGate, snapshot });
-  if (command === 'light') return lane.create(values[0], values[1]);
+  if (command === 'light') return lane.create(values[0], values[1], flags.scope);
   if (command === 'check') return lane.check(values[0]);
   if (command === 'review') return lane.review(values[0], flags);
   if ((command === 'status' || command === 'delivery') && (await readJson(root, values[0]))?.kind === 'light') return lane[command](values[0]);
@@ -197,7 +202,7 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
     return { ...await status(result.run), verification: result.verification };
   }
   const call = argv => runGraphCommand(argv, { root, checkArtifact, checkGate });
-  if (command === 'profile') return writeProfile({ root, ids: (await loadStory(values[0])).ids, scope: flags.scope });
+  if (command === 'profile') return writeProfile({ root, ids: (await loadStory(values[0])).ids });
   if (command === 'approve') {
     if (values[0] === 'G1') return approveG1({ root, story: values[1], response: flags.response, checkArtifact, checkGate });
     if (values[0] === 'G4') return approveG4({ root, runFile: values[1], summary: flags.summary, response: flags.response, mode: flags.mode, call });
@@ -205,13 +210,16 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
   }
   if (command === 'go') {
     // One call from an approved Story to the first node's brief, or back to the node in progress.
-    const [story, runFile] = values;
+    const story = path.posix.normalize(values[0]);
+    const runFile = values[1];
+    const scope = flags.scope ? ['--scope', flags.scope] : [];
     const exists = await fs.access(await projectFile(root, runFile)).then(() => true, () => false);
-    if (storyLane(await readProjectFile(root, story)) === 'light') return exists ? call(['status', runFile]) : call(['light', story, runFile]);
-    if (!exists) {
-      await call(['profile', story, ...(flags.scope ? ['--scope', flags.scope] : [])]);
-      await call(['init', '-', runFile, story]);
-    }
+    if (exists) {
+      const owner = (await readJson(root, runFile)).story?.path;
+      if (path.posix.normalize(owner ?? '') !== story) throw new Error(`${runFile} belongs to another Story (${owner}); use a run file for ${story}.`);
+    } else await call(['profile', story]);
+    if (storyLane(await readProjectFile(root, story)) === 'light') return exists ? call(['status', runFile]) : call(['light', story, runFile, ...scope]);
+    if (!exists) await call(['init', '-', runFile, story, ...scope]);
     const state = await call(['status', runFile]);
     const nodeId = state.running[0] ?? state.ready[0]?.id;
     return nodeId ? { run: runFile, ...await begin({ root, runFile, nodeId, call }) } : state;
@@ -227,7 +235,7 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
     const code = (await snapshot(run)).fingerprint;
     const receipts = {};
     const failing = [];
-    for (const check of run.verification.value.checks) {
+    for (const check of run.verification.value.checks.map(entry => runCheck(run, entry))) {
       let found = await findReusableReceipt(root, run, check, code);
       if (!found) {
         found = await executeCheck({ root, run, nodeId: 'baseline', token: null, check, snapshotBefore: code, snapshot });
