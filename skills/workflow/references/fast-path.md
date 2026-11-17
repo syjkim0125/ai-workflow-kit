@@ -3,10 +3,10 @@
 MAIN = Story, G1, G4 summary, joins. Never read code, test logs or kit source in main. Never edit code or run formatters in main: an edit after `complete implement` reruns every check; a style nit is a note. Read only CLI JSON, subagent summaries, `git diff --stat`. CLI = `node .ai-workflow/bin/graph.mjs`; its JSON is compact, never tail it. Pipe other long output through `| tail -20`. No subagents on this host: do steps 1, 5 and the review in main, same order.
 
 1. EXPLORE, fan-out: one message, two Agent calls, `subagent_type: Explore`, `model: haiku`. Area A: code path and callers. Area B: tests, config, external contracts. Each: at most 8 tool calls, at most 25 lines back: `file:line` refs, current behavior, constraints, test command. Join both into the map; afterwards grep only what it marks unknown.
-2. STORY from the map at `docs/stories/<slug>.md`, template `../assets/STORY.md`:
-   - Goal: `1. As-is:` `2. To-be:` `3. Unchanged:`. Domain: numbered Terms, Invariant.
+2. STORY: one Agent `model: opus` (scope is where a strong tier pays) gets the request, the map and these rules, writes `docs/stories/<slug>.md` from `../assets/STORY.md`, and returns at most 10 lines (Goal, MUST titles, ASSUMED, OUT):
+   - Goal: `1. As-is:` `2. To-be:` `3. Unchanged:`. To-be removes the pain the request describes, including manual or night-time operational work it mentions; never put what that needs into OUT (make it MUST, or `OPEN BLOCKING`). Domain: numbered Terms, Invariant.
    - Decisions above MUST: `ASSUMED` defaults; `OPEN BLOCKING` only for behavior a human must choose (money, migration, auth: never `ASSUMED`; see `domain-risks.md`).
-   - MUST/SHOULD/OUT items: title line, nested numbers; results that happen together on one line joined by `+`.
+   - MUST/SHOULD/OUT: title line, nested numbers; results that happen together on one line joined by `+`.
    - Verify: `V# [M#]` success and failure.
    - Footer after `---`: Status, Owner, `Lane: light` only if reversible + one module + no external contract + no persistent data + not high-risk; else `Lane: standard`.
    - At most three blocking questions, two rounds. Open idea or more questions: `intake.md`.

@@ -8,7 +8,8 @@ With subagents (Claude Code), the work is split by role; `fast-path.md` gives th
 
 | Role | Model |
 |---|---|
-| Intake, Story, G1 explanation, lane, plan, G4 summary, joins | The main model (the user's session) |
+| Intake, G1 explanation, lane, plan, G4 summary, joins | The main model (the user's session) |
+| Story drafting (scope) | A strong tier: `model: "opus"`, one short call |
 | Intake exploration (two in parallel) | The cheapest tier: the Agent tool's `model: "haiku"` |
 | Implementation, review | The host's **mid tier**: `model: "sonnet"` |
 | Review of a Story that needs G3 | Two reviewers on a strong tier |

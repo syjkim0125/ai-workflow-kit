@@ -208,7 +208,7 @@ test('SKILL.md routes the normal path through the model-facing fast path', async
     assert.match(skill.split('\n').find((line) => line.includes(state)), /fast-path\.md/, state);
   }
   const fast = await reference('fast-path.md');
-  assert.ok(Buffer.byteLength(fast) <= 4800, `fast-path.md has ${Buffer.byteLength(fast)} bytes`);
+  assert.ok(Buffer.byteLength(fast) <= 5400, `fast-path.md has ${Buffer.byteLength(fast)} bytes`);
   for (const command of ['approve G1', 'go', 'complete', 'approve G4', 'check', 'review']) assert.match(fast, new RegExp(`graph\\.mjs ${command}`));
   assert.match(fast, /one message/i);
   assert.match(fast, /model: haiku/);
