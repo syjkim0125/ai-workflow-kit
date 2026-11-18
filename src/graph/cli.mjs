@@ -24,14 +24,14 @@ export const GRAPH_HELP = `Graph commands (run from project root):
   graph.mjs init-role <assignment.json> <run.json>
   graph.mjs status <run.json>
   graph.mjs approve G1 <story.md> --response <reply-file>
-  graph.mjs go <story.md> <run.json> [--scope <module-or-path>]
+  graph.mjs go <story.md> <run.json> [--scope <module-or-path>...]
   graph.mjs approve G4 <run.json> --summary <four-lines-file> --response <reply-file> [--mode ai-summary|human-restatement]
   graph.mjs profile <story.md> [--scope <module-or-path>]
   graph.mjs baseline <run.json>                  (optional: repositories with known failures)
   graph.mjs begin <run.json> <node-id>
-  graph.mjs complete <run.json> <node-id> [--verdict pass|fix|human|replan] [--notes <file>]
+  graph.mjs complete <run.json> <node-id> [--verdict pass|fix|human|replan] [--notes <file>] [--tests <test>...]
   graph.mjs light <story.md> <run.json>          (light lane: Lane: light in the Story)
-  graph.mjs check <run.json>                     (light lane)
+  graph.mjs check <run.json> [--tests <test>...]   (light lane)
   graph.mjs review <run.json> --verdict pass|fix [--notes <file>]   (light lane)
   graph.mjs start <run.json> <node-id> <ready-token>
   graph.mjs record <run.json> <node-id> <result.json>
@@ -54,9 +54,11 @@ function splitFlags(command, raw) {
     const name = raw[index].startsWith('--') ? raw[index].slice(2) : null;
     if (name && allowed.includes(name)) {
       if (index + 1 >= raw.length) throw new Error(`--${name} needs a value.`);
-      // --scope repeats: one module or path per flag.
-      if (name === 'scope' || name === 'tests') (flags[name] ??= []).push(raw[++index]);
-      else flags[name] = raw[++index];
+      // --scope and --tests take every value up to the next flag, and may repeat.
+      if (name === 'scope' || name === 'tests') {
+        const list = (flags[name] ??= []);
+        do list.push(raw[++index]); while (index + 1 < raw.length && !raw[index + 1].startsWith('--'));
+      } else flags[name] = raw[++index];
     } else values.push(raw[index]);
   }
   return { flags, values };

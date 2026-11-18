@@ -44,14 +44,19 @@ export async function verificationProfile(root, ids) {
   return { value, fingerprint: digest(JSON.stringify(value)), ...(recipe ? { recipe } : {}) };
 }
 
-async function execute(argv, root, timeoutMs) {
+const killGroupOf = child => signal => (process.platform === 'win32' ? child.kill(signal) : process.kill(-child.pid, signal));
+
+// A kill that fails while cleaning up after the command (a sandbox can refuse to signal a
+// forked build daemon) is recorded as cleanupError; it never fails a command that exited 0.
+export async function execute(argv, root, timeoutMs, { killGroup } = {}) {
   return new Promise(resolve => {
     const stdout = [], stderr = [];
-    let bytes = 0, timedOut = false, truncated = false, spawnError, killer, settled = false;
+    let bytes = 0, timedOut = false, truncated = false, spawnError, cleanupError, killer, settled = false;
     const child = spawn(argv[0], argv.slice(1), { cwd: root, shell: false, detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'] });
+    const signalGroup = killGroup ?? killGroupOf(child);
     const kill = signal => {
-      try { process.platform === 'win32' ? child.kill(signal) : process.kill(-child.pid, signal); }
-      catch (error) { if (error.code !== 'ESRCH') spawnError ??= error.message; }
+      try { signalGroup(signal); }
+      catch (error) { if (error.code !== 'ESRCH') cleanupError ??= error.message; }
     };
     const finish = (exitCode, signal, outputIncomplete = false) => {
       if (settled) return;
@@ -59,7 +64,7 @@ async function execute(argv, root, timeoutMs) {
       clearTimeout(timer); clearTimeout(killer);
       if (process.platform !== 'win32' && child.pid) kill('SIGKILL');
       if (outputIncomplete) { child.stdout.destroy(); child.stderr.destroy(); child.unref(); }
-      resolve({ exitCode, signal, timedOut, truncated, outputIncomplete, ...(spawnError ? { spawnError } : {}), stdout: Buffer.concat(stdout), stderr: Buffer.concat(stderr) });
+      resolve({ exitCode, signal, timedOut, truncated, outputIncomplete, ...(spawnError ? { spawnError } : {}), ...(cleanupError ? { cleanupError } : {}), stdout: Buffer.concat(stdout), stderr: Buffer.concat(stderr) });
     };
     const stop = () => {
       if (settled) return;

@@ -211,7 +211,7 @@ test('SKILL.md routes the normal path through the model-facing fast path', async
   assert.ok(Buffer.byteLength(fast) <= 5400, `fast-path.md has ${Buffer.byteLength(fast)} bytes`);
   for (const command of ['approve G1', 'go', 'complete', 'approve G4', 'check', 'review']) assert.match(fast, new RegExp(`graph\\.mjs ${command}`));
   assert.match(fast, /one message/i);
-  assert.match(fast, /model: haiku/);
+  assert.match(fast, /model: opus/);
   assert.match(fast, /model: sonnet/);
   assert.match(fast, /never read code/i);
   assert.match(fast, /never write a test runner/i);
@@ -241,10 +241,10 @@ test('execution limits tests to one per Verify item', async () => {
   assert.match(text, /second[^.]*distinct failure path/i);
 });
 
-test('intake delegates code reading to an exploration subagent', async () => {
+test('intake delegates code reading to the Story subagent, which explores first', async () => {
   const text = await reference('intake.md');
-  assert.match(text, /exploration subagent/);
-  assert.match(text, /cheaper/);
+  assert.match(text, /Story subagent/);
+  assert.match(text, /explores first/);
   assert.match(text, /\bmap\b/);
   assert.match(text, /Lane: light/);
 });

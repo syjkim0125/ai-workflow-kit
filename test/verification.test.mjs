@@ -132,3 +132,12 @@ test('inherited property names are valid check IDs regardless of execution order
   assert.equal((await f.result(task)).status, 0);
   assert.equal(f.ok('status', 'run.json').action, 'g4');
 });
+
+test('a cleanup kill the sandbox refuses does not fail a command that exited 0', async () => {
+  const { execute } = await import('../src/graph/verification.mjs');
+  const refuse = () => { const error = new Error('kill EPERM'); error.code = 'EPERM'; throw error; };
+  const result = await execute([process.execPath, '-e', ''], process.cwd(), 5000, { killGroup: refuse });
+  assert.equal(result.exitCode, 0);
+  assert.equal(result.spawnError, undefined);
+  assert.match(result.cleanupError, /EPERM/);
+});

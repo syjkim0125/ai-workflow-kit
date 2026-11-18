@@ -253,3 +253,16 @@ test('complete --tests narrows the checks to the given tests and verify reuses t
   assert.deepEqual(run.checkArgv, { test: ['npm', 'test', '--', 'lib-a/src/test/FooTest', 'BarTest'],
     'gradle-test': ['./gradlew', ':lib-a:test', '--tests', 'lib-a/src/test/FooTest', '--tests', 'BarTest'] });
 });
+
+test('--tests and --scope take several values after one flag', async t => {
+  const f = await approved(t);
+  await fs.rm(path.join(f.root, '.ai-workflow/verification.json'));
+  await f.put('gradlew', '#!/bin/sh\n');
+  for (const dir of ['lib-a', 'lib-b']) await f.put(`${dir}/build.gradle`, '\n');
+  gitInit(f);
+  const brief = f.ok('go', 'story.md', 'run.json', '--scope', 'lib-a', 'lib-b');
+  assert.deepEqual(brief.checks, ['gradle-test: ./gradlew :lib-a:test :lib-b:test']);
+  complete(f, 'implement', '--tests', 'FooTest', 'BarTest');
+  const run = JSON.parse(await read(f, 'run.json'));
+  assert.deepEqual(run.checkArgv['gradle-test'], ['./gradlew', ':lib-a:test', ':lib-b:test', '--tests', 'FooTest', '--tests', 'BarTest']);
+});

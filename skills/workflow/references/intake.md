@@ -8,7 +8,7 @@ Derive before asking: actor, desired outcome, terms/entities, state change, inva
 
 ## Explore with a subagent
 
-Before asking or drafting, explore with **exploration subagents** on a cheaper tier, as `fast-path.md` step 1 gives them: two in parallel (Claude Code: the Agent tool with `model: "haiku"`), each returning a map of at most 25 lines: files involved, current behavior, constraints (tests, contracts, callers) and open questions. Draft the Story from the map, and open a file yourself only to settle one specific question. Hosts without subagents read the code in the main session. Pass the map on to the implementer.
+Before asking or drafting, explore. With subagents, the Story subagent (`fast-path.md` step 1, a strong tier) explores first, at most 12 tool calls, then drafts the Story and returns a map of at most 15 lines: files involved, current behavior, constraints (tests, contracts, callers) and the test command. One explorer saves a serial step: exploration and drafting happen in one context. Hosts without subagents read the code in the main session. Pass the map on to the implementer.
 
 ## Question policy
 

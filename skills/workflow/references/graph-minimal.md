@@ -17,7 +17,7 @@ node .ai-workflow/bin/graph.mjs go docs/<story>.md .ai-workflow/runs/<slug>.json
 
 The plan is `implement → workflow-review → workflow-verify`.
 
-1. `begin` implement returns a brief: covered M/V IDs, the advisory area, the checks and earlier feedback. Dispatch the implementer with it, then `complete` implement: it runs the checks and records the result.
+1. `begin` implement returns a brief: covered M/V IDs, the advisory area, the checks and earlier feedback. Dispatch the implementer with it; it ends with `complete` implement, which runs the checks and records the result.
 2. `begin` workflow-review. Dispatch one reviewer with the Story's MUST/Verify and the diff. Write its findings under `.ai-workflow/evidence/` (a file elsewhere counts as a code change and makes the review stale), then `complete` with `--verdict pass|fix --notes <file>`.
 3. `begin` workflow-verify, then `complete`. Passing receipts for unchanged code are reused, not rerun.
 
@@ -29,8 +29,8 @@ node .ai-workflow/bin/graph.mjs complete <run.json> workflow-review --verdict fi
 
 ## Who does what
 
-- **Implementer:** a subagent on the host's mid tier (Claude Code: the Agent tool with `model: "sonnet"` under Opus). Brief: the Story's MUST and Verify, the `begin` brief and the intake map. Test-first, one focused test per Verify item, a second only for a distinct failure path. It simplifies while green and returns a short summary of changed files and test results. Do not re-read its code: read the summary, `git diff --stat` and the `complete` result.
-- **Reviewer:** one mid-tier subagent. Story and diff in, findings out. A Story with G3 gets two reviewers on a strong tier.
+- **Implementer:** a subagent on the host's mid tier (Claude Code: the Agent tool with `model: "sonnet"` under Opus). Brief: the Story's MUST and Verify, the `begin` brief and the intake map. Test-first, one focused test per Verify item, a second only for a distinct failure path. It simplifies while green, runs `complete implement --tests …` itself as its GREEN run (fixing and rerunning on a failure, at most twice) and returns a short summary of changed files, test results and the last `complete` result. Do not re-read its code: read the summary, `git diff --stat` and the `complete` result.
+- **Reviewer:** one mid-tier subagent, read-only. Story and diff in, findings out; on pass it also drafts the four G4 lines, which main shows unchanged. A Story with G3 gets two reviewers on a strong tier.
 - **Escalation:** after two failed attempts on the same node, the next attempt runs on a stronger tier (`model: "opus"`).
 - Hosts without subagents do the same steps in the main session.
 
