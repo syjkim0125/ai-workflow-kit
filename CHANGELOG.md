@@ -2,13 +2,14 @@
 
 ## Unreleased
 
-Release candidates `5.4.0-rc.1` to `5.4.0-rc.8` carry everything below. They are for the internal evaluation and are not published to npm.
+Release candidates `5.4.0-rc.1` to `5.4.0-rc.9` carry everything below. They are for the internal evaluation and are not published to npm.
 
 ### Fast path (rc.2)
 
 - `approve G1|G4` writes the bound approval JSON, the Story's footer lines and Status from the human's saved reply, then runs the checks; G4 ends with the delivery check.
 - `go` turns an approved Story into the first node's brief in one call; `complete` begins the next node itself; `begin` is idempotent.
 - One review round per run. The baseline is optional; `profile --scope` keeps checks on the touched module or path.
+- rc.9: named Gradle tests run in the module whose `src/test` holds them, each after its own task (`:a:test --tests A :b:test --tests B`). Gradle applies `--tests` to the task just before it, so one shared list after several tasks ran every test of the first module and failed the last with "No tests found"; a root folder in `--scope` did the same through the root `test` task. A test with no file found stays with the scope's tasks.
 - rc.8: the Story subagent explores itself (no separate explorers); the implementer ends with `complete implement --tests …` as its GREEN run and runs RED only when the test compiles against existing code; the reviewer drafts the four G4 lines; G1 approval and `go`, and G4 reply and `approve`, each take one Bash call. A cleanup kill that a sandbox refuses after the command exited (a forked Gradle daemon) is recorded as `cleanupError` and no longer fails a passing check. `--tests` and `--scope` take several values after one flag.
 - rc.7: the reviewer only reads (no builds or test runs), and the implementer runs its new tests once RED and once GREEN.
 - rc.6: the main session never sleeps or polls for subagent results.

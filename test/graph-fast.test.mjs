@@ -259,10 +259,30 @@ test('--tests and --scope take several values after one flag', async t => {
   await fs.rm(path.join(f.root, '.ai-workflow/verification.json'));
   await f.put('gradlew', '#!/bin/sh\n');
   for (const dir of ['lib-a', 'lib-b']) await f.put(`${dir}/build.gradle`, '\n');
+  await f.put('lib-a/src/test/java/a/FooTest.java', '\n');
+  await f.put('lib-b/src/test/kotlin/b/BarTest.kt', '\n');
   gitInit(f);
   const brief = f.ok('go', 'story.md', 'run.json', '--scope', 'lib-a', 'lib-b');
   assert.deepEqual(brief.checks, ['gradle-test: ./gradlew :lib-a:test :lib-b:test']);
   complete(f, 'implement', '--tests', 'FooTest', 'BarTest');
   const run = JSON.parse(await read(f, 'run.json'));
-  assert.deepEqual(run.checkArgv['gradle-test'], ['./gradlew', ':lib-a:test', ':lib-b:test', '--tests', 'FooTest', '--tests', 'BarTest']);
+  // Gradle applies --tests to the task just before it, so each module's tests follow its own task.
+  assert.deepEqual(run.checkArgv['gradle-test'], ['./gradlew', ':lib-a:test', '--tests', 'FooTest', ':lib-b:test', '--tests', 'BarTest']);
+});
+
+test('named gradle tests run in the module that holds them, whatever the scope', async t => {
+  const f = await approved(t);
+  await fs.rm(path.join(f.root, '.ai-workflow/verification.json'));
+  await f.put('gradlew', '#!/bin/sh\n');
+  for (const dir of ['lib-a', 'app/api']) await f.put(`${dir}/build.gradle`, '\n');
+  await f.put('app/api/src/test/java/com/x/ApiTimeoutTest.java', '\n');
+  await f.put('lib-a/src/test/java/com/x/GuardTest.java', '\n');
+  gitInit(f);
+  // A root folder in the scope picks the root task, which would run every module's tests.
+  f.ok('go', 'story.md', 'run.json', '--scope', 'lib-a', 'src');
+  complete(f, 'implement', '--tests', '*ApiTimeoutTest', 'com.x.GuardTest.rejectsSlowVendor', 'UnknownTest');
+  const run = JSON.parse(await read(f, 'run.json'));
+  // A test with no file under src/test stays with the scope's task.
+  assert.deepEqual(run.checkArgv['gradle-test'], ['./gradlew', ':app:api:test', '--tests', '*ApiTimeoutTest',
+    ':lib-a:test', '--tests', 'com.x.GuardTest.rejectsSlowVendor', 'test', '--tests', 'UnknownTest']);
 });

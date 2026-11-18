@@ -23,6 +23,53 @@ async function gradleTask(root, scope) {
   return 'test';
 }
 
+const SKIP = new Set(['node_modules', 'build', 'out', 'target']);
+/** Test source files under any src/test, keyed by class name (file name without extension). */
+async function testFiles(root) {
+  const index = new Map();
+  const walk = async dir => {
+    const entries = await fs.readdir(path.join(root, dir), { withFileTypes: true }).catch(() => []);
+    for (const entry of entries) {
+      const rel = dir ? `${dir}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        if (!entry.name.startsWith('.') && !SKIP.has(entry.name)) await walk(rel);
+      } else if (/(?:^|\/)src\/test\//.test(rel) && /\.(?:java|kt|groovy|scala)$/.test(entry.name)) {
+        const name = entry.name.replace(/\.[^.]+$/, '');
+        index.set(name, [...(index.get(name) ?? []), rel]);
+      }
+    }
+  };
+  await walk('');
+  return index;
+}
+
+/** The class a --tests value names: `*FooTest`, `com.x.FooTest`, `FooTest.method`, `Outer$Inner`. */
+const className = test => {
+  const segment = test.replace(/^[*.]+/, '').split('.').find(part => /^[A-Z]/.test(part)) ?? '';
+  const name = segment.split('$')[0].replace(/\*+$/, '');
+  return /^[A-Za-z_][\w]*$/.test(name) ? name : '';
+};
+
+/**
+ * Gradle task arguments for named tests. Gradle applies --tests to the task just before it, so
+ * each test follows the task of the module holding its file; a test with no file found stays
+ * with the scope's tasks.
+ */
+async function gradleTestArgs(root, scopeTasks, tests) {
+  const groups = new Map();
+  const add = (task, test) => groups.set(task, [...(groups.get(task) ?? []), test]);
+  const index = await testFiles(root);
+  const unknown = [];
+  for (const test of tests) {
+    const files = test.includes('/') ? [test] : index.get(className(test)) ?? [];
+    const tasks = [...new Set(await Promise.all(files.map(file => gradleTask(root, path.posix.dirname(file)))))];
+    if (tasks.length) for (const task of tasks) add(task, test);
+    else unknown.push(test);
+  }
+  for (const test of unknown) for (const task of scopeTasks) add(task, test);
+  return [...groups].flatMap(([task, list]) => [task, ...list.flatMap(test => ['--tests', test])]);
+}
+
 /** A check's argv with its placeholders resolved for one run's scopes (a module or path each). */
 export async function resolveArgv(root, argv, scopes, tests = []) {
   const list = scopeList(scopes);
@@ -30,11 +77,12 @@ export async function resolveArgv(root, argv, scopes, tests = []) {
   for (const arg of argv) {
     // Named tests (complete --tests) replace the scope paths: the check runs only what the change touched.
     if (arg === SCOPE) out.push(...(tests.length ? tests : list));
-    else if (arg === GRADLE_TESTS) out.push(...tests.flatMap(test => ['--tests', test]));
+    else if (arg === GRADLE_TESTS) { if (!argv.includes(GRADLE_TEST)) out.push(...tests.flatMap(test => ['--tests', test])); }
     else if (arg === GRADLE_TEST) {
-      const tasks = [...new Set(await Promise.all(list.map(scope => gradleTask(root, scope))))];
+      const found = [...new Set(await Promise.all(list.map(scope => gradleTask(root, scope))))];
       // The root task already covers every module; an unscoped run uses it too.
-      out.push(...(!tasks.length || tasks.includes('test') ? ['test'] : tasks));
+      const tasks = !found.length || found.includes('test') ? ['test'] : found;
+      out.push(...(tests.length ? await gradleTestArgs(root, tasks, tests) : tasks));
     } else out.push(arg);
   }
   return out;
