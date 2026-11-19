@@ -252,6 +252,19 @@ test('execution limits tests to one per Verify item', async () => {
   assert.match(text, /second[^.]*distinct failure path/i);
 });
 
+test('ASSUMED defaults reuse the place and values the code already has', async () => {
+  for (const file of ['fast-path.md', 'intake.md']) {
+    const text = await reference(file);
+    assert.match(text, /`?ASSUMED`? defaults come from the code/i, file);
+    assert.match(text, /already (?:receives|has)/i, file);
+  }
+});
+
+test('the implementer never changes build or test config to run a test', async () => {
+  const text = await reference('fast-path.md');
+  assert.match(text, /never change build or test config/i);
+});
+
 test('the Story covers every parallel copy of the behavior the request leaves unnamed', async () => {
   for (const file of ['fast-path.md', 'intake.md']) {
     const text = await reference(file);
