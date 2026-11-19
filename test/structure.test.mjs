@@ -202,6 +202,17 @@ test('the shipped Story template uses the v2 layout and a record footer', async 
 
 const reference = (name) => read(`skills/workflow/references/${name}`);
 
+test('every fast-path step SKILL.md names exists', async () => {
+  const skill = await read('skills/workflow/SKILL.md');
+  const steps = (await reference('fast-path.md')).split('\n').filter(line => /^\d+\. /.test(line)).length;
+  const named = [...skill.matchAll(/fast-path\.md` steps? (\d+)(?:[–-](\d+))?/g)];
+  assert.ok(named.length >= 3);
+  for (const [text, from, to] of named) assert.ok(Number(to ?? from) <= steps, `${text} (fast-path has ${steps} steps)`);
+  // Together the routes cover every step once.
+  const covered = named.flatMap(([, from, to]) => Array.from({ length: Number(to ?? from) - Number(from) + 1 }, (_, i) => Number(from) + i));
+  assert.deepEqual(covered, Array.from({ length: steps }, (_, i) => i + 1));
+});
+
 test('SKILL.md routes the normal path through the model-facing fast path', async () => {
   const skill = await read('skills/workflow/SKILL.md');
   for (const state of ['No approved Story', 'Approved, not implemented', 'Implemented or']) {

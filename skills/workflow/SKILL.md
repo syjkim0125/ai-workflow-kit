@@ -24,9 +24,9 @@ Before G1/G3, explain the problem, change, safety rule and verification plainly.
 
 ## Route by current state
 
-1. **No approved Story:** follow `references/fast-path.md` steps 1–3. Risk lenses: `references/domain-risks.md`; open ideas and question rules: `references/intake.md`.
-2. **Approved, not implemented:** `references/fast-path.md` steps 4–8, both lanes. G3, custom plans or roles: `references/execution.md`, `references/graph-minimal.md`, `references/light-lane.md`.
-3. **Implemented or `finish`:** `references/fast-path.md` step 9; `human-restatement` per `references/understanding-gate.md`.
+1. **No approved Story:** follow `references/fast-path.md` steps 1–2. Risk lenses: `references/domain-risks.md`; open ideas and question rules: `references/intake.md`.
+2. **Approved, not implemented:** `references/fast-path.md` steps 3–5, both lanes. G3, custom plans or roles: `references/execution.md`, `references/graph-minimal.md`, `references/light-lane.md`.
+3. **Implemented or `finish`:** `references/fast-path.md` step 6; `human-restatement` per `references/understanding-gate.md`.
 4. **`status`:** run the existing graph's `status` command; report stage, blocking decision, evidence and next action. Without a run, report the Story stage.
 
 Use the user's language. State assumptions, evidence limits and human-owned decisions.
