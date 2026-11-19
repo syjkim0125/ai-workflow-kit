@@ -4,8 +4,9 @@ import path from 'node:path';
 const SKIP = new Set(['node_modules', 'build', 'dist', 'out', 'target', 'coverage']);
 const LIMIT = 20;
 
-export const COPIES_RULE = 'Every copy listed is in To-be unless the request names that copy with a word the code uses for it '
-  + '(cite file:line); otherwise ask OPEN BLOCKING. Write the list and the decision as the first Decisions line.';
+export const COPIES_RULE = 'Each listed copy that has the behavior the request changes is in To-be, unless the request names a copy '
+  + 'with a word the code uses for it (cite file:line); a copy without that behavior is not. Otherwise ask OPEN BLOCKING. '
+  + 'Write the list and the decision as the first Decisions line.';
 
 /** Every project file as a posix path, skipping dot folders and build or dependency output. */
 export async function listFiles(root) {
@@ -35,24 +36,45 @@ const sharedTail = (a, b) => {
 };
 
 /**
- * Parallel copies of each target: files (or folders) elsewhere whose name and parent folder match,
- * ignoring case, closest first. A shared file name alone (index.tsx) is not a copy.
+ * Folders elsewhere that hold the same files as `target`: the same paths inside, ignoring case.
+ * Their own names may differ (brand-a and brand-b/ko). At least two shared files, unless the
+ * target holds one, and at least 30% of the smaller folder.
+ */
+function folderCopies(files, target) {
+  const prefix = `${target}/`;
+  const inside = new Set(files.filter(file => file.startsWith(prefix)).map(file => file.slice(prefix.length).toLowerCase()));
+  const shared = new Map();
+  const sizes = new Map();
+  for (const file of files) {
+    const parts = file.split('/');
+    for (let cut = 1; cut < parts.length; cut += 1) {
+      const folder = parts.slice(0, cut).join('/');
+      sizes.set(folder, (sizes.get(folder) ?? 0) + 1);
+      if (file.startsWith(prefix) || folder === target || target.startsWith(`${folder}/`) || folder.startsWith(prefix)) continue;
+      if (inside.has(parts.slice(cut).join('/').toLowerCase())) shared.set(folder, (shared.get(folder) ?? 0) + 1);
+    }
+  }
+  return [...shared]
+    .filter(([folder, count]) => count >= Math.min(2, inside.size) && count / Math.min(inside.size, sizes.get(folder)) >= 0.3)
+    .sort(([a, x], [b, y]) => y - x || sharedTail(b, target) - sharedTail(a, target) || a.localeCompare(b))
+    .map(([folder]) => folder);
+}
+
+/**
+ * Parallel copies of each target. A file's copies have the same name and parent folder, ignoring
+ * case (a shared file name alone, index.tsx, is not a copy); a folder's copies hold the same files.
+ * Closest first.
  */
 export async function findCopies(root, targets) {
   if (!targets.length) throw new Error('copies needs at least one file or folder.');
   const files = await listFiles(root);
-  const folders = [...new Set(files.flatMap(file => {
-    const parts = file.split('/');
-    return parts.slice(1).map((_, index) => parts.slice(0, index + 1).join('/'));
-  }))];
   const copies = [];
   for (const raw of targets) {
     const target = clean(raw);
     const stat = await fs.stat(path.join(root, target)).catch(() => null);
     if (!stat) throw new Error(`Not found: ${raw}`);
-    const pool = stat.isDirectory() ? folders : files;
-    const found = pool
-      .filter(candidate => candidate !== target && !candidate.startsWith(`${target}/`) && !target.startsWith(`${candidate}/`))
+    const found = stat.isDirectory() ? folderCopies(files, target) : files
+      .filter(candidate => candidate !== target)
       .map(candidate => ({ candidate, shared: sharedTail(candidate, target) }))
       .filter(({ shared }) => shared >= 2)
       .sort((a, b) => b.shared - a.shared || a.candidate.localeCompare(b.candidate))
