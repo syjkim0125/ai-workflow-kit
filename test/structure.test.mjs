@@ -241,6 +241,14 @@ test('execution limits tests to one per Verify item', async () => {
   assert.match(text, /second[^.]*distinct failure path/i);
 });
 
+test('the Story covers every parallel copy of the behavior the request leaves unnamed', async () => {
+  for (const file of ['fast-path.md', 'intake.md']) {
+    const text = await reference(file);
+    assert.match(text, /parallel copies/, file);
+    assert.match(text, /never `?ASSUMED`? one copy/i, file);
+  }
+});
+
 test('intake delegates code reading to the Story subagent, which explores first', async () => {
   const text = await reference('intake.md');
   assert.match(text, /Story subagent/);
