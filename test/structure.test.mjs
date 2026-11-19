@@ -252,6 +252,12 @@ test('execution limits tests to one per Verify item', async () => {
   assert.match(text, /second[^.]*distinct failure path/i);
 });
 
+test('every sentence of the request maps to a MUST or to OUT with a reason', async () => {
+  for (const file of ['fast-path.md', 'intake.md']) {
+    assert.match(await reference(file), /every (?:request )?sentence(?: of the request)? maps to a MUST/i, file);
+  }
+});
+
 test('ASSUMED defaults reuse the place and values the code already has', async () => {
   for (const file of ['fast-path.md', 'intake.md']) {
     const text = await reference(file);

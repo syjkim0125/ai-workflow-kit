@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-Release candidates `5.4.0-rc.1` to `5.4.0-rc.15` carry everything below. They are for the internal evaluation and are not published to npm.
+Release candidates `5.4.0-rc.1` to `5.4.0-rc.16` carry everything below. They are for the internal evaluation and are not published to npm.
 
 ### Fast path (rc.2)
 
