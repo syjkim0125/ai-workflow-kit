@@ -2,13 +2,14 @@
 
 ## Unreleased
 
-Release candidates `5.4.0-rc.1` to `5.4.0-rc.12` carry everything below. They are for the internal evaluation and are not published to npm.
+Release candidates `5.4.0-rc.1` to `5.4.0-rc.13` carry everything below. They are for the internal evaluation and are not published to npm.
 
 ### Fast path (rc.2)
 
 - `approve G1|G4` writes the bound approval JSON, the Story's footer lines and Status from the human's saved reply, then runs the checks; G4 ends with the delivery check.
 - `go` turns an approved Story into the first node's brief in one call; `complete` begins the next node itself; `begin` is idempotent.
 - One review round per run. The baseline is optional; `profile --scope` keeps checks on the touched module or path.
+- rc.13: `graph.mjs copies <file-or-folder>...` lists parallel copies of the code a change touches: files or folders with the same name and parent folder (ignoring case) elsewhere in the project, closest first. Whoever drafts the Story, the Story subagent or the main session, runs it first and follows the rule it prints; the first Decisions line, `D1. Copies:`, gives the list and the decision.
 - rc.12: SKILL.md routes to the six fast-path steps that exist (1–2, 3–5, 6); it still named steps 1–3, 4–8 and 9 from before rc.8.
 - rc.11: a request word narrows the parallel copies only when the code names that copy with it.
 - rc.10: the Story subagent looks for parallel copies of the touched behavior (the same file or component under sibling site, brand, platform or locale folders). When the request names none of them, the Story covers every copy; it never assumes one copy and puts the rest into OUT. A word in the request narrows the scope only when the code names that copy with it (the Story subagent searches the code for the word; one the code uses for an environment does not narrow), else it asks `OPEN BLOCKING`.

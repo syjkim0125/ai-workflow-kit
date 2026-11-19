@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { projectFile, readJson } from './storage.mjs';
 import { PROFILE } from './verification.mjs';
+import { listFiles } from './copies.mjs';
 
 const TIMEOUT = 300000;
 // Placeholders in detected checks; each run resolves them from its own --scope, so one shared
@@ -23,23 +24,14 @@ async function gradleTask(root, scope) {
   return 'test';
 }
 
-const SKIP = new Set(['node_modules', 'build', 'out', 'target']);
 /** Test source files under any src/test, keyed by class name (file name without extension). */
 async function testFiles(root) {
   const index = new Map();
-  const walk = async dir => {
-    const entries = await fs.readdir(path.join(root, dir), { withFileTypes: true }).catch(() => []);
-    for (const entry of entries) {
-      const rel = dir ? `${dir}/${entry.name}` : entry.name;
-      if (entry.isDirectory()) {
-        if (!entry.name.startsWith('.') && !SKIP.has(entry.name)) await walk(rel);
-      } else if (/(?:^|\/)src\/test\//.test(rel) && /\.(?:java|kt|groovy|scala)$/.test(entry.name)) {
-        const name = entry.name.replace(/\.[^.]+$/, '');
-        index.set(name, [...(index.get(name) ?? []), rel]);
-      }
-    }
-  };
-  await walk('');
+  for (const file of await listFiles(root)) {
+    if (!/(?:^|\/)src\/test\//.test(file) || !/\.(?:java|kt|groovy|scala)$/.test(file)) continue;
+    const name = path.posix.basename(file).replace(/\.[^.]+$/, '');
+    index.set(name, [...(index.get(name) ?? []), file]);
+  }
   return index;
 }
 

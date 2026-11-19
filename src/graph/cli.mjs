@@ -11,6 +11,7 @@ import { createSnapshot } from './snapshot.mjs';
 import { begin, complete } from './advance.mjs';
 import { BASELINE_NARROW, resolveChecks, writeProfile } from './profile.mjs';
 import { lightCommands, storyLane } from './light.mjs';
+import { findCopies } from './copies.mjs';
 import { approveG1, approveG4 } from './approve.mjs';
 import { PROFILE, checkExecutions, executeCheck, findReusableReceipt, indexReceipt, needsExecution, receiptTail, runCheck, runVerification, verificationProfile } from './verification.mjs';
 import { normalizeExecutionMetadata } from './execution-metadata.mjs';
@@ -23,6 +24,7 @@ export const GRAPH_HELP = `Graph commands (run from project root):
   graph.mjs init <plan.json|-> <run.json> <story.md>
   graph.mjs init-role <assignment.json> <run.json>
   graph.mjs status <run.json>
+  graph.mjs copies <file-or-folder>...           (parallel copies in sibling folders, before the Story)
   graph.mjs approve G1 <story.md> --response <reply-file>
   graph.mjs go <story.md> <run.json> [--scope <module-or-path>...]
   graph.mjs approve G4 <run.json> --summary <four-lines-file> --response <reply-file> [--mode ai-summary|human-restatement]
@@ -69,6 +71,7 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
   const [command, ...raw] = args;
   if (!command || command === '--help') return { help: GRAPH_HELP };
   const { flags, values } = splitFlags(command, raw);
+  if (command === 'copies') return findCopies(root, values);
   const counts = { init: 3, 'init-role': 2, status: 1, delivery: 1, verify: 4, start: 3, record: 3, reset: 3, question: 3, answer: 3, feedback: 3,
     begin: 2, complete: 2, profile: 1, baseline: 1, light: 2, check: 1, review: 1, approve: 2, go: 2 };
   if (!Object.hasOwn(counts, command) || values.length !== counts[command]) throw new Error(GRAPH_HELP);
