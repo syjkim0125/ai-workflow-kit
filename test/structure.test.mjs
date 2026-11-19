@@ -246,6 +246,8 @@ test('the Story covers every parallel copy of the behavior the request leaves un
     const text = await reference(file);
     assert.match(text, /parallel copies/, file);
     assert.match(text, /never `?ASSUMED`? one copy/i, file);
+    // A request word narrows only when the code uses it as that copy's name.
+    assert.match(text, /search the code for (?:it|the word)/i, file);
   }
 });
 
