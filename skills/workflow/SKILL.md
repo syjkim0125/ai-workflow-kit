@@ -14,6 +14,8 @@ Before model dispatch, apply `references/model-selection.md` using the host's av
 
 ## Non-negotiable gates
 
+Every change except the direct lane in `references/fast-path.md` (one stated behavior, nothing to decide, light-lane rules hold):
+
 - Do not plan implementation or edit production code before the Story is `Approved` and G1 is recorded.
 - Do not declare delivery complete or merge non-trivial changes before G4 passes.
 - Requirements have one source of truth; copies must not diverge.

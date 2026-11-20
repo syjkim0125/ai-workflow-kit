@@ -288,3 +288,30 @@ test('intake delegates code reading to the Story subagent, which explores first'
   assert.match(text, /\bmap\b/);
   assert.match(text, /Lane: light/);
 });
+
+test('a small change with nothing to decide takes the direct lane: no Story, gates or subagents', async () => {
+  const fast = await reference('fast-path.md');
+  const direct = fast.split('\n').find(line => line.startsWith('DIRECT'));
+  assert.ok(direct, 'fast-path.md has a DIRECT paragraph');
+  assert.match(direct, /nothing to decide/);
+  assert.match(direct, /graph\.mjs copies/);
+  assert.match(direct, /light-lane rules/);
+  assert.match(direct, /one focused test/);
+  assert.match(direct, /step 1/);
+  assert.match(await read('skills/workflow/SKILL.md'), /except the direct lane/i);
+});
+
+test('no reviewer subagent: the implementer self-checks against the Story', async () => {
+  const fast = await reference('fast-path.md');
+  assert.doesNotMatch(fast, /REVIEW: one Agent/);
+  assert.match(fast, /SELF-CHECK/);
+  assert.match(fast, /no reviewer subagent/i);
+  const light = await reference('light-lane.md');
+  assert.doesNotMatch(light, /reviewer/);
+  assert.match(light, /self-check/);
+});
+
+test('the implementer runs tests only through the graph CLI', async () => {
+  assert.match(await reference('fast-path.md'), /run tests only through `complete`.*no separate compile, test or RED run/i);
+  assert.match(await reference('light-lane.md'), /only through `check`/);
+});

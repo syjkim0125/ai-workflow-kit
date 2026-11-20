@@ -20,9 +20,9 @@ node .ai-workflow/bin/graph.mjs light docs/<story>.md .ai-workflow/runs/<slug>.j
 
 Without `.ai-workflow/verification.json`, run `node .ai-workflow/bin/graph.mjs profile docs/<story>.md` first.
 
-1. Dispatch the implementer: a subagent on the host's mid tier (Claude Code: the Agent tool with `model: "sonnet"`), with the Story and the intake map. Test-first, one focused test per Verify item. It returns a short summary.
+1. Dispatch the implementer: a subagent on the host's mid tier (Claude Code: the Agent tool with `model: "sonnet"`), with the Story and the intake map. Test-first, one focused test per Verify item, run only through `check`. It returns a short summary and a self-check (each MUST and Verify item → `file:line` or test; unmet items).
 2. `node .ai-workflow/bin/graph.mjs check <run.json>` runs every check once. On a failure, send the tail to the implementer and run `check` again; after two failed attempts, a stronger tier (`model: "opus"`) fixes it. A failure that existed before the change is not yours to fix: narrow that check in the profile and start a new light run, or move up.
-3. Dispatch one mid-tier reviewer with the Story and the diff. Write its findings under `.ai-workflow/evidence/`, then `node .ai-workflow/bin/graph.mjs review <run.json> --verdict pass|fix --notes <file>`. After a `fix`: implementer, `check`, then `review --verdict pass` with any unfixed finding noted; one review round per run.
+3. Write the self-check under `.ai-workflow/evidence/`; an unmet item goes back to the implementer once, then `check`. Then `node .ai-workflow/bin/graph.mjs review <run.json> --verdict pass --notes <file>`, with any item still unmet noted.
 4. G4 per `understanding-gate.md`, then `node .ai-workflow/bin/graph.mjs delivery <run.json>`.
 
 ## Moving lanes
