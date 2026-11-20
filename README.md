@@ -8,6 +8,16 @@ AI Workflow Kit adds a work process to Codex and Claude Code. It defines what to
 
 A graph runner tracks the task list and the rules for which task runs next.
 
+## Measured results
+
+On real tasks from production repositories, graded by rubric and blind pairwise comparison:
+
+- **On a frontier model, the kit raised quality a little at a high price.** On Opus 5.5, it passed 92% of rubric items against 84% for a plain Claude Code session and won 12 of 14 blind pairings. It cost 6.4× as much and took 10× as long.
+- **On a mid-tier main model, it matched plain Opus on quality and cost, but not on time.** With Sonnet 5.5 as the main session, it passed 71% against 73% for plain Opus, at $1.16 against $1.18 per run, and took about twice as long. On the same tasks, plain Sonnet scored 42–48% and the kit on Sonnet scored 57–83%.
+- **Tools moved the numbers; prose rules did not.** Deterministic commands, one that lists parallel copies of the code a change touches and one that routes tests to their module, fixed measured failures. Extra written rules did not.
+
+Method, all numbers and limits: [docs/EVALUATION.md](https://github.com/syjkim0125/ai-workflow-kit/blob/main/docs/EVALUATION.md).
+
 ## What's new in 5.3.0
 
 - **Upgrades name the versions involved.** `init` prints the running CLI version and the version it replaced, such as `Updated AI Workflow Kit 5.2.0 → 5.3.0.`, and `doctor` prints `Kit version: CLI …, installed …`. An older cached CLI now shows its version number instead of a bare "already up to date". `doctor` fails when the CLI is older than the install, because it cannot check a newer release's files.
