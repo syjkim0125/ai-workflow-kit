@@ -14,6 +14,7 @@ On real tasks from production repositories, graded by rubric and blind pairwise 
 
 - **On a frontier model, the kit raised quality a little at a high price.** On Opus 5.5, it passed 92% of rubric items against 84% for a plain Claude Code session and won 12 of 14 blind pairings. It cost 6.4× as much and took 10× as long.
 - **On a mid-tier main model, it matched plain Opus on quality and cost, but not on time.** With Sonnet 5.5 as the main session, it passed 71% against 73% for plain Opus, at $1.16 against $1.18 per run, and took about twice as long. On the same tasks, plain Sonnet scored 42–48% and the kit on Sonnet scored 57–83%.
+- **Small changes can skip the process.** With a direct lane (no Story, gates or subagents when nothing is left to decide), both small tasks matched plain Opus on quality and won the blind pairing; one also cost less and finished sooner. One run each.
 - **Tools moved the numbers; prose rules did not.** Deterministic commands, one that lists parallel copies of the code a change touches and one that routes tests to their module, fixed measured failures. Extra written rules did not.
 
 Method, all numbers and limits: [docs/EVALUATION.md](https://github.com/syjkim0125/ai-workflow-kit/blob/main/docs/EVALUATION.md).

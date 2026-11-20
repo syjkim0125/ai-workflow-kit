@@ -58,6 +58,7 @@ Between rc.2 and rc.16, each change was measured again on the same tasks.
 | Gradle `--tests` routed to the module that holds each test | One large task: 21.4 → 9.9 min, $2.71 → $1.81 |
 | rc.17: a direct lane (no Story, gates or subagents) for a change that leaves nothing to decide | Taken on 1 of 10 runs, the smallest task: $0.29 and 1.0 min against $0.33 and 0.7 min for plain Opus, same rubric, and it won the blind pairing. The only run where the kit cost less than plain Opus |
 | rc.17: no review subagent; the implementer runs tests only through the kit's CLI | Cost rose. Implementers used the CLI's full check as their test loop (one small task: 3 failed attempts, 10.3 min against 4.0 in rc.16), and the median run cost $1.63 against $1.16 |
+| rc.18: the direct lane kept, the review subagent and a single RED run brought back (3 runs) | Both small tasks took the direct lane, with the same rubric as plain Opus (7/7) and both blind pairings won. One cost $0.40 and took 1.7 min against $0.67 and 2.4 min for plain Opus: the first task where the kit met all three goals. The other cost $0.36 and took 1.5 min against $0.33 and 0.7. The large task did not improve: $2.46 and 13.2 min against $1.27 and 4.2, though it won its pairing (rubric 7/8 against 6/8) |
 | Prose rules for Story scope, added to the instructions | No lasting gain. Fixing one failure caused another, and the Sonnet main session sometimes skipped the rule |
 
 Deterministic tools with tests behind them moved the numbers. More instructions did not.
