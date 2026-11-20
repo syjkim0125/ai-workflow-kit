@@ -2,13 +2,14 @@
 
 ## Unreleased
 
-Release candidates `5.4.0-rc.1` to `5.4.0-rc.17` carry everything below. They are for the internal evaluation and are not published to npm.
+Release candidates `5.4.0-rc.1` to `5.4.0-rc.18` carry everything below. They are for the internal evaluation and are not published to npm.
 
 ### Fast path (rc.2)
 
 - `approve G1|G4` writes the bound approval JSON, the Story's footer lines and Status from the human's saved reply, then runs the checks; G4 ends with the delivery check.
 - `go` turns an approved Story into the first node's brief in one call; `complete` begins the next node itself; `begin` is idempotent.
 - One review round per run. The baseline is optional; `profile --scope` keeps checks on the touched module or path.
+- rc.18: keeps rc.17's direct lane and brings back the review subagent and the implementer's single RED run. Measured on rc.17, the direct lane ran the smallest task for less than a plain session, but implementers limited to `complete` used it as their test loop and the median run cost rose from $1.16 to $1.63. The fast-path size budget grows from 5400 to 5900 bytes for the direct lane.
 - rc.17: a direct lane for a small change that leaves nothing to decide (one stated behavior, no parallel copy, nothing to assume or ask, light-lane rules hold): the main session edits, adds one focused test per stated behavior and reports, with no Story, gates or subagents. No reviewer subagent: the implementer writes a self-check (each MUST and Verify item to `file:line` or a test, unmet items) and the G4 lines; an unmet item goes back to it once. The implementer runs tests only through `complete` or `check`, with no separate compile, test or RED run. In the internal evaluation every reviewer verdict was `pass`, and the fixed pipeline cost more than a plain session's whole run on small changes.
 - rc.13: `graph.mjs copies <file-or-folder>...` lists parallel copies of the code a change touches: files or folders with the same name and parent folder (ignoring case) elsewhere in the project, closest first. Whoever drafts the Story, the Story subagent or the main session, runs it first and follows the rule it prints; the first Decisions line, `D1. Copies:`, gives the list and the decision.
 - rc.12: SKILL.md routes to the six fast-path steps that exist (1–2, 3–5, 6); it still named steps 1–3, 4–8 and 9 from before rc.8.

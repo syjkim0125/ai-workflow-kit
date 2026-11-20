@@ -1,6 +1,6 @@
 {
   "name": "ai-workflow-kit",
-  "version": "5.4.0-rc.17",
+  "version": "5.4.0-rc.18",
   "description": "Concise requirements-to-delivery workflow with human approval and understanding gates.",
   "author": {
     "name": "JongKun Kim"

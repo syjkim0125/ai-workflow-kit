@@ -219,7 +219,8 @@ test('SKILL.md routes the normal path through the model-facing fast path', async
     assert.match(skill.split('\n').find((line) => line.includes(state)), /fast-path\.md/, state);
   }
   const fast = await reference('fast-path.md');
-  assert.ok(Buffer.byteLength(fast) <= 5400, `fast-path.md has ${Buffer.byteLength(fast)} bytes`);
+  // 5400 before rc.18; the DIRECT paragraph adds about 430 bytes.
+  assert.ok(Buffer.byteLength(fast) <= 5900, `fast-path.md has ${Buffer.byteLength(fast)} bytes`);
   for (const command of ['approve G1', 'go', 'complete', 'approve G4', 'check', 'review']) assert.match(fast, new RegExp(`graph\\.mjs ${command}`));
   assert.match(fast, /one message/i);
   assert.match(fast, /model: opus/);
@@ -301,17 +302,10 @@ test('a small change with nothing to decide takes the direct lane: no Story, gat
   assert.match(await read('skills/workflow/SKILL.md'), /except the direct lane/i);
 });
 
-test('no reviewer subagent: the implementer self-checks against the Story', async () => {
+test('the review subagent stays, and the implementer runs a new test RED once when it compiles', async () => {
   const fast = await reference('fast-path.md');
-  assert.doesNotMatch(fast, /REVIEW: one Agent/);
-  assert.match(fast, /SELF-CHECK/);
-  assert.match(fast, /no reviewer subagent/i);
-  const light = await reference('light-lane.md');
-  assert.doesNotMatch(light, /reviewer/);
-  assert.match(light, /self-check/);
-});
-
-test('the implementer runs tests only through the graph CLI', async () => {
-  assert.match(await reference('fast-path.md'), /run tests only through `complete`.*no separate compile, test or RED run/i);
-  assert.match(await reference('light-lane.md'), /only through `check`/);
+  assert.match(fast, /REVIEW: one Agent `model: sonnet`, read-only/);
+  assert.match(fast, /run a new test RED once only when it compiles against existing code/);
+  assert.doesNotMatch(fast, /SELF-CHECK/);
+  assert.match(await reference('light-lane.md'), /Dispatch one mid-tier reviewer/);
 });
