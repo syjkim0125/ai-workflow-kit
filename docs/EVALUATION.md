@@ -2,7 +2,7 @@
 
 This page reports how AI Workflow Kit compared with a plain Claude Code session on real tasks. The tasks came from production repositories. Short version: the kit's process raised quality a little when a frontier model ran it, but cost 6× as much and took 10× as long. Making the kit cheaper by moving the main session to a mid-tier model brought cost down to the plain session's level, but the quality gain disappeared with it.
 
-The numbers below come from November 2026. They cover kit 5.3.0 and the 5.4.0 release candidates, which are internal and not published to npm. Models: Claude Opus 5.5 and Claude Sonnet 5.5, in Claude Code.
+The numbers below come from November 2026. They cover kit 5.3.0 and the internal 5.4.0 release candidates (rc.1 to rc.18); 5.4.0 ships rc.18. Models: Claude Opus 5.5 and Claude Sonnet 5.5, in Claude Code.
 
 ## How it was measured
 

@@ -19,46 +19,6 @@ On real tasks from production repositories, graded by rubric and blind pairwise 
 
 Method, all numbers and limits: [docs/EVALUATION.md](https://github.com/syjkim0125/ai-workflow-kit/blob/main/docs/EVALUATION.md).
 
-## What's new in 5.3.0
-
-- **Upgrades name the versions involved.** `init` prints the running CLI version and the version it replaced, such as `Updated AI Workflow Kit 5.2.0 → 5.3.0.`, and `doctor` prints `Kit version: CLI …, installed …`. An older cached CLI now shows its version number instead of a bare "already up to date". `doctor` fails when the CLI is older than the install, because it cannot check a newer release's files.
-- **Mixed-version installs are flagged.** When a managed file differs from the installed release, even if only a formatter changed it, `doctor` warns and says to delete the path and re-run `init`.
-- **Upgrading from 5.2.0** keeps existing runs: no graph runtime file or role node changed. **From 5.0.x**, 5.1.0 was not published to npm, so the 5.1.0 changes below apply too. A role run started before the upgrade stops with `Role assignment or graph changed`. Start a new role run.
-
-5.2.0 added:
-
-- **Intake explores alternatives itself.** When a requested change can still behave in materially different ways, intake shows two or three options with trade-offs and a recommended default. CE `ce-brainstorm` runs only for an open idea (a goal with no concrete change yet), when you say you do not know what to build, or when you select it. The agent tells you when it uses it, and the results come back to the kit's Story and G1.
-- **The payment lens asks about rollback.** A Story that changes a price or charge rule now asks what triggers a rollback and what happens to charges already issued.
-
-5.1.0 added:
-
-- **Plan and review with focused Superpowers skills.** Planning uses Superpowers `writing-plans`; the plan comes back to the kit, which keeps execution and the human gates. Review uses Superpowers `requesting-code-review` or a direct review within the same budget. CE `ce-plan` and `ce-code-review` remain available when you select them, and CE `ce-compound` still saves proven lessons. In a local comparison on a small project, these routes matched CE plan and review quality at much lower token cost.
-- **Pstack provenance points at the official source.** The bundled verification files are unchanged; their record now names `cursor/plugins`.
-
-5.0.2 added:
-
-- **Surface risky choices before G1.** Intake now reads the domain risk lenses before G1, not only after approval. In payment and data or system migration Stories, a lens item that the requirement or a human has not settled stays `OPEN BLOCKING` instead of being labeled `ASSUMED`. Examples: how long old and new paths coexist, the rollback trigger, whether a failure fails open or closed, which data wins when two sources disagree, and deploy order across teams.
-
-5.0.1 added:
-
-- **Reuse project verification skills across Stories.** Link an existing skill or guide with profile `recipe`. Task inputs and execution receipts retain its path/hash; recipe and declared feature-map edits invalidate old evidence. Create a procedure only when existing coverage is insufficient.
-- **Drive the real product with Pstack's verification procedure.** The example covers Launch, Doctor, Drive, Evidence and Cleanup. Superpowers inspects that same Graph execution's fresh results; the kit keeps workflow ownership. See the [runnable example](examples/verification/README.md).
-- **Keep review work bounded.** Default to three workers, reduce to 0–2 for small changes, and expand to 4–5 for named risks. Main simplifies and aggregates; nested workers share the same budget. The host enforces actual dispatch limits.
-- **Fix verification edge cases.** Incomplete output collection fails after bounded cleanup when an escaped child keeps pipes open. Valid check IDs such as `toString` and `hasOwnProperty` work regardless of execution order.
-
-To update an existing project, pin the exact release instead of `@latest`, and check which CLI npx runs before you install. npx can quietly run an older cached copy, for example when the project's `.npmrc` points at a private registry that is unreachable. An exact version cannot be met by a different cached copy.
-
-```sh
-VERSION=$(npm view @pazmo/ai-workflow-kit version --registry=https://registry.npmjs.org/)
-npx @pazmo/ai-workflow-kit@$VERSION --version
-npx @pazmo/ai-workflow-kit@$VERSION init
-npx @pazmo/ai-workflow-kit@$VERSION doctor
-```
-
-Stop if `--version` prints anything other than `$VERSION`. In a project whose `.npmrc` points at a private registry, put `--registry=https://registry.npmjs.org/` before the package name, for example `npx --registry=https://registry.npmjs.org/ @pazmo/ai-workflow-kit@$VERSION init`. After the package name it goes to the kit, not to npm. `init` names both versions, such as `Updated AI Workflow Kit 5.2.0 → 5.3.0.`, and `doctor` prints `Kit version: CLI …, installed …`. Then open a new Codex task or Claude Code session. User-edited managed files are preserved and reported; inspect them for changes that need applying manually.
-
-**Upgrading from 4.x:** 5.x uses persisted run format v3 and runner-issued receipts. Configure `.ai-workflow/verification.json` and Story-bound G1/G3 records using the [verification guide](skills/workflow/references/verification.md). Legacy v1/v2 runs are read-only (`upgrade-required`): stop old workers, preserve evidence/attempt history, and rerun review/checks in v3. `graph delivery` also requires a real G4 bound to the final snapshot. See [all changes](CHANGELOG.md).
-
 ## Start
 
 You need **Node.js 20 or later** and Codex or Claude Code. Run these commands in your project folder:
@@ -81,6 +41,21 @@ Use `init --host codex` or `init --host claude` to install for one tool only.
 
 **ChatGPT:** In an environment that supports custom skills, skill selection may happen automatically. The graph also needs Node.js and access to project files. A chat by itself does not provide the full workflow.
 
+## Updating
+
+Release notes for each version: [docs/releases](https://github.com/syjkim0125/ai-workflow-kit/blob/main/docs/releases/README.md). Every change: [CHANGELOG](CHANGELOG.md).
+
+To update an existing project, pin the exact release instead of `@latest`, and check which CLI npx runs before you install. npx can quietly run an older cached copy, for example when the project's `.npmrc` points at a private registry that is unreachable. An exact version cannot be met by a different cached copy.
+
+```sh
+VERSION=$(npm view @pazmo/ai-workflow-kit version --registry=https://registry.npmjs.org/)
+npx @pazmo/ai-workflow-kit@$VERSION --version
+npx @pazmo/ai-workflow-kit@$VERSION init
+npx @pazmo/ai-workflow-kit@$VERSION doctor
+```
+
+Stop if `--version` prints anything other than `$VERSION`. In a project whose `.npmrc` points at a private registry, put `--registry=https://registry.npmjs.org/` before the package name, for example `npx --registry=https://registry.npmjs.org/ @pazmo/ai-workflow-kit@$VERSION init`. After the package name it goes to the kit, not to npm. `init` names both versions, such as `Updated AI Workflow Kit 5.3.0 → 5.4.0.`, and `doctor` prints `Kit version: CLI …, installed …`. Then open a new Codex task or Claude Code session. User-edited managed files are preserved and reported; inspect them for changes that need applying manually.
+
 ## How work moves
 
 ![Request, scope approval, planning, implementation, review, verification, learning, and human confirmation. Failed checks return to implementation.](https://raw.githubusercontent.com/syjkim0125/ai-workflow-kit/22246e74aaf8480d9aa3071b351eea4196cd2c99/assets/readme/workflow-en.png)
@@ -92,6 +67,8 @@ Use `init --host codex` or `init --host claude` to install for one tool only.
 5. **Review and verify.** Review findings go back for fixes. Changed code gets fresh checks.
 6. **Save useful lessons.** Keep proven lessons for future tasks. Skip notes that add nothing.
 7. **Check the result yourself.** Explain the change, then compare your understanding with the evidence.
+
+**Small changes take a direct lane.** When the request names one behavior and its place, leaves nothing to decide, and stays reversible and inside one module, the agent edits, adds a test for each stated behavior, runs it and reports. It skips the Story, the approvals and the subagents. Anything left to decide takes the steps above.
 
 High-risk changes need a design check before implementation. The kit does not merge or publish just because tests pass.
 
@@ -130,7 +107,7 @@ When all nodes pass, the runner returns `action: g4`. **This means ready for hum
 
 G4 has two modes. By default (`ai-summary`), the agent explains the change in four short numbered lines: what changes for the user, the rule kept and what happens on failure, the tests that proved it, and what is still unproven. You approve it explicitly. For high-risk work that needed G3, G4 uses `human-restatement`: you see the changed code and test results before the explanation and answer first. The agent then points out what you understood, missed, or got wrong, and you explain the corrected version in your own words.
 
-A small change may qualify for a documented G4 exception. The reason must be specific.
+A small change may qualify for a documented G4 exception. The reason must be specific. A direct-lane change has no G1 or G4: you review its diff and test as you would any small commit.
 
 The checker checks **records and files**. It cannot prove who wrote an approval or whether a test report is true. The person and the host must supply real approval and real evidence.
 

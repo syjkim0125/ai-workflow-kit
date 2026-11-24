@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## 5.4.0 — 2026-11-24
 
-Release candidates `5.4.0-rc.1` to `5.4.0-rc.18` carry everything below. They are for the internal evaluation and are not published to npm.
+Release notes: [docs/releases/5.4.0.md](docs/releases/5.4.0.md). Release candidates `5.4.0-rc.1` to `5.4.0-rc.18` were internal evaluation builds and were not published to npm; their entries below say what each changed.
 
 ### Fast path (rc.2)
 

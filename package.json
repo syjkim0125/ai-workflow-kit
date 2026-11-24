@@ -1,6 +1,6 @@
 {
   "name": "@pazmo/ai-workflow-kit",
-  "version": "5.4.0-rc.18",
+  "version": "5.4.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/syjkim0125/ai-workflow-kit.git"

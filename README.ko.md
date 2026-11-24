@@ -19,46 +19,6 @@ AI Workflow Kit은 Codex와 Claude Code에 작업 절차를 추가합니다. 무
 
 측정 방법, 전체 수치와 한계: [docs/EVALUATION.md](https://github.com/syjkim0125/ai-workflow-kit/blob/main/docs/EVALUATION.md) (영문).
 
-## 5.3.0 업데이트
-
-- **업데이트할 때 버전을 알려 줍니다.** `init`은 실행 중인 CLI 버전과 바꾼 버전을 `Updated AI Workflow Kit 5.2.0 → 5.3.0.`처럼 출력합니다. `doctor`는 `Kit version: CLI …, installed …` 줄을 출력합니다. 캐시된 옛 CLI가 돌면 그냥 "이미 최신"이라고 하지 않고 자기 버전 번호를 보여 줍니다. CLI가 설치된 버전보다 오래되면 더 새 버전의 파일을 검사할 수 없으므로 `doctor`가 실패합니다.
-- **버전이 섞인 설치를 알려 줍니다.** 관리 파일이 설치된 버전과 다르면, 포매터만 바꾼 경우라도 `doctor`가 경고하고, 그 경로를 지운 뒤 `init`을 다시 실행하라고 안내합니다.
-- **5.2.0에서 올리면** 기존 실행이 그대로 이어집니다. 그래프 런타임 파일과 역할 노드가 바뀌지 않았습니다. **5.0.x에서 올리면** 5.1.0을 npm에 배포하지 않았기 때문에 아래 5.1.0 변경도 함께 들어옵니다. 업데이트 전에 시작한 역할 실행은 `Role assignment or graph changed`로 멈춥니다. 새 역할 실행을 시작하세요.
-
-5.2.0에서 추가된 것:
-
-- **요구 정리 단계에서 대안을 직접 보여 줍니다.** 요청한 변경이 아직 크게 다르게 동작할 수 있으면, intake가 선택지 2~3개를 장단점과 추천 기본값과 함께 보여 줍니다. CE `ce-brainstorm`은 만들 기능 없이 목표만 있는 열린 요청이거나, 무엇을 만들지 모르겠다고 하거나, 직접 고를 때만 씁니다. 쓸 때는 에이전트가 먼저 알리고, 결과는 kit의 Story와 G1로 돌아옵니다.
-- **결제 렌즈가 되돌릴 기준을 묻습니다.** 가격이나 청구 규칙을 바꾸는 Story는 무엇이 되돌림(rollback)의 기준인지, 이미 발행된 청구는 어떻게 되는지 묻습니다.
-
-5.1.0에서 추가된 것:
-
-- **계획과 리뷰에 Superpowers의 단계별 스킬을 씁니다.** 계획은 Superpowers `writing-plans`로 세우고, 결과는 kit에 돌려줍니다. 실행과 사람 확인 단계는 kit이 계속 맡습니다. 리뷰는 Superpowers `requesting-code-review` 또는 같은 예산 안의 직접 검토로 합니다. CE `ce-plan`과 `ce-code-review`는 직접 고를 때 계속 쓸 수 있고, 검증된 교훈은 여전히 CE `ce-compound`로 기록합니다. 작은 프로젝트로 비교했을 때 이 경로는 CE와 같은 계획·리뷰 품질을 훨씬 적은 토큰으로 냈습니다.
-- **Pstack 출처를 공식 저장소로 고쳤습니다.** 포함된 검증 파일은 그대로이고, 출처 기록만 `cursor/plugins`를 가리킵니다.
-
-5.0.2에서 추가된 것:
-
-- **위험한 선택을 G1 전에 드러냅니다.** 이제 승인 뒤뿐 아니라 G1 전 질문 단계에서도 도메인 위험 렌즈를 읽습니다. 결제나 데이터·시스템 이관 Story에서 요구사항이나 사람이 정하지 않은 렌즈 항목은 `ASSUMED`로 넘기지 않고 `OPEN BLOCKING`으로 남깁니다. 예를 들면 옛 경로와 새 경로를 얼마나 함께 둘지, 롤백 기준, 실패하면 열어 둘지 닫을지, 두 데이터가 다르면 어느 쪽이 기준인지, 팀 간 배포 순서입니다.
-
-5.0.1에서 추가된 것:
-
-- **검증 스킬을 Story마다 새로 만들지 않고 재사용합니다.** 기존 프로젝트 스킬·가이드를 profile의 `recipe`로 연결합니다. 작업 입력과 실행 기록에 경로·해시가 남고, 레시피나 입력으로 선언한 기능 문서가 바뀌면 이전 증거는 stale이 됩니다. 기존 검증으로 부족할 때만 절차를 보완하거나 만듭니다.
-- **Pstack 검증 절차로 실제 제품을 실행합니다.** 예제는 Launch·Doctor·Drive·Evidence·Cleanup을 포함합니다. Superpowers가 같은 Graph 실행의 최신 증거를 확인하고, 전체 흐름은 kit이 관리합니다. [실행 예제](examples/verification/README.md)를 참고하세요.
-- **리뷰는 기본 3명으로 조정합니다.** 작은 변경은 0~2명, 명확한 전문 위험이 있으면 4~5명으로 조정합니다. 메인이 단순화와 결과 통합을 맡고, 내부 위임도 같은 예산에 포함합니다. 실제 인원 제한은 호스트가 적용합니다.
-- **검증 실행의 예외를 수정했습니다.** 분리된 자식이 출력 파이프를 유지해도 정해진 정리 시간 뒤 불완전한 수집을 실패로 기록합니다. `toString`, `hasOwnProperty` 같은 유효한 검사 ID도 실행 순서와 관계없이 사용할 수 있습니다.
-
-기존 프로젝트를 업데이트할 때는 `@latest` 대신 정확한 버전을 지정하고, 설치 전에 npx가 실제로 실행하는 CLI 버전을 확인하세요. 프로젝트의 `.npmrc`가 접속할 수 없는 사설 레지스트리를 가리키면, npx가 캐시된 옛 버전을 알리지 않고 실행할 수 있습니다. 정확한 버전을 지정하면 다른 버전의 캐시로 대신 실행되지 않습니다.
-
-```sh
-VERSION=$(npm view @pazmo/ai-workflow-kit version --registry=https://registry.npmjs.org/)
-npx @pazmo/ai-workflow-kit@$VERSION --version
-npx @pazmo/ai-workflow-kit@$VERSION init
-npx @pazmo/ai-workflow-kit@$VERSION doctor
-```
-
-`--version`이 `$VERSION`과 다른 값을 출력하면 멈추세요. `.npmrc`가 사설 레지스트리를 가리키는 프로젝트에서는 패키지 이름 앞에 `--registry=https://registry.npmjs.org/`를 넣으세요. 예: `npx --registry=https://registry.npmjs.org/ @pazmo/ai-workflow-kit@$VERSION init`. 패키지 이름 뒤에 두면 npm이 아니라 kit에 전달됩니다. `init`은 `Updated AI Workflow Kit 5.2.0 → 5.3.0.`처럼 두 버전을 출력하고, `doctor`는 `Kit version: CLI …, installed …` 줄을 출력합니다. 그다음 새 Codex 작업 또는 Claude Code 세션을 여세요. 사용자가 수정한 관리 파일은 보존하고 알려주므로, 새 지침을 수동 반영해야 하는지 확인하세요.
-
-**4.x에서 업데이트할 때:** 5.x는 실제 실행 기록을 요구하는 v3 형식을 사용합니다. [검증 가이드](skills/workflow/references/verification.md)에 따라 `.ai-workflow/verification.json`과 Story에 연결된 G1/G3 기록을 준비하세요. 기존 v1/v2는 조회 전용(`upgrade-required`)입니다. 기존 worker를 중지하고 증거·시도 기록을 보존한 뒤 v3에서 리뷰·검증해야 합니다. `graph delivery`는 최종 스냅샷에 연결된 실제 G4도 확인합니다. [전체 변경 이력](CHANGELOG.md)을 참고하세요.
-
 ## 시작하기
 
 **Node.js 20 이상**과 Codex 또는 Claude Code가 필요합니다. 작업할 프로젝트 폴더에서 실행하세요.
@@ -81,6 +41,21 @@ npx @pazmo/ai-workflow-kit doctor
 
 **ChatGPT:** 사용자 스킬을 지원하는 환경에서는 스킬이 자동 선택될 수 있습니다. 그래프 실행에는 Node.js와 프로젝트 파일 접근도 필요합니다. 일반 채팅만으로 전체 절차를 실행할 수는 없습니다.
 
+## 업데이트
+
+버전별 릴리스 노트: [docs/releases](https://github.com/syjkim0125/ai-workflow-kit/blob/main/docs/releases/README.ko.md). 전체 변경 이력: [CHANGELOG](CHANGELOG.md).
+
+기존 프로젝트를 업데이트할 때는 `@latest` 대신 정확한 버전을 지정하고, 설치 전에 npx가 실제로 실행하는 CLI 버전을 확인하세요. 프로젝트의 `.npmrc`가 접속할 수 없는 사설 레지스트리를 가리키면, npx가 캐시된 옛 버전을 알리지 않고 실행할 수 있습니다. 정확한 버전을 지정하면 다른 버전의 캐시로 대신 실행되지 않습니다.
+
+```sh
+VERSION=$(npm view @pazmo/ai-workflow-kit version --registry=https://registry.npmjs.org/)
+npx @pazmo/ai-workflow-kit@$VERSION --version
+npx @pazmo/ai-workflow-kit@$VERSION init
+npx @pazmo/ai-workflow-kit@$VERSION doctor
+```
+
+`--version`이 `$VERSION`과 다른 값을 출력하면 멈추세요. `.npmrc`가 사설 레지스트리를 가리키는 프로젝트에서는 패키지 이름 앞에 `--registry=https://registry.npmjs.org/`를 넣으세요. 예: `npx --registry=https://registry.npmjs.org/ @pazmo/ai-workflow-kit@$VERSION init`. 패키지 이름 뒤에 두면 npm이 아니라 kit에 전달됩니다. `init`은 `Updated AI Workflow Kit 5.3.0 → 5.4.0.`처럼 두 버전을 출력하고, `doctor`는 `Kit version: CLI …, installed …` 줄을 출력합니다. 그다음 새 Codex 작업 또는 Claude Code 세션을 여세요. 사용자가 수정한 관리 파일은 보존하고 알려주므로, 새 지침을 수동 반영해야 하는지 확인하세요.
+
 ## 작업 흐름
 
 ![요청, 범위 승인, 계획, 구현, 리뷰, 검증, 교훈 기록, 사람 확인 순서입니다. 리뷰나 검증이 실패하면 구현으로 돌아갑니다.](https://raw.githubusercontent.com/syjkim0125/ai-workflow-kit/22246e74aaf8480d9aa3071b351eea4196cd2c99/assets/readme/workflow-ko.png)
@@ -92,6 +67,8 @@ npx @pazmo/ai-workflow-kit doctor
 5. **리뷰하고 다시 검증합니다.** 문제가 있으면 고칩니다. 바뀐 코드로 다시 확인합니다.
 6. **쓸 만한 교훈을 남깁니다.** 확인된 내용만 저장합니다. 남길 것이 없으면 생략합니다.
 7. **사람이 결과를 확인합니다.** 변경을 직접 설명한 뒤 실제 결과와 비교합니다.
+
+**작은 변경은 바로 처리합니다.** 요청이 동작 하나와 그 위치를 말하고, 정할 것이 없고, 되돌릴 수 있는 한 모듈 안의 변경이면, 에이전트가 바로 고치고 말한 동작마다 테스트를 더해 돌린 뒤 보고합니다. Story, 승인, 서브에이전트를 건너뜁니다. 정할 것이 남으면 위 단계를 따릅니다.
 
 위험한 변경은 구현 전에 설계를 확인합니다. 테스트가 통과해도 kit이 자동으로 머지하거나 배포하지 않습니다.
 
@@ -129,7 +106,7 @@ npx @pazmo/ai-workflow-kit doctor
 
 G4에는 두 방식이 있습니다. 기본(`ai-summary`)에서는 에이전트가 변경을 번호 붙은 네 줄로 짧게 설명합니다. 사용자가 겪는 변화, 지킨 규칙과 실패할 때 동작, 확인한 테스트, 확인하지 못한 것입니다. 사람은 이를 명시적으로 승인합니다. G3가 필요했던 위험한 작업은 `human-restatement`를 씁니다. 설명보다 바뀐 코드와 테스트 결과를 먼저 보고 사람이 먼저 답합니다. 에이전트는 맞은 내용, 빠진 내용, 틀린 내용을 짚고, 사람은 수정된 내용을 자기 말로 다시 설명합니다.
 
-작은 변경은 규칙에 따라 G4를 생략할 수 있습니다. 구체적인 이유를 기록해야 합니다.
+작은 변경은 규칙에 따라 G4를 생략할 수 있습니다. 구체적인 이유를 기록해야 합니다. 바로 처리한 변경에는 G1과 G4가 없습니다. 다른 작은 커밋처럼 diff와 테스트를 직접 확인하세요.
 
 검사기는 **기록과 파일**을 검사합니다. 누가 승인했는지, 테스트 결과가 사실인지는 증명하지 못합니다. 사람과 실행 도구가 실제 승인과 증거를 제공해야 합니다.
 
