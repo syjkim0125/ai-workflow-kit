@@ -15,7 +15,7 @@ For each Story V ID, describe the real user entry point, preconditions, action, 
 
 ## Project profile
 
-Create `.ai-workflow/verification.json` (review it like executable code):
+Run `node .ai-workflow/bin/graph.mjs profile <story.md>` first: it writes this file from `package.json`, `tsconfig.json` or `gradlew` and never overwrites one. Edit it, or create `.ai-workflow/verification.json` by hand when detection fails (review it like executable code):
 
 ```json
 {
@@ -39,7 +39,7 @@ Keep generated run/result/log/approval files under `.ai-workflow/runs/`, `.ai-wo
 
 ## Bind human decisions
 
-Compute the canonical Story hash with installed `storyContract` from `.ai-workflow/graph/workflow.mjs`; it excludes Status and G1/G3/G4 metadata lines. Add the existing gate line pointing to an approval JSON. Populate only after the real human decision:
+Compute the canonical Story hash with installed `storyContract` from `.ai-workflow/graph/workflow.mjs`; it excludes Status, Lane and G1/G3/G4 metadata lines. A light-lane G1 JSON also records `lane: "light"`. Add the existing gate line pointing to an approval JSON. Populate only after the real human decision:
 
 ```json
 {"gate":"G1", "storyHash":"<canonical hash>", "responseRef":"<actual response reference>"}
@@ -47,7 +47,7 @@ Compute the canonical Story hash with installed `storyContract` from `.ai-workfl
 
 For a design requiring G3, set `requiresG3: true` and `design: "docs/design.md"` in the profile; the G3 JSON additionally has `decisionHash` (SHA-256 of design bytes). Obtain the decision before initialization/implementation. Small changes need no G3. Risk declaration belongs to the approved scope and reviewed profile, not a keyword classifier.
 
-G4 JSON additionally has the current Graph `snapshot` and `runId`; preserve prediction-before-reveal in `understanding-gate.md`. These bindings prevent accidental reuse; a host controlling repository files can forge records. They are not human identity authentication.
+G4 JSON additionally has the current Graph `snapshot` and `runId`, and a `mode` that matches the Story's G4 line. An `ai-summary` record also has `summary` (an array of the four lines shown) and `approvalText` (the human's reply). `graph delivery` rejects a missing or mismatched mode, an incomplete summary, and `ai-summary` in a run that requires G3. Follow the mode procedure in `understanding-gate.md`. These bindings prevent accidental reuse; a host controlling repository files can forge records. They are not human identity authentication.
 
 ## Run and inspect
 

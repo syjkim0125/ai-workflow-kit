@@ -1,13 +1,19 @@
 import fs from 'node:fs/promises';
+import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { normalizeEvaluation } from './executor.mjs';
 import { descendantIds, nodeById } from './task-graph.mjs';
 import { resetAffectedSubgraph } from './scheduler.mjs';
-import { digest, readJson, readProjectFile, updateRun } from './storage.mjs';
+import { digest, projectFile, readJson, readProjectFile, updateRun } from './storage.mjs';
 import { assertAssignment, assertRoleOutput, createRoleGraph } from './roles.mjs';
-import { approvalPath, boundApproval } from './approvals.mjs';
+import { approvalPath, boundApproval, checkG4Record, storyG4Mode } from './approvals.mjs';
 import { createSnapshot } from './snapshot.mjs';
-import { PROFILE, checkExecutions, needsExecution, runVerification, verificationProfile } from './verification.mjs';
+import { begin, complete } from './advance.mjs';
+import { BASELINE_NARROW, resolveChecks, writeProfile } from './profile.mjs';
+import { lightCommands, storyLane } from './light.mjs';
+import { findCopies } from './copies.mjs';
+import { approveG1, approveG4 } from './approve.mjs';
+import { PROFILE, checkExecutions, executeCheck, findReusableReceipt, indexReceipt, needsExecution, receiptTail, runCheck, runVerification, verificationProfile } from './verification.mjs';
 import { normalizeExecutionMetadata } from './execution-metadata.mjs';
 import {
   MAX_ATTEMPTS, MAX_QUESTIONS, assertWorkflowRun, checkRunEvidence, createWorkflowGraph, evidenceHashes,
@@ -18,6 +24,17 @@ export const GRAPH_HELP = `Graph commands (run from project root):
   graph.mjs init <plan.json|-> <run.json> <story.md>
   graph.mjs init-role <assignment.json> <run.json>
   graph.mjs status <run.json>
+  graph.mjs copies <file-or-folder>...           (parallel copies in sibling folders, before the Story)
+  graph.mjs approve G1 <story.md> --response <reply-file>
+  graph.mjs go <story.md> <run.json> [--scope <module-or-path>...]
+  graph.mjs approve G4 <run.json> --summary <four-lines-file> --response <reply-file> [--mode ai-summary|human-restatement]
+  graph.mjs profile <story.md> [--scope <module-or-path>]
+  graph.mjs baseline <run.json>                  (optional: repositories with known failures)
+  graph.mjs begin <run.json> <node-id>
+  graph.mjs complete <run.json> <node-id> [--verdict pass|fix|human|replan] [--notes <file>] [--tests <test>...]
+  graph.mjs light <story.md> <run.json>          (light lane: Lane: light in the Story)
+  graph.mjs check <run.json> [--tests <test>...]   (light lane)
+  graph.mjs review <run.json> --verdict pass|fix [--notes <file>]   (light lane)
   graph.mjs start <run.json> <node-id> <ready-token>
   graph.mjs record <run.json> <node-id> <result.json>
   graph.mjs verify <run.json> <node-id> <task-token> <check-id>
@@ -26,13 +43,37 @@ export const GRAPH_HELP = `Graph commands (run from project root):
   graph.mjs question <run.json> <node-id> <question.json>
   graph.mjs answer <run.json> <node-id> <answer.json>
   graph.mjs feedback <run.json> <node-id> <feedback.json>
-Use - for a minimal plan. The host executes work; this tool validates state/evidence and routes the next action.`;
+Use - for a minimal plan. begin/complete run a node in two calls; start/verify/record remain for advanced use.
+The host executes work; this tool validates state/evidence and routes the next action.`;
+
+// Only these commands take flags; every other argument stays positional.
+function splitFlags(command, raw) {
+  const allowed = { complete: ['verdict', 'notes', 'tests'], review: ['verdict', 'notes'], approve: ['response', 'summary', 'mode'],
+    go: ['scope'], init: ['scope'], light: ['scope'], check: ['tests'] }[command] ?? [];
+  const flags = {};
+  const values = [];
+  for (let index = 0; index < raw.length; index += 1) {
+    const name = raw[index].startsWith('--') ? raw[index].slice(2) : null;
+    if (name && allowed.includes(name)) {
+      if (index + 1 >= raw.length) throw new Error(`--${name} needs a value.`);
+      // --scope and --tests take every value up to the next flag, and may repeat.
+      if (name === 'scope' || name === 'tests') {
+        const list = (flags[name] ??= []);
+        do list.push(raw[++index]); while (index + 1 < raw.length && !raw[index + 1].startsWith('--'));
+      } else flags[name] = raw[++index];
+    } else values.push(raw[index]);
+  }
+  return { flags, values };
+}
 
 export async function runGraphCommand(args, { root = process.cwd(), checkArtifact, checkGate } = {}) {
   root = await fs.realpath(root);
-  const [command, ...values] = args;
+  const [command, ...raw] = args;
   if (!command || command === '--help') return { help: GRAPH_HELP };
-  const counts = { init: 3, 'init-role': 2, status: 1, delivery: 1, verify: 4, start: 3, record: 3, reset: 3, question: 3, answer: 3, feedback: 3 };
+  const { flags, values } = splitFlags(command, raw);
+  if (command === 'copies') return findCopies(root, values);
+  const counts = { init: 3, 'init-role': 2, status: 1, delivery: 1, verify: 4, start: 3, record: 3, reset: 3, question: 3, answer: 3, feedback: 3,
+    begin: 2, complete: 2, profile: 1, baseline: 1, light: 2, check: 1, review: 1, approve: 2, go: 2 };
   if (!Object.hasOwn(counts, command) || values.length !== counts[command]) throw new Error(GRAPH_HELP);
 
   const loadStory = async file => {
@@ -93,7 +134,7 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
     const text = await readProjectFile(root, run.story.path);
     const extra = run.verification ? [PROFILE, ...(run.verification.recipe ? [run.verification.recipe.path] : []),
       ...(run.verification.value.requiresG3 ? [run.verification.value.design] : [])] : [];
-    const runFile = command === 'init' || command === 'init-role' ? values[1] : values[0];
+    const runFile = ['init', 'init-role', 'light'].includes(command) ? values[1] : values[0];
     return createSnapshot({ root, inputs: run.verification?.value.inputs, additionalInputs: extra,
       story: run.story.path, exclude: [runFile, `${runFile}.lock`, ...['G1', 'G3', 'G4'].map(gate => approvalPath(text, gate)).filter(Boolean)] });
   };
@@ -137,25 +178,102 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
     const run = await updateRun(root, runFile, async () => {
       const next = newWorkflowRun(graph, story, contract);
       await bindings(next, contract, true);
+      if (next.verification) {
+        if (flags.scope) next.scope = flags.scope;
+        next.checkArgv = await resolveChecks(root, next.verification.value.checks, flags.scope);
+      }
       await snapshot(next);
       return next;
     }, { create: true });
     return status(run);
   }
+  const lane = lightCommands({ root, loadStory, checkGate, snapshot });
+  if (command === 'light') return lane.create(values[0], values[1], flags.scope);
+  if (command === 'check') {
+    if (flags.tests) await updateRun(root, values[0], async previous => ({ ...structuredClone(previous), tests: flags.tests,
+      checkArgv: await resolveChecks(root, previous.verification?.value.checks ?? [], previous.scope, flags.tests) }));
+    return lane.check(values[0]);
+  }
+  if (command === 'review') return lane.review(values[0], flags);
+  if ((command === 'status' || command === 'delivery') && (await readJson(root, values[0]))?.kind === 'light') return lane[command](values[0]);
   if (command === 'status' || command === 'delivery') {
     const run = await validate(await readJson(root, values[0]));
     const current = await status(run);
     if (command === 'status') return current;
     if (current.action !== 'g4' || run.kind !== 'delivery') throw new Error('Delivery requires fresh, completed v3 Graph verification.');
+    const mode = storyG4Mode(await readProjectFile(root, run.story.path));
     await boundApproval({ root, story: run.story.path, gate: 'G4', expected: {
       storyHash: run.story.fingerprint, snapshot: current.snapshot, runId: run.runId,
-    }, checkGate });
+    }, checkGate, validate: value => checkG4Record(value, { mode, requiresG3: Boolean(run.verification?.value.requiresG3) }) });
     return { ...current, action: 'delivered' };
   }
   if (command === 'verify') {
     const [runFile, nodeId, token, checkId] = values;
     const result = await runVerification({ root, runFile, nodeId, token, checkId, validate, snapshot });
     return { ...await status(result.run), verification: result.verification };
+  }
+  const call = argv => runGraphCommand(argv, { root, checkArtifact, checkGate });
+  if (command === 'profile') return writeProfile({ root, ids: (await loadStory(values[0])).ids });
+  if (command === 'approve') {
+    if (values[0] === 'G1') return approveG1({ root, story: values[1], response: flags.response, checkArtifact, checkGate });
+    if (values[0] === 'G4') return approveG4({ root, runFile: values[1], summary: flags.summary, response: flags.response, mode: flags.mode, call });
+    throw new Error('approve takes G1 <story.md> or G4 <run.json>.');
+  }
+  if (command === 'go') {
+    // One call from an approved Story to the first node's brief, or back to the node in progress.
+    const story = path.posix.normalize(values[0]);
+    const runFile = values[1];
+    const scope = (flags.scope ?? []).flatMap(entry => ['--scope', entry]);
+    const exists = await fs.access(await projectFile(root, runFile)).then(() => true, () => false);
+    if (exists) {
+      const owner = (await readJson(root, runFile)).story?.path;
+      if (path.posix.normalize(owner ?? '') !== story) throw new Error(`${runFile} belongs to another Story (${owner}); use a run file for ${story}.`);
+    } else await call(['profile', story]);
+    if (storyLane(await readProjectFile(root, story)) === 'light') return exists ? call(['status', runFile]) : call(['light', story, runFile, ...scope]);
+    if (!exists) await call(['init', '-', runFile, story, ...scope]);
+    const state = await call(['status', runFile]);
+    const nodeId = state.running[0] ?? state.ready[0]?.id;
+    return nodeId ? { run: runFile, ...await begin({ root, runFile, nodeId, call }) } : state;
+  }
+  if (command === 'baseline') {
+    // One run of every check on the code before the change; implementation waits for it.
+    const [runFile] = values;
+    const run = await validate(await readJson(root, runFile));
+    if (run.kind !== 'delivery' || !run.verification) throw new Error('Baseline needs a delivery run with a verification profile.');
+    if (storyLane(await readProjectFile(root, run.story.path)) === 'moved-up') {
+      throw new Error('This Story moved up from light: its code already changed, so there is no baseline to take. begin implement directly.');
+    }
+    const code = (await snapshot(run)).fingerprint;
+    const receipts = {};
+    const failing = [];
+    for (const check of run.verification.value.checks.map(entry => runCheck(run, entry))) {
+      let found = await findReusableReceipt(root, run, check, code);
+      if (!found) {
+        found = await executeCheck({ root, run, nodeId: 'baseline', token: null, check, snapshotBefore: code, snapshot });
+        await indexReceipt(root, runFile, check, found.receipt, found.file);
+      }
+      receipts[check.id] = { file: found.file, hash: found.hash };
+      if (!found.receipt.passed) failing.push(`${check.id}:\n${await receiptTail(root, found.receipt)}`);
+    }
+    if (failing.length) throw new Error(`Baseline failed before any change.\n${failing.join('\n')}\n${BASELINE_NARROW}`);
+    await updateRun(root, runFile, async previous => ({ ...structuredClone(previous),
+      baseline: { profile: run.verification.fingerprint, snapshot: code, receipts } }));
+    return { baseline: 'passed', checks: Object.keys(receipts), next: (await call(['status', runFile])).ready[0]?.id ?? null };
+  }
+  if (command === 'begin') {
+    // The baseline no longer gates implementation (RC 2): it sat on the critical path.
+    return begin({ root, runFile: values[0], nodeId: values[1], call });
+  }
+  if (command === 'complete') {
+    if (flags.tests) {
+      // Narrow the checks to the named tests for this run; later nodes reuse the same argv and receipts.
+      await updateRun(root, values[0], async previous => ({ ...structuredClone(previous), tests: flags.tests,
+        checkArgv: await resolveChecks(root, previous.verification?.value.checks ?? [], previous.scope, flags.tests) }));
+    }
+    return complete({ root, runFile: values[0], nodeId: values[1], verdict: flags.verdict, notesFile: flags.notes, call, snapshot,
+      loadRun: async () => validate(await readJson(root, values[0])),
+      indexReceipt: (check, receipt, file) => indexReceipt(root, values[0], check, receipt, file),
+      reuseReceipt: (run, check, code) => findReusableReceipt(root, run, check, code) });
   }
 
   const [runFile, nodeId, argument] = values;

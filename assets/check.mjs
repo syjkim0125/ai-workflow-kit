@@ -3,7 +3,12 @@ import { access, readFile, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const REQUIRED_STORY_HEADINGS = ['Goal', 'Domain', 'MUST', 'SHOULD', 'OUT', 'Decisions', 'Verify'];
+export const STORY_LAYOUTS = Object.freeze({
+  v1: Object.freeze(['Goal', 'Domain', 'MUST', 'SHOULD', 'OUT', 'Decisions', 'Verify']),
+  v2: Object.freeze(['Goal', 'Domain', 'Decisions', 'MUST', 'SHOULD', 'OUT', 'Verify']),
+});
+const REQUIRED_STORY_HEADINGS = STORY_LAYOUTS.v2;
+const RECORD_LINE = /^(?:(?:Status|Owner|Lane):|Understanding gate \(G[134]\):|G4:)/iu;
 const REQUIRED_TASK_HEADINGS = ['Outcome', 'Covers — Story M/V IDs', 'Scope', 'Constraints', 'Verify'];
 
 async function exists(file) {
@@ -32,10 +37,43 @@ function hasG4Pass(text) {
   return /^G4:\s*PASS\s*[—-]\s*\S.+$/imu.test(text);
 }
 
+function hasG4Approved(text) {
+  return /^G4:\s*APPROVED\s*[—-]\s*(?!<)\S.+$/imu.test(text);
+}
+
+const FENCE = /^\s*(?:`{3,}|~{3,})/u;
+
+/** Lines outside code fences. */
+function unfencedLines(text) {
+  const lines = [];
+  let fenced = false;
+  for (const line of text.split(/\r?\n/u)) {
+    if (FENCE.test(line)) { fenced = !fenced; continue; }
+    if (!fenced) lines.push(line);
+  }
+  return lines;
+}
+
+/** Every record of one gate outside code fences. */
+function gateLines(text, gate) {
+  return unfencedLines(text).map((line) => gateLine(line, gate)).filter(Boolean);
+}
+
+function duplicateGateErrors(text, gates) {
+  return gates.filter((gate) => gateLines(text, gate).length > 1)
+    .map((gate) => `Understanding gate (${gate}) must appear once; replace the existing line instead of adding another.`);
+}
+
+/** G4 mode from its gate record; a record without "Mode:" is the original human restatement. */
+export function g4Mode(record) {
+  const mode = record?.match(/\bMode:\s*([\w-]+)/iu)?.[1]?.toLowerCase();
+  return mode === 'ai-summary' ? 'ai-summary' : 'human-restatement';
+}
+
 // The publisher must recognize the same gate spelling/spacing as validation.
 export function isGateMetadataLine(line) {
   return ['G1', 'G3', 'G4'].some((gate) => Boolean(gateLine(line, gate)))
-    || /^Understanding gate \(G[134]\):\s*$/iu.test(line) || hasG4Pass(line);
+    || /^Understanding gate \(G[134]\):\s*$/iu.test(line) || hasG4Pass(line) || hasG4Approved(line);
 }
 
 function parseArtifact(record) {
@@ -107,6 +145,8 @@ export async function checkGate({ root = process.cwd(), file, gate }) {
     return { ok: false, errors: [`Cannot read Story: ${error.message}`] };
   }
 
+  const duplicates = duplicateGateErrors(text, [gate]);
+  if (duplicates.length) return { ok: false, errors: duplicates };
   const record = gateLine(text, gate);
   if (!record) {
     return { ok: false, errors: [`Missing Understanding gate (${gate}) record.`] };
@@ -136,7 +176,14 @@ export async function checkGate({ root = process.cwd(), file, gate }) {
   const resolved = await evidencePath({ root, artifact, gate });
   if (resolved.error) return { ok: false, errors: [resolved.error] };
 
-  if (gate === 'G4' && !hasG4Pass(text)) {
+  if (gate === 'G4' && g4Mode(record) === 'ai-summary') {
+    if (gateLines(text, 'G3').some((g3) => !/^<?pending\b/iu.test(g3))) {
+      return { ok: false, errors: ['A Story with a G3 decision needs G4 by human restatement (G4: PASS — …).'] };
+    }
+    if (!hasG4Approved(text)) {
+      return { ok: false, errors: ['G4 ai-summary needs the human approval record “G4: APPROVED — <owner> approved the AI summary”.'] };
+    }
+  } else if (gate === 'G4' && !hasG4Pass(text)) {
     return { ok: false, errors: ['G4 evidence exists, but the Story is missing an explicit “G4: PASS — <human restatement evidence>” record.'] };
   }
 
@@ -179,6 +226,61 @@ function verifyMappings(text) {
   return { lines, mapped };
 }
 
+/** Which Story layout the present headings follow: 'v1', 'v2', or null. */
+export function storyLayout(text) {
+  for (const [name, headings] of Object.entries(STORY_LAYOUTS)) {
+    const indexes = headings.map((heading) => headingIndex(text, heading));
+    if (indexes.every((value, index) => value >= 0 && (index === 0 || value > indexes[index - 1]))) return name;
+  }
+  return null;
+}
+
+/** Status, Owner, Lane, gate and G4 lines: Story records, not content. */
+export function isStoryRecordLine(line) {
+  return RECORD_LINE.test(line.trim());
+}
+
+/**
+ * Story record zones, fence-aware: the preamble before the first "##", and the
+ * footer — the final run of record and blank lines after Verify, optionally
+ * opened by "---". footerStart is the line index where the footer (with its
+ * "---") begins, or the line count when there is none.
+ */
+export function storyRecordZones(text) {
+  const lines = text.split(/\r?\n/u);
+  const preamble = [];
+  const fencedAt = [];
+  let fenced = false;
+  let inSections = false;
+  let verifyStart = -1;
+  lines.forEach((line, index) => {
+    const marker = FENCE.test(line);
+    if (marker) fenced = !fenced;
+    fencedAt[index] = fenced || marker;
+    if (!fencedAt[index] && /^##\s+/u.test(line)) {
+      inSections = true;
+      verifyStart = /^##\s+Verify\s*$/iu.test(line) ? index + 1 : -1;
+    } else if (!inSections) preamble.push(line);
+  });
+  let start = lines.length;
+  if (verifyStart >= 0) {
+    const plain = (index) => !fencedAt[index] && (isStoryRecordLine(lines[index]) || !lines[index].trim());
+    while (start > verifyStart && plain(start - 1)) start -= 1;
+    if (!lines.slice(start).some((line) => isStoryRecordLine(line))) start = lines.length;
+    else if (start > verifyStart && !fencedAt[start - 1] && /^---\s*$/u.test(lines[start - 1])) start -= 1;
+  }
+  const footer = lines.slice(start).filter((line) => !/^---\s*$/u.test(line));
+  return { preamble, footer, footerStart: start };
+}
+
+function requireStoryLayout(text, errors) {
+  const missing = REQUIRED_STORY_HEADINGS.filter((heading) => !hasHeading(text, heading));
+  for (const heading of missing) errors.push(`Missing Story section: ${heading}.`);
+  if (!missing.length && !storyLayout(text)) {
+    errors.push('Story sections are out of order; keep the canonical template order (Goal, Domain, Decisions, MUST, SHOULD, OUT, Verify).');
+  }
+}
+
 function requireOrderedHeadings(text, headings, errors, label) {
   const indexes = headings.map((heading) => headingIndex(text, heading));
   for (let index = 0; index < headings.length; index += 1) {
@@ -213,7 +315,28 @@ function checkTask(text) {
 
 function checkStoryShape(text) {
   const errors = [];
-  requireOrderedHeadings(text, REQUIRED_STORY_HEADINGS, errors, 'Story');
+  requireStoryLayout(text, errors);
+  if (storyLayout(text) === 'v2') {
+    const goal = sectionBody(text, 'Goal');
+    for (const [number, label] of [[1, 'As-is'], [2, 'To-be'], [3, 'Unchanged']]) {
+      if (!new RegExp(`^${number}\\.[\\t ]*${label}:[\\t ]*(?!<)\\S`, 'imu').test(goal)) {
+        errors.push(`Goal needs a "${number}. ${label}:" line.`);
+      }
+    }
+  }
+  const { preamble, footer } = storyRecordZones(text);
+  const records = [...preamble, ...footer];
+  for (const record of ['Status', 'Owner', 'Lane']) {
+    if (records.filter((line) => new RegExp(`^${record}:`, 'iu').test(line.trim())).length > 1) {
+      errors.push(`${record} must appear once; keep the record lines in the footer.`);
+    }
+  }
+  for (const line of records.filter((record) => /^Lane:/iu.test(record.trim()))) {
+    if (!/^Lane:[\t ]*(?:light|standard|standard \(from light:[\t ]*[^\s)][^)]*\))[\t ]*$/iu.test(line.trim())) {
+      errors.push('Lane must be "light", "standard", or "standard (from light: <reason>)".');
+    }
+  }
+  errors.push(...duplicateGateErrors(text, ['G1', 'G3', 'G4']));
 
   if (!/^#\s+Story:\s*(?!<|pending\b)\S.+$/imu.test(text)) errors.push('Story needs a descriptive “# Story:” title.');
   if (!/^Status:\s*(Draft|Approved|Delivered)\s*$/imu.test(text)) {

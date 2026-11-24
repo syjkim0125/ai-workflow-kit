@@ -386,3 +386,95 @@ test('mixed-case duplicate approval or status metadata is rejected', async () =>
     assert.equal(adapter.creates, 0);
   }
 });
+
+const v2Body = `# Story: readable publication
+
+## Goal
+1. As-is: publication is manual.
+2. To-be: the approved Story is published once.
+3. Unchanged: the Story file stays canonical.
+
+## Domain
+- Terms:
+  1. publication = one Jira issue per Story
+
+## Decisions
+- D1. ASSUMED: adapter
+  1. the adapter is supplied by the host
+
+## MUST
+- M1. original
+  1. preserve the original + keep its hash
+
+## SHOULD
+- S1. failures
+  1. explain failures
+
+## OUT
+- O1. no credentials in artifacts
+
+## Verify
+- V1 [M1]. Compare the original bytes.
+
+---
+Status: Approved
+Owner: fixture owner
+Understanding gate (G1): approval.md · 2026-09-08 · Check-in: accepted
+`;
+
+test('Jira preview accepts a v2 Story and drops the record footer', async () => {
+  const { formatStory } = await import('../src/jira.mjs');
+  const { preview } = formatStory(v2Body);
+  const order = [...preview.matchAll(/^##\s+(.+)$/gmu)].map((match) => match[1]);
+  assert.deepEqual(order, ['Goal', 'Domain', 'Decisions', 'MUST', 'SHOULD', 'OUT', 'Verify']);
+  assert.doesNotMatch(preview, /Status:|Owner:|Understanding gate/u);
+});
+
+test('footer inside a code fence is content', async () => {
+  const { formatStory } = await import('../src/jira.mjs');
+  const fenced = v2Body.replace('- V1 [M1]. Compare the original bytes.\n',
+    '- V1 [M1]. Compare the original bytes.\n```\n---\nStatus: sample output\n```\n');
+  const { preview } = formatStory(fenced);
+  assert.match(preview, /---\nStatus: sample output/u);
+  assert.doesNotMatch(preview, /Owner: fixture owner/u);
+});
+
+test('a v2 Story publishes with Status and G1 in the record footer', async () => {
+  const { publishStory } = await api();
+  const setup = await fixture(v2Body);
+  const adapter = transport();
+  const result = await publishStory({ ...setup, target, adapter, publish: true });
+  assert.equal(result.status, 'published');
+  assert.doesNotMatch(JSON.stringify(adapter.issues), /Status:|Owner:|Understanding gate/u);
+});
+
+test('fenced record lines cannot supply publication approval', async () => {
+  const { publishStory } = await api();
+  const fenced = v2Body.replace('\n---\nStatus: Approved\n', '\n---\n')
+    .replace('- V1 [M1]. Compare the original bytes.\n', '- V1 [M1]. Compare the original bytes.\n```\nStatus: Approved\n```\n');
+  const setup = await fixture(fenced);
+  await assert.rejects(publishStory({ ...setup, target, adapter: transport(), publish: true }), /Status|metadata/u);
+});
+
+test('an AI-summary approval line never leaks into the preview', async () => {
+  const { publishStory } = await api();
+  const text = body.replace('Status: Approved', 'Status: Delivered')
+    + '\nG4: APPROVED — Jane approved the AI summary\nUnderstanding gate (G4): private-review.md · 2026-11-12 · Check-in: accepted · Mode: ai-summary\n';
+  const setup = await fixture(text);
+  await fs.writeFile(path.join(setup.root, 'private-review.md'), 'Private approval evidence.');
+  const preview = await publishStory(setup);
+  assert.doesNotMatch(JSON.stringify(preview), /private-review|Jane|G4: APPROVED|Understanding gate/u);
+});
+
+test('trailing record lines without --- are dropped from the preview', async () => {
+  const { formatStory } = await import('../src/jira.mjs');
+  const { preview } = formatStory(v2Body.replace('\n---\n', '\n'));
+  assert.doesNotMatch(preview, /Status:|Owner:|Understanding gate/u);
+  assert.match(preview, /Compare the original bytes\./u);
+});
+
+test('a horizontal rule inside v1 Verify stays content', async () => {
+  const { formatStory } = await import('../src/jira.mjs');
+  const { preview } = formatStory(body.replace('- V2 [M2].', '---\n- V2 [M2].'));
+  assert.match(preview, /---\n- V2 \[M2\]\. Retry and count created issues\./u);
+});

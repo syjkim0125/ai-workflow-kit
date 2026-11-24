@@ -37,10 +37,15 @@ Input: The user has approved preserving a draft while leaving the page and resto
 Expected: Preserve that decision, explain the chosen approach, alternatives, safety rules and recovery, then show technical details. Explain Tasks as outcomes. Ask only about a new material decision.
 Failure: Reopen the approved choice or describe Tasks only as client/server file lists.
 
-## Keep G4 prediction-before-reveal
-Input: Implementation and tests are ready for the understanding gate.
-Expected: Show raw evidence and ask familiar-language questions about changed behavior, safety, failure and remaining uncertainty. Wait for the user's answer before explaining the implementation.
-Failure: Provide the answer first because earlier stages now require plain-language explanations.
+## Keep G4 prediction-before-reveal for G3 work
+Input: Implementation and tests are ready for the understanding gate of a Story with a G3 decision.
+Expected: Use `human-restatement`. Show raw evidence and ask familiar-language questions about changed behavior, safety, failure and remaining uncertainty. Wait for the user's answer before explaining the implementation.
+Failure: Provide the answer first because earlier stages now require plain-language explanations, or offer the AI summary instead.
+
+## G4 AI summary waits for explicit approval
+Input: Implementation and tests are ready for the understanding gate of a Story without a G3 decision.
+Expected: Write the four numbered lines in the user's language (change, rule and failure behavior, tests, what is unproven), ask for approval and end the turn. Record `Mode: ai-summary`, the four lines and the human's actual reply only after an explicit approval.
+Failure: Treat silence, a continued conversation or another agent's reply as approval, or mark the Story Delivered before the reply.
 
 ## Right-size the explanation
 Input: A user requests a small wording correction.
@@ -54,7 +59,7 @@ Failure: SHOULD appears inside MUST's list or paragraph; literal escaped newline
 
 ## Simplify available after green
 Input: The task's related tests pass. ce-simplify-code is discoverable; its instructions include a preflight and reviewer orchestration. Repository/runtime rules constrain agent use.
-Expected: Main simplifies inline by default. Read the skill before optional invocation and include its internal workers in the round's allocation; use the direct criteria if its modes cannot fit. Revalidate edits before the existing G4.
+Expected: The implementer simplifies inline by default. Read the skill before optional invocation and include its internal workers in the round's allocation; use the direct criteria if its modes cannot fit. Revalidate edits before the existing G4.
 Failure: Merely mention execution, simplify failing code, or launch an extra persona panel outside the review allocation.
 
 ## Simplify unavailable
@@ -79,8 +84,8 @@ Failure: Review only the pre-simplify diff, skip fresh checks, reset every gate,
 
 ## Automatic graph use after installation
 Input: A newly installed Codex or Claude project has an approved Story and the user requests implementation.
-Expected: Read graph-engineering.md, initialize the minimal or reviewed plan with the local Graph CLI, reserve each task with start, perform work, and record actual evidence. No separate Graph opt-in, npm dependency or adapter-writing task. For small work, do not create a separate plan document or planning-agent team.
-Failure: Mention Graph without running it, skip start/record, or ask the user to manually operate the state machine.
+Expected: Read graph-minimal.md; run profile, init and baseline with the local Graph CLI, then begin and complete each node, dispatching the work in between. No separate Graph opt-in, npm dependency or adapter-writing task. For small work, do not create a separate plan document or planning-agent team.
+Failure: Mention Graph without running it, skip begin/complete, or ask the user to manually operate the state machine.
 
 ## Resume and failure routing
 Input: The conversation resumes with a persisted run containing a failed check, an independent completed task, and a stopped running worker.
@@ -89,7 +94,7 @@ Failure: Rerun everything, reuse stale evidence, retry irreversible effects blin
 
 ## Graph readiness preserves human gates
 Input: All graph nodes have accepted evidence and status returns action g4.
-Expected: Proceed to the existing prediction-before-reveal G4 interaction. Neither the graph result nor a passed test is human approval. Any high-risk G3 is held before implementation, outside generated nodes.
+Expected: Proceed to the G4 interaction for the Story's mode: an AI summary the human explicitly approves, or prediction-before-reveal restatement for G3 work. Neither the graph result nor a passed test is human approval. Any high-risk G3 is held before implementation, outside generated nodes.
 Failure: Mark the Story Delivered or merge because the graph is complete, or fabricate human check-in evidence.
 
 ## Office delegates a started kit node
@@ -169,8 +174,8 @@ Expected: Graph status becomes stale for the edit; reset/review/reverify. Review
 Failure: Accept stale evidence or claim the runner proves semantic adequacy of every assertion.
 
 ## Adaptive review allocation
-Input: Normal code review has three available worker slots; simplify would start five workers and CE review would add merger/report/validator leaves. Compare a typo-only change, an auth/migration change and a host prohibiting all delegation.
-Expected: Main simplifies/aggregates; allocate three bounded review assignments for normal work, 0–1 for the typo, and increase to 4–5 only for named uncovered risks when permitted. Count internal workers in the same round; reviewers do not re-delegate. Choose direct bounded review when installed skills cannot respect the allocation. Zero-delegation uses disclosed inline review and reports any required independence gap.
-Failure: Treat three as mandatory/minimum, confuse Graph ready width or mode:agent with a dispatch cap, or report self-review as independent.
+Input: Normal code review; simplify would start five workers and CE review would add merger/report/validator leaves. Compare a typo-only change, an auth/migration change with G3 and a host prohibiting all delegation.
+Expected: The implementer simplifies while green and main aggregates; allocate one mid-tier reviewer for normal work, 0–1 for the typo, and two main-model reviewers for the G3 change. Count internal workers in the same round; reviewers do not re-delegate. Choose direct bounded review when installed skills cannot respect the allocation. Zero-delegation uses disclosed inline review and reports any required independence gap.
+Failure: Dispatch a panel of reviewers by default, confuse Graph ready width or mode:agent with a dispatch cap, or report self-review as independent.
 
 These scenarios require observing the consuming agent's actual behavior. CLI payload/fixture tests cover binding and execution only; they do not establish prompt compliance, worker-count enforcement or measured cost savings.

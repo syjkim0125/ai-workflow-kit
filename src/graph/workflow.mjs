@@ -147,7 +147,7 @@ export function taskInput(run, nodeId) {
         .map(({ id, covers }) => ({ id, covers })),
     } } : {}),
     ...(nodeId === 'workflow-review' || (isRoleRun(run) && run.assignment.value.role === 'reviewer' && nodeId === 'review') ? {
-      reviewBudget: { defaultAgents: 3, smallChangeAgents: [0, 2], highRiskAgents: [4, 5], scope: 'whole-review-round',
+      reviewBudget: { defaultAgents: 1, smallChangeAgents: [1, 1], highRiskAgents: [2, 2], scope: 'whole-review-round',
         nestedDelegation: false, dispatchOwner: 'host', aggregation: 'caller' },
     } : {}),
     ...(isRoleRun(run) ? { assignment: run.assignment.value } : {}),

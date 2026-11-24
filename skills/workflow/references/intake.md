@@ -6,11 +6,17 @@ For a PM assignment, perform only intake and return the Story proposal or questi
 
 Derive before asking: actor, desired outcome, terms/entities, state change, invariant/forbidden outcome, failure, external side effect, and observable evidence.
 
+## Explore with a subagent
+
+Before asking or drafting, explore. With subagents, the Story subagent (`fast-path.md` step 1, a strong tier) explores first, at most 12 tool calls, then drafts the Story and returns a map of at most 15 lines: files involved, current behavior, constraints (tests, contracts, callers) and the test command. Whoever drafts the Story (the Story subagent or the main session) first runs `node .ai-workflow/bin/graph.mjs copies <files or folders the change touches>` and follows the rule it prints: parallel copies that have the behavior are in To-be unless the request names one with a word the code uses for it (cite `file:line`), else `OPEN BLOCKING`; never ASSUMED one copy and the rest into OUT. `D1. Copies:` gives the list and the decision. One explorer saves a serial step: exploration and drafting happen in one context. Hosts without subagents read the code in the main session. Pass the map on to the implementer.
+
 ## Question policy
 
 - Ask **only blocking** unknowns that change behavior, ownership, or failure semantics.
 - Ask one decision per turn by default; **at most three** independent, closely related questions.
 - Stop after **two question rounds**. Draft with safe defaults labeled `ASSUMED`; keep unsafe gaps as `OPEN BLOCKING`.
+- Every sentence of the request maps to a MUST, or to OUT with the reason. A request that asks for two things (add a line here, branch the text there) gets both; never pick one.
+- `ASSUMED` defaults come from the code, not from new design. Change the place where the request's text or area already is, and branch on values the touched code already receives. A new signal, a new screen area or a new dependency needs a reason in the Decision line.
 - Apply the matching lenses in `domain-risks.md` before drafting. In a Payment/money or Data or system migration Story, a lens item that changes behavior and that neither the requirement nor a human settled is `OPEN BLOCKING`, never `ASSUMED`; reasonable people could pick either side.
 - Never ask implementation or **HOW** questions before the contract is clear. Database, queue, lock, and file choices belong to planning.
 - Offer a concrete default rather than an open questionnaire when a conventional safe choice exists.
@@ -28,19 +34,29 @@ Cover these points in a few connected sentences:
 
 Explain observable behavior here, not implementation choices. Label a suspected cause as a hypothesis. Use an analogy only when it clarifies the real behavior, and connect it back to that behavior. For a simple change, one or two sentences are enough. Do not force a diagram, quiz, separate explainer artifact, or another approval round.
 
-Put this explanation at the start of the Story's Goal section, with the formal criteria and technical evidence below it. It is part of the same contract, not a second requirements source. The reader should be able to judge the desired outcome before seeing field names, gate IDs or commands.
+In the Story, this explanation becomes the Goal's three lines (As-is, To-be, Unchanged); the formal criteria and technical evidence follow in the later sections. It is part of the same contract, not a second requirements source. The reader should be able to judge the desired outcome before seeing field names, gate IDs or commands.
 
 ## Output recipe
 
 Create one Story from `../assets/STORY.md`:
 
-1. Goal: actor + observable outcome.
-2. Domain: terms and business invariants only.
-3. MUST: numbered positive and negative behavior.
-4. SHOULD: useful but non-blocking behavior.
-5. OUT: explicit exclusions that prevent scope expansion.
-6. Decisions: human choices, `ASSUMED`, and material open items.
+1. Goal: exactly three numbered lines — `1. As-is:` (what happens today and why it hurts), `2. To-be:` (what happens after), `3. Unchanged:` (what must stay as it is).
+2. Domain: `Terms:` and `Invariant:` as numbered lists, one item per line, never comma-joined. Code identifiers are fine.
+3. Decisions: human choices, `ASSUMED`, and material open items. They sit above MUST so the reader judges them first.
+4. MUST: numbered positive and negative behavior.
+5. SHOULD: useful but non-blocking behavior.
+6. OUT: explicit exclusions that prevent scope expansion.
 7. Verify: V# cases mapped to M#; include success and failure.
+8. Record footer: after Verify, a `---` line, then `Status:`, `Owner:`, `Lane:` and the gate lines. Write `Lane: light` only when all five rules in `light-lane.md` hold; otherwise `Lane: standard`.
+
+Item shape for D, M, S and O:
+
+- The item line is a short title: the condition, case or area.
+- Details go in nested numbers under it.
+- Results that happen together share one line, joined with `+`.
+- A new nested number means a different action or a different result.
+- A purpose, explanation or evidence goes in parentheses on the title line or on the same line. It is not its own number.
+- An item that its title says completely has no nested numbers.
 
 Keep it one-screen by default. Do not copy it into an “AI spec.”
 
@@ -76,7 +92,7 @@ Show the full concise draft, beginning with the plain-language explanation above
 
 `Understanding gate (G1): <artifact> · <date> · Check-in: accepted`
 
-Then verify instead of assuming. Write `Status: Approved` and the G1 record first, then run
+`node .ai-workflow/bin/graph.mjs approve G1 <story-file> --response <reply-file>` writes the approval JSON, the gate line and `Status: Approved`, then runs both checks. By hand: verify instead of assuming. Write `Status: Approved` and the G1 record first, then run
 both checks and report both exit codes:
 
 ```
@@ -93,4 +109,4 @@ unless both exit 0, and never claim the gate passed without that output.
 
 No approval means no implementation.
 
-For new v3 Graph runs, the G1 artifact must be JSON with `gate: "G1"`, canonical `storyHash`, and `responseRef` to the actual user decision. Store it under `.ai-workflow/approvals/`; `verification.md` gives the binding format. Document shape checks alone do not prove approval binding or delivery.
+For new v3 Graph runs, the G1 artifact must be JSON with `gate: "G1"`, canonical `storyHash`, and `responseRef` to the actual user decision. A `Lane: light` Story's G1 JSON also has `lane: "light"`. Store it under `.ai-workflow/approvals/`; `verification.md` gives the binding format. Document shape checks alone do not prove approval binding or delivery.

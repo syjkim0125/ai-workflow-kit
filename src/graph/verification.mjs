@@ -5,6 +5,14 @@ import { digest, projectFile, readJson, updateRun } from './storage.mjs';
 import { taskToken } from './workflow.mjs';
 
 export const PROFILE = '.ai-workflow/verification.json';
+/** A profile check as this run executes it: its argv with the run's scope resolved. */
+export const runCheck = (run, check) => ({ ...check, argv: run.checkArgv?.[check.id]
+  ?? check.argv.filter(arg => !['{scope}', '{gradle-tests}'].includes(arg)).map(arg => (arg === '{gradle-test}' ? 'test' : arg)) });
+
+/** Reuse key: the same check (id, argv, timeout) on the same code snapshot. */
+export const receiptKey = (check, snapshot) =>
+  `${check.id}:${digest(JSON.stringify({ argv: check.argv, timeoutMs: check.timeoutMs ?? null }))}:${snapshot}`;
+
 export const needsExecution = (run, nodeId) => nodeId === 'workflow-verify'
   || (run.kind === 'role' && run.assignment.value.role === 'developer' && nodeId === 'self-check');
 
@@ -36,14 +44,19 @@ export async function verificationProfile(root, ids) {
   return { value, fingerprint: digest(JSON.stringify(value)), ...(recipe ? { recipe } : {}) };
 }
 
-async function execute(argv, root, timeoutMs) {
+const killGroupOf = child => signal => (process.platform === 'win32' ? child.kill(signal) : process.kill(-child.pid, signal));
+
+// A kill that fails while cleaning up after the command (a sandbox can refuse to signal a
+// forked build daemon) is recorded as cleanupError; it never fails a command that exited 0.
+export async function execute(argv, root, timeoutMs, { killGroup } = {}) {
   return new Promise(resolve => {
     const stdout = [], stderr = [];
-    let bytes = 0, timedOut = false, truncated = false, spawnError, killer, settled = false;
+    let bytes = 0, timedOut = false, truncated = false, spawnError, cleanupError, killer, settled = false;
     const child = spawn(argv[0], argv.slice(1), { cwd: root, shell: false, detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'] });
+    const signalGroup = killGroup ?? killGroupOf(child);
     const kill = signal => {
-      try { process.platform === 'win32' ? child.kill(signal) : process.kill(-child.pid, signal); }
-      catch (error) { if (error.code !== 'ESRCH') spawnError ??= error.message; }
+      try { signalGroup(signal); }
+      catch (error) { if (error.code !== 'ESRCH') cleanupError ??= error.message; }
     };
     const finish = (exitCode, signal, outputIncomplete = false) => {
       if (settled) return;
@@ -51,7 +64,7 @@ async function execute(argv, root, timeoutMs) {
       clearTimeout(timer); clearTimeout(killer);
       if (process.platform !== 'win32' && child.pid) kill('SIGKILL');
       if (outputIncomplete) { child.stdout.destroy(); child.stderr.destroy(); child.unref(); }
-      resolve({ exitCode, signal, timedOut, truncated, outputIncomplete, ...(spawnError ? { spawnError } : {}), stdout: Buffer.concat(stdout), stderr: Buffer.concat(stderr) });
+      resolve({ exitCode, signal, timedOut, truncated, outputIncomplete, ...(spawnError ? { spawnError } : {}), ...(cleanupError ? { cleanupError } : {}), stdout: Buffer.concat(stdout), stderr: Buffer.concat(stderr) });
     };
     const stop = () => {
       if (settled) return;
@@ -81,10 +94,15 @@ async function execute(argv, root, timeoutMs) {
 export async function checkExecutions(root, run, nodeId, { requirePass = false } = {}) {
   const state = run.state.nodes[nodeId];
   const receipts = [];
-  for (const binding of Object.values(state.executions ?? {})) {
+  for (const [checkId, binding] of Object.entries(state.executions ?? {})) {
     if (binding.pending) { if (requirePass) throw new Error('Verification execution is still running.'); continue; }
     const receipt = await readJson(root, binding.file);
-    if (digest(JSON.stringify(receipt)) !== binding.hash || receipt.token !== taskToken(run, nodeId)
+    // A reused receipt was produced earlier in this run for the same check and snapshot.
+    const owned = binding.reused
+      ? run.receipts?.[binding.reused]?.file === binding.file && run.receipts[binding.reused].hash === binding.hash
+        && receipt.checkId === checkId && receipt.passed === true
+      : receipt.token === taskToken(run, nodeId);
+    if (digest(JSON.stringify(receipt)) !== binding.hash || !owned
       || receipt.runId !== run.runId || receipt.storyHash !== run.story.fingerprint) throw new Error('Verification receipt changed or belongs to stale work.');
     for (const stream of ['stdout', 'stderr']) {
       const bytes = await fs.readFile(await projectFile(root, receipt[stream]));
@@ -105,46 +123,92 @@ export async function checkExecutions(root, run, nodeId, { requirePass = false }
   return receipts;
 }
 
-export async function runVerification({ root, runFile, nodeId, token, checkId, validate, snapshot }) {
-  const executionId = randomUUID();
-  const reserved = await updateRun(root, runFile, async previous => {
-    const run = structuredClone(previous);
-    await validate(run);
-    if (run.version !== 3 || !needsExecution(run, nodeId) || run.question
-      || run.state.nodes[nodeId]?.status !== 'running' || token !== taskToken(run, nodeId)) throw new Error('Verification requires the current running verification task token.');
-    const check = run.verification.value.checks.find(check => check.id === checkId);
-    if (!check) throw new Error('Unknown verification check.');
-    if (Object.hasOwn(run.state.nodes[nodeId].executions ?? {}, checkId)) throw new Error('Check already executed in this attempt; reset before retrying.');
-    const before = (await snapshot(run)).fingerprint;
-    if (before !== run.state.nodes[nodeId].snapshot) throw new Error('Verification snapshot is stale; reset affected work.');
-    run.state.nodes[nodeId].executions ??= {};
-    run.state.nodes[nodeId].executions[checkId] = { pending: executionId };
-    return run;
+/** A passing receipt from this run for the same check and snapshot, if its file is intact. */
+export async function findReusableReceipt(root, run, check, snapshot) {
+  const indexed = run.receipts?.[receiptKey(check, snapshot)];
+  if (!indexed) return null;
+  const receipt = await readJson(root, indexed.file);
+  if (digest(JSON.stringify(receipt)) !== indexed.hash || !receipt.passed || receipt.runId !== run.runId
+    || receipt.snapshotBefore !== snapshot || receipt.snapshotAfter !== snapshot) return null;
+  return { receipt, file: indexed.file, hash: indexed.hash };
+}
+
+/** Index a passing receipt so later nodes on the same snapshot reuse it. */
+export async function indexReceipt(root, runFile, check, receipt, file) {
+  if (!receipt.passed) return;
+  await updateRun(root, runFile, async previous => {
+    if (previous.runId !== receipt.runId) throw new Error('Receipt belongs to another run.');
+    return { ...structuredClone(previous), receipts: { ...previous.receipts,
+      [receiptKey(check, receipt.snapshotBefore)]: { file, hash: digest(JSON.stringify(receipt)) } } };
   });
-  const check = reserved.verification.value.checks.find(check => check.id === checkId);
-  const directory = `.ai-workflow/evidence/${reserved.runId}/${executionId}`;
+}
+
+/** Run one profile check against the current code and write its receipt and raw logs. */
+export async function executeCheck({ root, run, nodeId, token, check, snapshotBefore, snapshot, executionId = randomUUID() }) {
+  const directory = `.ai-workflow/evidence/${run.runId}/${executionId}`;
   await fs.mkdir(await projectFile(root, directory), { recursive: true, mode: 0o700 });
   const startedAt = new Date().toISOString();
   const result = await execute(check.argv, root, check.timeoutMs ?? 30000);
-  const receipt = { version: 1, runId: reserved.runId, storyHash: reserved.story.fingerprint, nodeId, token, checkId, covers: check.covers,
-    ...(reserved.verification.recipe ? { recipe: reserved.verification.recipe } : {}),
+  const receipt = { version: 1, runId: run.runId, storyHash: run.story.fingerprint, nodeId, token, checkId: check.id, covers: check.covers,
+    ...(run.verification.recipe ? { recipe: run.verification.recipe } : {}),
     argv: check.argv, cwd: '.', startedAt, finishedAt: new Date().toISOString(),
     ...result, stdout: `${directory}/stdout.log`, stderr: `${directory}/stderr.log`,
     stdoutHash: digest(result.stdout), stderrHash: digest(result.stderr),
-    snapshotBefore: reserved.state.nodes[nodeId].snapshot, snapshotAfter: null };
+    snapshotBefore, snapshotAfter: null };
   for (const stream of ['stdout', 'stderr']) await fs.writeFile(await projectFile(root, receipt[stream]), result[stream], { flag: 'wx', mode: 0o600 });
-  try { receipt.snapshotAfter = (await snapshot(reserved)).fingerprint; }
+  try { receipt.snapshotAfter = (await snapshot(run)).fingerprint; }
   catch (error) { receipt.snapshotError = error.message; }
   receipt.passed = receipt.exitCode === 0 && !receipt.signal && !receipt.timedOut && !receipt.truncated && !receipt.outputIncomplete && !receipt.spawnError
     && !receipt.snapshotError && receipt.snapshotBefore === receipt.snapshotAfter;
   const file = `${directory}/receipt.json`;
   await fs.writeFile(await projectFile(root, file), `${JSON.stringify(receipt, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
+  return { receipt, file, hash: digest(JSON.stringify(receipt)) };
+}
+
+/** The last lines of a failed check's output, for feedback that fits in a compact result. */
+export async function receiptTail(root, receipt, lines = 20) {
+  // Both streams: Gradle and others print the failure to stdout and only JVM notices to stderr.
+  const read = async stream => (await fs.readFile(await projectFile(root, receipt[stream]))).toString('utf8');
+  const noise = /^Picked up (?:JAVA_TOOL_OPTIONS|_JAVA_OPTIONS|JDK_JAVA_OPTIONS)/;
+  const kept = [...(await read('stdout')).split(/\r?\n/), ...(await read('stderr')).split(/\r?\n/)]
+    .filter(line => line.trim() && !noise.test(line.trim()));
+  const text = kept.length ? kept.slice(-lines).join('\n')
+    : (receipt.timedOut ? 'timed out' : receipt.spawnError ?? `exit ${receipt.exitCode}`);
+  return text.slice(-1500);
+}
+
+export async function runVerification({ root, runFile, nodeId, token, checkId, validate, snapshot }) {
+  const executionId = randomUUID();
+  let reused;
+  const reserved = await updateRun(root, runFile, async previous => {
+    const run = structuredClone(previous);
+    await validate(run);
+    if (run.version !== 3 || !needsExecution(run, nodeId) || run.question
+      || run.state.nodes[nodeId]?.status !== 'running' || token !== taskToken(run, nodeId)) throw new Error('Verification requires the current running verification task token.');
+    const found = run.verification.value.checks.find(check => check.id === checkId);
+    if (!found) throw new Error('Unknown verification check.');
+    const check = runCheck(run, found);
+    if (Object.hasOwn(run.state.nodes[nodeId].executions ?? {}, checkId)) throw new Error('Check already executed in this attempt; reset before retrying.');
+    const before = (await snapshot(run)).fingerprint;
+    if (before !== run.state.nodes[nodeId].snapshot) throw new Error('Verification snapshot is stale; reset affected work.');
+    run.state.nodes[nodeId].executions ??= {};
+    reused = await findReusableReceipt(root, run, check, before);
+    run.state.nodes[nodeId].executions[checkId] = reused
+      ? { file: reused.file, hash: reused.hash, reused: receiptKey(check, before) }
+      : { pending: executionId };
+    return run;
+  });
+  if (reused) return { run: reserved, verification: { ...reused.receipt, receipt: reused.file, reused: true } };
+  const check = runCheck(reserved, reserved.verification.value.checks.find(check => check.id === checkId));
+  const { receipt, file } = await executeCheck({ root, run: reserved, nodeId, token, check, executionId,
+    snapshotBefore: reserved.state.nodes[nodeId].snapshot, snapshot });
   const run = await updateRun(root, runFile, async previous => {
     const next = structuredClone(previous);
     await validate(next);
     if (token !== taskToken(next, nodeId) || next.state.nodes[nodeId].status !== 'running'
       || next.state.nodes[nodeId].executions?.[checkId]?.pending !== executionId) throw new Error('Late verification result rejected after reset/answer.');
     next.state.nodes[nodeId].executions[checkId] = { file, hash: digest(JSON.stringify(receipt)) };
+    if (receipt.passed) next.receipts = { ...next.receipts, [receiptKey(check, receipt.snapshotBefore)]: next.state.nodes[nodeId].executions[checkId] };
     return next;
   });
   return { run, verification: { ...receipt, receipt: file } };

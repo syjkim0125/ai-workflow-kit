@@ -2,10 +2,9 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
-import { checkArtifact, checkGate, isGateMetadataLine } from '../assets/check.mjs';
+import { STORY_LAYOUTS, checkArtifact, checkGate, isGateMetadataLine, storyRecordZones } from '../assets/check.mjs';
 import { safePath } from './install-transaction.mjs';
 
-const HEADINGS = ['Goal', 'Domain', 'MUST', 'SHOULD', 'OUT', 'Decisions', 'Verify'];
 const hash = (value) => createHash('sha256').update(value).digest('hex');
 const textNode = (text) => ({ type: 'text', text });
 const paragraph = (text) => ({ type: 'paragraph', content: [textNode(text)] });
@@ -16,21 +15,21 @@ export function formatStory(text) {
   if (!summary || summary.length > 255) throw new Error('Story title is missing or exceeds 255 characters.');
   const sections = [];
   let fenced = false;
-  let trailingGates = false;
-  for (const line of text.replace(/\r\n/g, '\n').split('\n')) {
+  // Only the trailing record block after Verify (optionally opened by "---") is
+  // metadata; the checker reads the same zones. Similarly named prose stays content.
+  const normalized = text.replace(/\r\n/g, '\n');
+  const { footerStart } = storyRecordZones(normalized);
+  for (const line of normalized.split('\n').slice(0, footerStart)) {
     if (/^\s*(?:`{3,}|~{3,})/.test(line)) fenced = !fenced;
-    // Only a trailing gate block after Verify is metadata, not similarly named prose.
-    const gateLine = isGateMetadataLine(line);
-    if (!fenced && sections.at(-1)?.heading === 'Verify' && gateLine) trailingGates = true;
-    if (trailingGates) {
-      if (gateLine || !line.trim()) continue;
+    if (!fenced && sections.at(-1)?.heading === 'Verify' && isGateMetadataLine(line)) {
       throw new Error('Gate metadata must follow all Verify content or move to the Story preamble.');
     }
     const heading = !fenced && line.match(/^##\s+(.+?)\s*$/);
     if (heading) sections.push({ heading: heading[1], lines: [] });
     else if (sections.length) sections.at(-1).lines.push(line);
   }
-  if (!isDeepStrictEqual(sections.map((section) => section.heading), HEADINGS) || fenced) {
+  const headings = sections.map((section) => section.heading);
+  if (!Object.values(STORY_LAYOUTS).some((layout) => isDeepStrictEqual(headings, [...layout])) || fenced) {
     throw new Error('Story needs exactly the seven canonical sections in order and closed code fences.');
   }
   const content = [];
@@ -108,15 +107,17 @@ export async function publishStory({ root = process.cwd(), file, target, adapter
   if (!shape.ok) throw new Error('Story validation failed (shape or G1/G4 evidence). Run the local checker privately to inspect the details.');
   const preview = { status: 'preview', ...formatted };
   if (publish !== true || !adapter || !target?.project || !target?.siteUrl) return preview;
-  const metadata = original.slice(0, /^##[\t ]+/m.exec(original)?.index ?? 0);
-  if (!metadata.split(/\r?\n/).every((line) => /^(?:\s*|# Story: .+|Status: .+|Owner: .+|Understanding gate \(G[134]\): .+|G4: .+)$/.test(line))) {
+  // Records live in the preamble (v1) or the trailing footer after Verify (v2), outside fences.
+  const zones = storyRecordZones(original);
+  if (!zones.preamble.every((line) => /^(?:\s*|# Story: .+|Status: .+|Owner: .+|Lane: .+|Understanding gate \(G[134]\): .+|G4: .+)$/.test(line))) {
     throw new Error('Jira publication requires plain Story metadata; comments, fences and other blocks are not allowed in the preamble.');
   }
+  const metadata = [...zones.preamble, ...zones.footer].join('\n');
   const statuses = [...metadata.matchAll(/^Status:[\t ]*(.+)$/gmi)];
   const approvals = [...original.matchAll(/^Understanding gate \(G1\):.*$/gmi)];
   if (statuses.length !== 1 || !/^Status:[\t ]*(Approved|Delivered)[\t ]*\r?$/mi.test(metadata)
     || approvals.length !== 1 || !metadata.includes(approvals[0][0])) {
-    throw new Error('Jira publication requires one Approved Status and one G1 record in the Story metadata.');
+    throw new Error('Jira publication requires one Approved Status and one G1 record in the Story metadata (preamble or record footer).');
   }
   const gate = await checkGate({ root, file: storyFile, gate: 'G1' });
   if (!gate.ok) throw new Error('Jira publication requires valid G1 evidence. Run the local checker privately.');

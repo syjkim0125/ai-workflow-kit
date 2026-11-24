@@ -1,5 +1,62 @@
 # Changelog
 
+## 5.4.0 — 2026-11-24
+
+Release notes: [docs/releases/5.4.0.md](docs/releases/5.4.0.md). Release candidates `5.4.0-rc.1` to `5.4.0-rc.18` were internal evaluation builds and were not published to npm; their entries below say what each changed.
+
+### Fast path (rc.2)
+
+- `approve G1|G4` writes the bound approval JSON, the Story's footer lines and Status from the human's saved reply, then runs the checks; G4 ends with the delivery check.
+- `go` turns an approved Story into the first node's brief in one call; `complete` begins the next node itself; `begin` is idempotent.
+- One review round per run. The baseline is optional; `profile --scope` keeps checks on the touched module or path.
+- rc.18: keeps rc.17's direct lane and brings back the review subagent and the implementer's single RED run. Measured on rc.17, the direct lane ran the smallest task for less than a plain session, but implementers limited to `complete` used it as their test loop and the median run cost rose from $1.16 to $1.63. The fast-path size budget grows from 5400 to 5900 bytes for the direct lane.
+- rc.17: a direct lane for a small change that leaves nothing to decide (one stated behavior, no parallel copy, nothing to assume or ask, light-lane rules hold): the main session edits, adds one focused test per stated behavior and reports, with no Story, gates or subagents. No reviewer subagent: the implementer writes a self-check (each MUST and Verify item to `file:line` or a test, unmet items) and the G4 lines; an unmet item goes back to it once. The implementer runs tests only through `complete` or `check`, with no separate compile, test or RED run. In the internal evaluation every reviewer verdict was `pass`, and the fixed pipeline cost more than a plain session's whole run on small changes.
+- rc.13: `graph.mjs copies <file-or-folder>...` lists parallel copies of the code a change touches: files or folders with the same name and parent folder (ignoring case) elsewhere in the project, closest first. Whoever drafts the Story, the Story subagent or the main session, runs it first and follows the rule it prints; the first Decisions line, `D1. Copies:`, gives the list and the decision.
+- rc.12: SKILL.md routes to the six fast-path steps that exist (1–2, 3–5, 6); it still named steps 1–3, 4–8 and 9 from before rc.8.
+- rc.11: a request word narrows the parallel copies only when the code names that copy with it.
+- rc.10: the Story subagent looks for parallel copies of the touched behavior (the same file or component under sibling site, brand, platform or locale folders). When the request names none of them, the Story covers every copy; it never assumes one copy and puts the rest into OUT. A word in the request narrows the scope only when the code names that copy with it (the Story subagent searches the code for the word; one the code uses for an environment does not narrow), else it asks `OPEN BLOCKING`.
+- rc.9: named Gradle tests run in the module whose `src/test` holds them, each after its own task (`:a:test --tests A :b:test --tests B`). Gradle applies `--tests` to the task just before it, so one shared list after several tasks ran every test of the first module and failed the last with "No tests found"; a root folder in `--scope` did the same through the root `test` task. A test with no file found stays with the scope's tasks.
+- rc.8: the Story subagent explores itself (no separate explorers); the implementer ends with `complete implement --tests …` as its GREEN run and runs RED only when the test compiles against existing code; the reviewer drafts the four G4 lines; G1 approval and `go`, and G4 reply and `approve`, each take one Bash call. A cleanup kill that a sandbox refuses after the command exited (a forked Gradle daemon) is recorded as `cleanupError` and no longer fails a passing check. `--tests` and `--scope` take several values after one flag.
+- rc.7: the reviewer only reads (no builds or test runs), and the implementer runs its new tests once RED and once GREEN.
+- rc.6: the main session never sleeps or polls for subagent results.
+- rc.5: an Opus subagent drafts the Story (scope judgment); To-be must remove the pain the request describes, and what that needs never goes to OUT.
+- rc.4: `complete implement --tests` (and light `check --tests`) runs the checks on the tests the change wrote or touched, and later nodes reuse that receipt; a failure only in untouched tests is noted, not investigated. The main session never edits code after implementation.
+- rc.3: the brief shows each check's command; `--scope` repeats per module; a failing check's tail keeps stdout and drops JVM notices; `approve G1` works when Status already says Approved. The implementer runs only its own tests while iterating, the reviewer writes its findings file, and review plus verify take one call.
+- `references/fast-path.md` is the model-facing playbook for the normal path: a strong-tier Story subagent that explores, a mid-tier implementer that runs the checks, then a read-only mid-tier reviewer. The main session never reads code.
+
+### Cost and time
+
+- Graph bookkeeping moves into the CLI:
+  - `begin` starts a node and returns a compact brief; `complete` runs its checks, records the result and routes a fix back to the implementation node.
+  - `profile` writes the check profile from `package.json`, `tsconfig.json` or `gradlew`; `baseline` runs the checks once on unchanged code before implementation.
+  - A passing receipt is reused for the same check on the same code, so final verification no longer reruns a check the implementation step already passed.
+- A light lane for small, reversible, single-module work: `light`, `check`, `review` and `delivery`, without a Graph run. `Lane:` sits in the Story footer and stays out of the G1 hash.
+- The main session keeps the Story, G1, the plan and G4. A mid-tier subagent explores the code before the Story, implements (escalating to the main model after two failed attempts) and reviews. One reviewer by default, two for G3 Stories.
+- One focused test per Verify item; a second only for a distinct failure path.
+- `graph-engineering.md` is split into `graph-minimal.md` and `graph-advanced.md`.
+
+### Story template v2
+
+- The Story template follows Goal, Domain, Decisions, MUST, SHOULD, OUT, Verify, then a record footer:
+  - Goal is three numbered lines: As-is, To-be, Unchanged.
+  - Terms and Invariant are numbered lists.
+  - D/M/S/O items use a title line with nested numbers; results that happen together join with `+`.
+  - `Status:`, `Owner:` and the gate lines sit below Verify after a `---` line.
+- The checker and the Jira preview accept both the 5.3.0 order and v2, so in-flight Stories keep passing.
+  - A v2 Story needs the three Goal labels.
+  - `Status:` and `Owner:` must appear once in the preamble and footer, and each gate line once. Prose that starts with those words inside a section stays content.
+  - The footer is the final run of record lines after Verify, with or without `---`.
+- Jira publication reads Status and G1 from the preamble or the footer, outside fences. The preview drops the footer, including `G4: APPROVED` lines.
+
+### G4 with an AI summary
+
+- New default mode `ai-summary`:
+  - The agent writes four numbered lines: user-facing change, rules kept and failure behavior, tests that verified it, what is unverified.
+  - The human approves explicitly.
+  - The record is `Understanding gate (G4): … · Mode: ai-summary` plus `G4: APPROVED — <owner> approved the AI summary`.
+- `human-restatement` (the previous gate) stays available, and it is required for Stories with a G3 decision. The checker and `graph delivery` reject `ai-summary` for them.
+- `graph delivery` checks the G4 JSON: its `mode` must match the Story, and an `ai-summary` record needs `summary` (the four lines) and `approvalText` (the human's reply).
+
 ## 5.3.0 — 2026-11-05
 
 ### Upgrade checks

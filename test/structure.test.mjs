@@ -35,7 +35,7 @@ test('story contract keeps one human-readable source of truth', async () => {
     assert.match(story, new RegExp(heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
   assert.doesNotMatch(story, /Implementation approach|Change surfaces/);
-  assert.ok(nonEmptyLines(story) <= 36, `Story template has ${nonEmptyLines(story)} non-empty lines`);
+  assert.ok(nonEmptyLines(story) <= 37, `Story template has ${nonEmptyLines(story)} non-empty lines`);
 });
 
 test('task is one-screen and does not duplicate the implementation plan', async () => {
@@ -120,15 +120,28 @@ test('payment lens asks how a changed charge is rolled back', async () => {
 
 test('G4 forces prediction before explanation and checks evidence boundaries', async () => {
   const gate = await read('skills/workflow/references/understanding-gate.md');
-  const rawIndex = gate.indexOf('raw diff');
-  const askIndex = gate.indexOf('END THE TURN');
-  const revealIndex = gate.indexOf('compare');
+  // Prediction before reveal is the human-restatement procedure; check its order inside that section.
+  const restatement = gate.slice(gate.indexOf('## Mode `human-restatement`'));
+  const rawIndex = restatement.indexOf('raw diff');
+  const askIndex = restatement.indexOf('END THE TURN');
+  const revealIndex = restatement.indexOf('compare');
   assert.ok(rawIndex >= 0 && askIndex > rawIndex && revealIndex > askIndex);
   assert.match(gate, /behavior/i);
   assert.match(gate, /invariant|failure path/i);
   assert.match(gate, /unproven|evidence boundary/i);
   assert.match(gate, /restatement/i);
   assert.match(gate, /G4: PASS/);
+  // Two modes: an AI summary the human approves by default, human restatement on request and for G3 work.
+  assert.match(gate, /## Mode `ai-summary`/);
+  assert.match(gate, /## Mode `human-restatement`/);
+  for (const label of ['사용자가 겪는 변화', '지킨 규칙과 실패할 때 동작', '확인한 테스트', '확인하지 못한 것']) {
+    assert.ok(gate.includes(label), label);
+  }
+  assert.match(gate, /G4: APPROVED/);
+  assert.match(gate, /G3[^\n]*human-restatement|human-restatement[^\n]*G3/);
+  const skill = await read('skills/workflow/SKILL.md');
+  assert.match(skill, /ai-summary/);
+  assert.doesNotMatch(skill, /Keep G4 prediction-before-reveal intact/);
 });
 
 test('distribution manifests point at the canonical skill', async () => {
@@ -173,4 +186,126 @@ test('gate references and the managed block name the checker command, not just t
 
   const { MANAGED_BLOCK } = await import('../src/managed-block.mjs');
   assert.match(MANAGED_BLOCK, command, 'the managed block must name the checker command');
+});
+
+test('the shipped Story template uses the v2 layout and a record footer', async () => {
+  const { STORY_LAYOUTS } = await import('../assets/check.mjs');
+  const story = await read('skills/workflow/assets/STORY.md');
+  const headings = [...story.matchAll(/^##\s+(.+?)\s*$/gmu)].map((match) => match[1]);
+  assert.deepEqual(headings, [...STORY_LAYOUTS.v2]);
+  for (const label of ['1. As-is:', '2. To-be:', '3. Unchanged:']) assert.ok(story.includes(label), label);
+  const footer = story.slice(story.lastIndexOf('\n---\n'));
+  assert.match(footer, /^Status:/mu);
+  assert.match(footer, /^Understanding gate \(G4\):/mu);
+  assert.match(footer, /^Lane: /mu);
+});
+
+const reference = (name) => read(`skills/workflow/references/${name}`);
+
+test('every fast-path step SKILL.md names exists', async () => {
+  const skill = await read('skills/workflow/SKILL.md');
+  const steps = (await reference('fast-path.md')).split('\n').filter(line => /^\d+\. /.test(line)).length;
+  const named = [...skill.matchAll(/fast-path\.md` steps? (\d+)(?:[–-](\d+))?/g)];
+  assert.ok(named.length >= 3);
+  for (const [text, from, to] of named) assert.ok(Number(to ?? from) <= steps, `${text} (fast-path has ${steps} steps)`);
+  // Together the routes cover every step once.
+  const covered = named.flatMap(([, from, to]) => Array.from({ length: Number(to ?? from) - Number(from) + 1 }, (_, i) => Number(from) + i));
+  assert.deepEqual(covered, Array.from({ length: steps }, (_, i) => i + 1));
+});
+
+test('SKILL.md routes the normal path through the model-facing fast path', async () => {
+  const skill = await read('skills/workflow/SKILL.md');
+  for (const state of ['No approved Story', 'Approved, not implemented', 'Implemented or']) {
+    assert.match(skill.split('\n').find((line) => line.includes(state)), /fast-path\.md/, state);
+  }
+  const fast = await reference('fast-path.md');
+  // 5400 before rc.18; the DIRECT paragraph adds about 430 bytes.
+  assert.ok(Buffer.byteLength(fast) <= 5900, `fast-path.md has ${Buffer.byteLength(fast)} bytes`);
+  for (const command of ['approve G1', 'go', 'complete', 'approve G4', 'check', 'review']) assert.match(fast, new RegExp(`graph\\.mjs ${command}`));
+  assert.match(fast, /one message/i);
+  assert.match(fast, /model: opus/);
+  assert.match(fast, /model: sonnet/);
+  assert.match(fast, /never read code/i);
+  assert.match(fast, /never write a test runner/i);
+  const minimal = await reference('graph-minimal.md');
+  for (const command of ['go', 'begin', 'complete', 'delivery']) assert.match(minimal, new RegExp(`graph\\.mjs ${command}`));
+  assert.match(await reference('graph-advanced.md'), /graph\.mjs record/);
+  assert.ok(nonEmptyLines(await reference('graph-engineering.md')) <= 3);
+  const light = await reference('light-lane.md');
+  for (const command of ['light', 'check', 'review', 'delivery']) assert.match(light, new RegExp(`graph\\.mjs ${command}`));
+  for (const rule of [/reversible/, /one module/, /external contract/, /persistent data/, /domain-risks\.md/]) assert.match(light, rule);
+});
+
+test('light lane reading is small', async () => {
+  const files = ['skills/workflow/references/intake.md', 'skills/workflow/assets/STORY.md', 'skills/workflow/references/light-lane.md'];
+  const bytes = (await Promise.all(files.map(read))).reduce((sum, text) => sum + Buffer.byteLength(text), 0);
+  assert.ok(bytes < 12000, `light lane reading is ${bytes} bytes`);
+});
+
+test('model-selection names the implementer tier and escalation', async () => {
+  const text = await reference('model-selection.md');
+  for (const phrase of [/mid tier/, /two failed attempts/, /main model/]) assert.match(text, phrase);
+});
+
+test('execution limits tests to one per Verify item', async () => {
+  const text = await reference('execution.md');
+  assert.match(text, /one focused test per Verify item/i);
+  assert.match(text, /second[^.]*distinct failure path/i);
+});
+
+test('every sentence of the request maps to a MUST or to OUT with a reason', async () => {
+  for (const file of ['fast-path.md', 'intake.md']) {
+    assert.match(await reference(file), /every (?:request )?sentence(?: of the request)? maps to a MUST/i, file);
+  }
+});
+
+test('ASSUMED defaults reuse the place and values the code already has', async () => {
+  for (const file of ['fast-path.md', 'intake.md']) {
+    const text = await reference(file);
+    assert.match(text, /`?ASSUMED`? defaults come from the code/i, file);
+    assert.match(text, /already (?:receives|has)/i, file);
+  }
+});
+
+test('the implementer never changes build or test config to run a test', async () => {
+  const text = await reference('fast-path.md');
+  assert.match(text, /never change build or test config/i);
+});
+
+test('the Story covers every parallel copy of the behavior the request leaves unnamed', async () => {
+  for (const file of ['fast-path.md', 'intake.md']) {
+    const text = await reference(file);
+    assert.match(text, /parallel copies/, file);
+    assert.match(text, /never `?ASSUMED`? one copy/i, file);
+    // The CLI lists the copies, whoever drafts the Story; its rule says when a request word narrows them.
+    assert.match(text, /graph\.mjs copies/, file);
+  }
+});
+
+test('intake delegates code reading to the Story subagent, which explores first', async () => {
+  const text = await reference('intake.md');
+  assert.match(text, /Story subagent/);
+  assert.match(text, /explores first/);
+  assert.match(text, /\bmap\b/);
+  assert.match(text, /Lane: light/);
+});
+
+test('a small change with nothing to decide takes the direct lane: no Story, gates or subagents', async () => {
+  const fast = await reference('fast-path.md');
+  const direct = fast.split('\n').find(line => line.startsWith('DIRECT'));
+  assert.ok(direct, 'fast-path.md has a DIRECT paragraph');
+  assert.match(direct, /nothing to decide/);
+  assert.match(direct, /graph\.mjs copies/);
+  assert.match(direct, /light-lane rules/);
+  assert.match(direct, /one focused test/);
+  assert.match(direct, /step 1/);
+  assert.match(await read('skills/workflow/SKILL.md'), /except the direct lane/i);
+});
+
+test('the review subagent stays, and the implementer runs a new test RED once when it compiles', async () => {
+  const fast = await reference('fast-path.md');
+  assert.match(fast, /REVIEW: one Agent `model: sonnet`, read-only/);
+  assert.match(fast, /run a new test RED once only when it compiles against existing code/);
+  assert.doesNotMatch(fast, /SELF-CHECK/);
+  assert.match(await reference('light-lane.md'), /Dispatch one mid-tier reviewer/);
 });

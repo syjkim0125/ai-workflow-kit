@@ -14,19 +14,21 @@ Before model dispatch, apply `references/model-selection.md` using the host's av
 
 ## Non-negotiable gates
 
+Every change except the direct lane in `references/fast-path.md` (one stated behavior, nothing to decide, light-lane rules hold):
+
 - Do not plan implementation or edit production code before the Story is `Approved` and G1 is recorded.
-- Do not declare delivery complete or merge a non-trivial change before G4 passes.
+- Do not declare delivery complete or merge non-trivial changes before G4 passes.
 - Requirements have one source of truth; copies must not diverge.
 
 ## Explain before asking
 
-Before G1/G3, explain the problem, change, safety rule and verification plainly. Keep G4 prediction-before-reveal intact.
+Before G1/G3, explain the problem, change, safety rule and verification plainly. G4: `ai-summary`; `human-restatement` for G3 Stories.
 
 ## Route by current state
 
-1. **No approved Story:** read `references/intake.md` and `references/domain-risks.md`. Use `assets/STORY.md`; ask only missing behavior questions and obtain G1.
-2. **Approved, not implemented:** read `references/execution.md` and `references/graph-engineering.md`. Automatically initialize/resume the installed Graph CLI; use the minimal plan for small work. Read `references/domain-risks.md` for relevant risks. Create a Task only when one PR is not reviewable.
-3. **Implemented or `finish`:** complete pending checks in `references/execution.md`, then follow `references/understanding-gate.md` for G4.
+1. **No approved Story:** follow `references/fast-path.md` steps 1–2. Risk lenses: `references/domain-risks.md`; open ideas and question rules: `references/intake.md`.
+2. **Approved, not implemented:** `references/fast-path.md` steps 3–5, both lanes. G3, custom plans or roles: `references/execution.md`, `references/graph-minimal.md`, `references/light-lane.md`.
+3. **Implemented or `finish`:** `references/fast-path.md` step 6; `human-restatement` per `references/understanding-gate.md`.
 4. **`status`:** run the existing graph's `status` command; report stage, blocking decision, evidence and next action. Without a run, report the Story stage.
 
 Use the user's language. State assumptions, evidence limits and human-owned decisions.

@@ -9,7 +9,8 @@ const outputPaths = ['.ai-workflow/runs', '.ai-workflow/evidence', '.ai-workflow
 const inside = (parent, file) => file === parent || file.startsWith(`${parent}/`);
 
 export function canonicalStory(text) {
-  return text.split(/\r?\n/).filter(line => !/^(?:Status:|Understanding gate \(G[134]\):|G4:)/i.test(line)).join('\n').trim();
+  // Lane moves with the work (light → standard) without a new G1, like Status.
+  return text.split(/\r?\n/).filter(line => !/^(?:Status:|Lane:|Understanding gate \(G[134]\):|G4:)/i.test(line)).join('\n').trim();
 }
 
 function relativePath(value) {
